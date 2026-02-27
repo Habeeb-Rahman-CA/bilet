@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { invoke } from "@tauri-apps/api/core";
 import { FormsModule } from '@angular/forms';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 interface Note {
   id: number;
@@ -48,5 +49,20 @@ export class AppComponent {
   async deleteNote(id: number) {
     this.notes = this.notes.filter(n => n.id !== id);
     await this.saveNotes();
+  }
+
+  async minimize() {
+    const appWindow = getCurrentWindow();
+    await appWindow.minimize();
+  }
+
+  async maximize() {
+    const appWindow = getCurrentWindow();
+    await appWindow.toggleMaximize();
+  }
+
+  async close() {
+    const appWindow = getCurrentWindow();
+    await appWindow.close();
   }
 }

@@ -12,9 +12,10 @@
   "app": {
     "windows": [
       {
-        "title": "first-tauri-app",
+        "title": "Tuari Note App",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "decorations": false
       }
     ],
     "security": {
