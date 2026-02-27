@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { FormsModule } from '@angular/forms';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { debounceTime, Subject } from 'rxjs';
+import Database from '@tauri-apps/plugin-sql';
 
 
 interface Note {
@@ -20,44 +21,85 @@ interface Note {
   styleUrl: './app.component.css'
 })
 export class AppComponent {
+  db!: Database;
   notes: Note[] = [];
   newNote = '';
-
-  saveTrigger = new Subject<void>();
+  editingNoteId: number | null = null;
+  editContent = '';
 
   async ngOnInit() {
-    const data = await invoke<string>('read_notes');
-    this.notes = JSON.parse(data);
-
-    this.saveTrigger
-      .pipe(debounceTime(500))
-      .subscribe(() => {
-        this.saveNotes();
-      });
+    console.log('Loading database...');
+    try {
+      this.db = await Database.load('sqlite:notes.db');
+      console.log('Database loaded successfully');
+      await this.loadNotes();
+    } catch (err) {
+      console.error('Failed to load database:', err);
+    }
   }
 
-  async saveNotes() {
-    await invoke('save_notes', {
-      content: JSON.stringify(this.notes),
-    });
+  async loadNotes() {
+    this.notes = await this.db.select<Note[]>(
+      'SELECT * FROM notes'
+    );
+    console.log(`Loaded ${this.notes.length} notes`);
   }
 
   async addNote() {
+    console.log('Adding note...', this.newNote);
+    if (!this.db) {
+      console.warn('Database not initialized');
+      return;
+    }
     if (!this.newNote.trim()) return;
 
-    const note: Note = {
-      id: Date.now(),
-      content: this.newNote,
-    };
+    try {
+      await this.db.execute(
+        'INSERT INTO notes (content) VALUES (?1)',
+        [this.newNote]
+      );
+      console.log('Note added to DB');
+      this.newNote = '';
+      await this.loadNotes();
+    } catch (err) {
+      console.error('Failed to add note:', err);
+    }
+  }
 
-    this.notes.push(note);
-    this.newNote = '';
-    this.saveTrigger.next();
+  startEdit(note: Note) {
+    this.editingNoteId = note.id;
+    this.editContent = note.content;
+  }
+
+  cancelEdit() {
+    this.editingNoteId = null;
+    this.editContent = '';
+  }
+
+  async updateNote() {
+    if (!this.db || !this.editContent.trim() || this.editingNoteId === null) return;
+
+    try {
+      await this.db.execute(
+        'UPDATE notes SET content = ?1 WHERE id = ?2',
+        [this.editContent, this.editingNoteId]
+      );
+      this.editingNoteId = null;
+      this.editContent = '';
+      await this.loadNotes();
+    } catch (err) {
+      console.error('Failed to update note:', err);
+    }
   }
 
   async deleteNote(id: number) {
-    this.notes = this.notes.filter(n => n.id !== id);
-    this.saveTrigger.next();
+    if (!this.db) return;
+    await this.db.execute(
+      'DELETE FROM notes WHERE id = ?1',
+      [id]
+    );
+
+    await this.loadNotes();
   }
 
   async minimize() {

@@ -1,28 +1,43 @@
 <div class="titlebar">
-  <div class="drag-area">
-    📝 Tauri Notes
-  </div>
-
   <div class="window-controls">
-    <button (click)="minimize()">—</button>
-    <button (click)="maximize()">⬜</button>
-    <button (click)="close()">✕</button>
+    <button class="control close" (click)="close()"></button>
+    <button class="control minimize" (click)="minimize()"></button>
+    <button class="control maximize" (click)="maximize()"></button>
   </div>
+  <div class="title-text">Habeebu's Note</div>
 </div>
+
 <main class="container">
-  <div style="padding: 20px">
-    <h2>Tauri Notes App</h2>
+  <h2>My Notes</h2>
 
-    <input [(ngModel)]="newNote" (ngModelChange)="saveTrigger.next()" placeholder="Write note..." />
+  <div class="input-group">
+    <input [(ngModel)]="newNote" placeholder="Write a new note..." (keyup.enter)="addNote()" />
+    <button class="primary" (click)="addNote()">Add</button>
+  </div>
 
-    <button (click)="addNote()">Add</button>
+  <div class="notes-list">
+    <div class="note-card" *ngFor="let note of notes">
 
-    <hr />
+      <!-- Normal View -->
+      <div *ngIf="editingNoteId !== note.id; else editView">
+        <p class="note-content">{{ note.content }}</p>
+        <div class="card-actions">
+          <button class="btn-link" (click)="startEdit(note)">Edit</button>
+          <button class="btn-link" (click)="deleteNote(note.id)">Delete</button>
+        </div>
+      </div>
 
-    <div *ngFor="let note of notes">
-      <p>{{ note.content }}</p>
-      <button (click)="deleteNote(note.id)">Delete</button>
-      <hr />
+      <!-- Edit View -->
+      <ng-template #editView>
+        <div class="edit-mode">
+          <input [(ngModel)]="editContent" (keyup.enter)="updateNote()" autofocus />
+          <div class="edit-actions">
+            <button class="btn-link" (click)="updateNote()">Save Changes</button>
+            <button class="btn-link" (click)="cancelEdit()">Cancel</button>
+          </div>
+        </div>
+      </ng-template>
+
     </div>
   </div>
 </main>

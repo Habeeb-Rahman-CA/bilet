@@ -1,42 +1,59 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::fs;
-use std::path::PathBuf;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
-
-#[tauri::command]
-fn save_notes(app_handle: tauri::AppHandle, content: String) -> Result<(), String> {
-    let mut path = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
-
-    fs::create_dir_all(&path).map_err(|e| e.to_string())?;
-
-    path.push("notes.json");
-
-    fs::write(path, content).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn read_notes(app_handle: tauri::AppHandle) -> Result<String, String> {
-    let mut path = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
-
-    path.push("notes.json");
-
-    if path.exists() {
-        fs::read_to_string(path).map_err(|e| e.to_string())
-    } else {
-        Ok(String::from("[]"))
-    }
-}
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![save_notes, read_notes])
+        .plugin(
+            tauri_plugin_sql::Builder::default()
+                .add_migrations(
+                    "sqlite:notes.db",
+                    vec![tauri_plugin_sql::Migration {
+                        version: 1,
+                        description: "create notes table",
+                        sql: "
+                            CREATE TABLE IF NOT EXISTS notes (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                content TEXT NOT NULL
+                            );
+                        ",
+                        kind: tauri_plugin_sql::MigrationKind::Up,
+                    }],
+                )
+                .build(),
+        )
+        .setup(|app| {
+            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let show_i = MenuItem::with_id(app, "show", "Show App", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+
+            let _tray = TrayIconBuilder::new()
+                .menu(&menu)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .build(app)?;
+
+            Ok(())
+        })
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                window.hide().unwrap();
+                api.prevent_close();
+            }
+            _ => {}
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
