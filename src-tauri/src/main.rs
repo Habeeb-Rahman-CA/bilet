@@ -25,6 +25,7 @@ struct Note {
     id: i64,
     content: String,
     timestamp: String,
+    is_pinned: bool,
 }
 
 // Internal structure to handle DB + Key
@@ -98,13 +99,15 @@ async fn unlock_db(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nonce BLOB NOT NULL,
             ciphertext BLOB NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            is_pinned BOOLEAN DEFAULT 0
         )",
         [],
     )
     .map_err(|e| e.to_string())?;
 
-    // Migration: Add created_at if it doesn't exist
+    // Migration: Add is_pinned if it doesn't exist
+    let mut has_is_pinned = false;
     let mut has_created_at = false;
     {
         let mut stmt = conn
@@ -113,23 +116,29 @@ async fn unlock_db(
         let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
         while let Some(row) = rows.next().map_err(|e| e.to_string())? {
             let name: String = row.get(1).map_err(|e| e.to_string())?;
+            if name == "is_pinned" {
+                has_is_pinned = true;
+            }
             if name == "created_at" {
                 has_created_at = true;
-                break;
             }
         }
     }
 
     if !has_created_at {
-        conn.execute(
+        let _ = conn.execute(
             "ALTER TABLE secure_notes ADD COLUMN created_at DATETIME",
             [],
-        )
-        .map_err(|e| e.to_string())?;
-
-        // Set a timestamp for existing rows that didn't have one
+        );
         let _ = conn.execute(
             "UPDATE secure_notes SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL",
+            [],
+        );
+    }
+
+    if !has_is_pinned {
+        let _ = conn.execute(
+            "ALTER TABLE secure_notes ADD COLUMN is_pinned BOOLEAN DEFAULT 0",
             [],
         );
     }
@@ -149,7 +158,7 @@ fn get_notes(state: State<'_, DbState>) -> Result<Vec<Note>, String> {
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, nonce, ciphertext, created_at FROM secure_notes ORDER BY created_at DESC",
+            "SELECT id, nonce, ciphertext, created_at, is_pinned FROM secure_notes ORDER BY is_pinned DESC, created_at DESC",
         )
         .map_err(|e| e.to_string())?;
 
@@ -159,6 +168,7 @@ fn get_notes(state: State<'_, DbState>) -> Result<Vec<Note>, String> {
             let nonce_bytes: Vec<u8> = row.get(1)?;
             let ciphertext: Vec<u8> = row.get(2)?;
             let timestamp: String = row.get(3).unwrap_or_default();
+            let is_pinned: bool = row.get(4).unwrap_or(false);
 
             let nonce = Nonce::from_slice(&nonce_bytes);
             let decrypted = cipher
@@ -172,6 +182,7 @@ fn get_notes(state: State<'_, DbState>) -> Result<Vec<Note>, String> {
                 id,
                 content,
                 timestamp,
+                is_pinned,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -241,6 +252,20 @@ fn delete_note(id: i64, state: State<'_, DbState>) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn toggle_pin(id: i64, state: State<'_, DbState>) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+
+    conn.execute(
+        "UPDATE secure_notes SET is_pinned = NOT is_pinned WHERE id = ?1",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok("Toggled".to_string())
+}
+
+#[tauri::command]
 fn lock_vault(state: State<'_, DbState>) -> Result<String, String> {
     let mut db_lock = state.0.lock().unwrap();
     *db_lock = None;
@@ -262,7 +287,8 @@ fn main() {
             get_notes,
             add_note,
             update_note,
-            delete_note
+            delete_note,
+            toggle_pin
         ])
         .setup(|app| {
             let ctrl_shift_n =

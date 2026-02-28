@@ -77,7 +77,14 @@
 
       <!-- Normal View -->
       <div *ngIf="editingNoteId !== note.id; else editView" class="note-wrapper">
-        <p class="note-content">{{ note.content }}</p>
+        <div class="note-header">
+          <p class="note-content">{{ note.content }}</p>
+          <div class="pin-icon" *ngIf="note.is_pinned">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11V22L12,23L13,22V16H18V14L16,12Z" />
+            </svg>
+          </div>
+        </div>
         <span class="note-date">{{ formatDate(note.timestamp) }}</span>
 
         <!-- Small Confirmation Overlay -->
@@ -110,6 +117,7 @@
       <div class="shortcut-item"><span>Ctrl + A</span> Focus New Note Input</div>
       <div class="shortcut-item"><span>Ctrl + L</span> Focus Notes List</div>
       <div class="shortcut-item"><span>Ctrl + F</span> Open Search</div>
+      <div class="shortcut-item"><span>Ctrl + P</span> Pin / Unpin Note</div>
       <div class="shortcut-item"><span> ↑ / ↓ </span> Navigate Notes</div>
       <div class="shortcut-item"><span>Ctrl + E</span> Edit Selected Note</div>
       <div class="shortcut-item"><span>Ctrl + S</span> Save While Editing</div>
@@ -132,7 +140,14 @@
     <div class="search-results scrollable" *ngIf="searchQuery.trim()">
       <div class="search-result-item" *ngFor="let note of getFilteredNotes()" (click)="selectSearchResult(note)"
         [class.selected]="selectedNoteId === note.id">
-        <p class="search-preview">{{ note.content }}</p>
+        <div class="search-info">
+          <p class="search-preview">{{ note.content }}</p>
+          <div class="pin-icon mini" *ngIf="note.is_pinned">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11V22L12,23L13,22V16H18V14L16,12Z" />
+            </svg>
+          </div>
+        </div>
         <span class="search-date">{{ formatDate(note.timestamp) }}</span>
       </div>
       <div class="empty-state" *ngIf="getFilteredNotes().length === 0">

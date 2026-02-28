@@ -10,6 +10,7 @@ interface Note {
   id: number;
   content: string;
   timestamp: string;
+  is_pinned: boolean;
 }
 
 type AuthStatus = 'SetupRequired' | 'Locked' | 'Unlocked';
@@ -218,12 +219,23 @@ export class AppComponent implements AfterViewChecked {
       }
     }
 
+    // Confirm Deletion (Enter)
+    if (event.key === 'Enter' && this.isConfirmingDeleteId !== null) {
+      event.preventDefault();
+      this.deleteNote(this.isConfirmingDeleteId);
+      return;
+    }
+
+    // Toggle Pin (Ctrl + P)
+    if (event.ctrlKey && event.key.toLowerCase() === 'p') {
+      event.preventDefault();
+      if (this.selectedNoteId !== null) {
+        this.togglePin(this.selectedNoteId);
+      }
+    }
+
     // While Confirming Delete
     if (this.isConfirmingDeleteId !== null) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        this.deleteNote(this.isConfirmingDeleteId);
-      }
       if (event.key === 'Escape') {
         event.preventDefault();
         this.isConfirmingDeleteId = null;
@@ -458,6 +470,15 @@ export class AppComponent implements AfterViewChecked {
     this.showSearch = false;
     this.selectedNoteId = note.id;
     this.scrollSelectedIntoView();
+  }
+
+  async togglePin(id: number) {
+    try {
+      await invoke('toggle_pin', { id });
+      await this.loadNotes();
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async minimize() { await getCurrentWindow().minimize(); }
