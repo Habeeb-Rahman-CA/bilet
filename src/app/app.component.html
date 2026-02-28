@@ -104,7 +104,7 @@
     </div>
 
     <div class="empty-state" *ngIf="notes.length === 0">
-      <p>No notes found. Start by adding one above!</p>
+      <p>No <b>bilets</b> found. Start by adding one above!</p>
     </div>
   </div>
 </main>
@@ -114,14 +114,14 @@
   <div class="help-content" (click)="$event.stopPropagation()">
     <h2>Keyboard Shortcuts</h2>
     <div class="shortcut-list">
-      <div class="shortcut-item"><span>Ctrl + A</span> Focus New Note Input</div>
-      <div class="shortcut-item"><span>Ctrl + L</span> Focus Notes List</div>
+      <div class="shortcut-item"><span>Ctrl + A</span> Focus Input</div>
+      <div class="shortcut-item"><span>Ctrl + L</span> Focus List</div>
       <div class="shortcut-item"><span>Ctrl + F</span> Open Search</div>
-      <div class="shortcut-item"><span>Ctrl + P</span> Pin / Unpin Note</div>
-      <div class="shortcut-item"><span> ↑ / ↓ </span> Navigate Notes</div>
-      <div class="shortcut-item"><span>Ctrl + E</span> Edit Selected Note</div>
-      <div class="shortcut-item"><span>Ctrl + S</span> Save While Editing</div>
-      <div class="shortcut-item"><span>Ctrl + D</span> Delete Selected Note</div>
+      <div class="shortcut-item"><span>Ctrl + P</span> Pin / Unpin</div>
+      <div class="shortcut-item"><span> ↑ / ↓ </span> Navigate</div>
+      <div class="shortcut-item"><span>Ctrl + E</span> Edit</div>
+      <div class="shortcut-item"><span>Ctrl + S</span> Save</div>
+      <div class="shortcut-item"><span>Ctrl + D</span> Delete</div>
       <div class="shortcut-item"><span>Enter</span> Confirm Selection / Action</div>
       <div class="shortcut-item"><span>Esc</span> Cancel / Close Help</div>
     </div>
@@ -132,7 +132,7 @@
 <!-- Search Modal -->
 <div class="help-overlay search-overlay" *ngIf="showSearch" (click)="showSearch = false">
   <div class="help-content search-content" (click)="$event.stopPropagation()">
-    <h2>Search Notes</h2>
+    <h2>Search Keywords</h2>
     <div class="search-input-wrapper">
       <input #searchInput [(ngModel)]="searchQuery" placeholder="Type to search..." />
     </div>
