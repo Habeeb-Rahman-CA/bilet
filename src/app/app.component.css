@@ -56,6 +56,8 @@ body {
 .window-controls {
   display: flex;
   gap: 8px;
+  width: 100px;
+  /* Fixed width to balance with header-actions */
   -webkit-app-region: no-drag;
 }
 
@@ -92,11 +94,93 @@ body {
   flex-grow: 1;
   text-align: center;
   font-size: 13px;
-  font-weight: 500;
-  margin-right: 52px;
-  /* Offset to keep text centered relative to buttons */
+  font-weight: 600;
   color: var(--text-color);
-  opacity: 0.7;
+  opacity: 0.8;
+  letter-spacing: 0.5px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100px;
+  /* Balance with window-controls */
+  -webkit-app-region: no-drag;
+}
+
+.startup-toggle {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
+  opacity: 0.3;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  position: relative;
+  /* Added for tooltip positioning */
+}
+
+.tooltip {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--text-color);
+  color: var(--bg-color);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+  margin-top: 10px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-5px);
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  right: 8px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent var(--text-color) transparent;
+}
+
+.startup-toggle:hover .tooltip {
+  opacity: 0.95;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.startup-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.startup-toggle:hover {
+  opacity: 0.8;
+  background: var(--hover-color);
+}
+
+.startup-toggle.enabled {
+  opacity: 1;
+  color: var(--mac-maximize);
+  /* Using the green from mac controls */
+}
+
+.startup-toggle.enabled:hover {
+  background: rgba(39, 201, 63, 0.1);
 }
 
 /* Content Container */

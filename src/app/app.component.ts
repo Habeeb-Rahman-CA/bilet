@@ -1,12 +1,10 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { invoke } from "@tauri-apps/api/core";
 import { FormsModule } from '@angular/forms';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { debounceTime, Subject } from 'rxjs';
 import Database from '@tauri-apps/plugin-sql';
-
+import { enable, disable, isEnabled } from '@tauri-apps/plugin-autostart';
 
 interface Note {
   id: number;
@@ -26,8 +24,14 @@ export class AppComponent {
   newNote = '';
   editingNoteId: number | null = null;
   editContent = '';
+  autoStartEnabled = false;
 
   async ngOnInit() {
+    try {
+      this.autoStartEnabled = await isEnabled();
+    } catch (err) {
+      console.warn('Autostart plugin not available:', err);
+    }
     console.log('Loading database...');
     try {
       this.db = await Database.load('sqlite:notes.db');
@@ -37,7 +41,18 @@ export class AppComponent {
       console.error('Failed to load database:', err);
     }
   }
-
+  async toggleAutoStart() {
+    try {
+      if (this.autoStartEnabled) {
+        await disable();
+      } else {
+        await enable();
+      }
+      this.autoStartEnabled = await isEnabled();
+    } catch (err) {
+      console.error('Failed to toggle autostart:', err);
+    }
+  }
   async loadNotes() {
     this.notes = await this.db.select<Note[]>(
       'SELECT * FROM notes'
