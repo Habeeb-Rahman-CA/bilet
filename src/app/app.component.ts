@@ -33,6 +33,7 @@ export class AppComponent implements AfterViewChecked {
   isConfirmingDeleteId: number | null = null;
   editContent = '';
   autoStartEnabled = false;
+  showHelp = false;
 
   // Vault Status
   authStatus: AuthStatus = 'Locked';
@@ -90,11 +91,18 @@ export class AppComponent implements AfterViewChecked {
 
     if (this.authStatus !== 'Unlocked') return;
 
+    // Toggle Help (Ctrl + H)
+    if (event.ctrlKey && event.key.toLowerCase() === 'h') {
+      event.preventDefault();
+      this.showHelp = !this.showHelp;
+    }
+
     // --- List Navigation & Focus ---
 
     // Ctrl + L: Focus List / Select first note
     if (event.ctrlKey && event.key.toLowerCase() === 'l') {
       event.preventDefault();
+      this.showHelp = false; // Hide if navigating
       if (this.notes.length > 0) {
         if (this.selectedNoteId === null) {
           this.selectedNoteId = this.notes[0].id;
@@ -107,10 +115,20 @@ export class AppComponent implements AfterViewChecked {
     // Ctrl + A: Focus Input
     if (event.ctrlKey && event.key.toLowerCase() === 'a') {
       event.preventDefault();
+      this.showHelp = false;
       this.selectedNoteId = null;
       this.editingNoteId = null;
       this.isConfirmingDeleteId = null;
       this.triggerFocus();
+    }
+
+    // Escape Handler (Global Close)
+    if (event.key === 'Escape') {
+      if (this.showHelp) {
+        this.showHelp = false;
+        event.preventDefault();
+        return; // Consume event if help was open
+      }
     }
 
     // Arrow keys for navigation (only if something is selected and not editing)

@@ -129,6 +129,8 @@ body {
   height: 16px;
 }
 
+.lock-btn,
+.help-btn,
 .startup-toggle {
   background: none;
   border: none;
@@ -142,23 +144,24 @@ body {
   transition: all 0.2s ease;
   border-radius: 4px;
   position: relative;
-  /* Added for tooltip positioning */
 }
 
-.startup-toggle:hover .tooltip {
-  opacity: 0.95;
-  visibility: visible;
-  transform: translateY(0);
-}
 
 .startup-toggle svg {
   width: 16px;
   height: 16px;
 }
 
+.lock-btn:hover,
+.help-btn:hover,
 .startup-toggle:hover {
-  opacity: 0.8;
+  opacity: 1;
   background: var(--hover-color);
+}
+
+.help-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .startup-toggle.enabled {
@@ -368,4 +371,65 @@ button.primary:hover {
   padding: 40px;
   opacity: 0.4;
   font-size: 14px;
+}
+
+/* Help Modal Styling */
+.help-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgb(255, 255, 255);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.help-content {
+  background: var(--bg-color);
+  border: 1px solid #e7e7e7;
+  border-radius: 12px;
+  padding: 32px;
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.help-content h2 {
+  margin-bottom: 24px;
+  font-size: 20px;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+  text-align: left;
+}
+
+.shortcut-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.shortcut-item span {
+  background: var(--hover-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.help-content button.primary {
+  width: 100%;
 }

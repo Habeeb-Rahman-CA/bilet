@@ -21,6 +21,14 @@
         <path d="M12 15v5s3.03-.55 5-2c2.2-1.62 3-5 3-5" />
       </svg>
     </button>
+    <button class="help-btn" (click)="showHelp = !showHelp" title="Keyboard Shortcuts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    </button>
   </div>
 </div>
 
@@ -59,7 +67,7 @@
 <main class="container" *ngIf="authStatus === 'Unlocked'">
 
   <div class="input-group">
-    <input #noteInput [(ngModel)]="newNote" placeholder="Write a new note..." (keyup.enter)="addNote()" />
+    <input #noteInput [(ngModel)]="newNote" placeholder="Write a new bilet..." (keyup.enter)="addNote()" />
   </div>
 
   <div class="notes-list">
@@ -90,3 +98,21 @@
     </div>
   </div>
 </main>
+
+<!-- Help Modal -->
+<div class="help-overlay" *ngIf="showHelp" (click)="showHelp = false">
+  <div class="help-content" (click)="$event.stopPropagation()">
+    <h2>Keyboard Shortcuts</h2>
+    <div class="shortcut-list">
+      <div class="shortcut-item"><span>Ctrl + A</span> Focus New Note Input</div>
+      <div class="shortcut-item"><span>Ctrl + L</span> Focus Notes List</div>
+      <div class="shortcut-item"><span> ↑ / ↓ </span> Navigate Notes</div>
+      <div class="shortcut-item"><span>Ctrl + E</span> Edit Selected Note</div>
+      <div class="shortcut-item"><span>Ctrl + S</span> Save While Editing</div>
+      <div class="shortcut-item"><span>Ctrl + D</span> Delete Selected Note</div>
+      <div class="shortcut-item"><span>Enter</span> Confirm Deletion / Action</div>
+      <div class="shortcut-item"><span>Esc</span> Cancel / Close Help</div>
+    </div>
+    <button class="primary" (click)="showHelp = false">Got it</button>
+  </div>
+</div>
