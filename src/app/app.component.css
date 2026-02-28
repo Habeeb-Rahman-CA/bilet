@@ -42,14 +42,28 @@ body {
   color: var(--text-color);
 }
 
-/* Hide scrollbars globally but allow scrolling */
+/* Minimalist Scrollbar Style */
 ::-webkit-scrollbar {
-  display: none;
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-color);
+  opacity: 0.1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-color);
 }
 
 * {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-color) transparent;
 }
 
 /* Titlebar */
@@ -195,15 +209,8 @@ body {
   padding: 24px;
   box-sizing: border-box;
   overflow-y: auto;
-  scrollbar-width: none;
-  /* Firefox */
-  -ms-overflow-style: none;
-  /* IE/Edge */
-}
-
-.container::-webkit-scrollbar {
-  display: none;
-  /* Chrome/Safari/Brave */
+  height: calc(100vh - 54px);
+  /* Restoring height for scrolling context */
 }
 
 h2 {
@@ -323,7 +330,7 @@ button.primary:hover {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: calc(100vh - 38px);
+  height: calc(100vh - 54px);
   background: var(--bg-color);
   overflow: hidden;
 }
