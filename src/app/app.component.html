@@ -16,20 +16,21 @@
       </svg>
     </button>
 
-    <button class="help-btn" (click)="showBin = true; loadBinNotes()" title="History / Bin">
+    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="showBin = true; loadBinNotes()"
+      title="History / Bin">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
       </svg>
     </button>
 
-    <button class="help-btn" (click)="showHelp = true" title="Keyboard Shortcuts">
+    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="showHelp = true" title="Keyboard Shortcuts">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path
           d="M11.07,12.85C11.17,12.45 11.39,12.11 11.73,11.82C12.07,11.53 12.39,11.23 12.68,10.93C12.97,10.63 13.11,10.3 13.11,9.94C13.11,9.58 12.97,9.27 12.7,9C12.42,8.73 12.07,8.59 11.64,8.59C11.19,8.59 10.84,8.73 10.58,9C10.32,9.27 10.15,9.62 10.08,10.04L8.06,9.22C8.25,8.41 8.65,7.74 9.27,7.21C9.89,6.67 10.68,6.4 11.64,6.4C12.66,6.4 13.5,6.72 14.16,7.35C14.81,7.98 15.14,8.74 15.14,9.65C15.14,10.33 14.96,10.92 14.59,11.4C14.23,11.89 13.78,12.39 13.25,12.91L12.72,13.43C12.56,13.59 12.45,13.75 12.39,13.91C12.33,14.07 12.29,14.34 12.28,14.73H10.19C10.2,14 10.35,13.37 10.61,12.87C10.61,12.87 11.07,12.85 11.07,12.85M12.5,19A1.25,1.25 0 0,1 11.25,17.75A1.25,1.25 0 0,1 12.5,16.5A1.25,1.25 0 0,1 13.75,17.75A1.25,1.25 0 0,1 12.5,19M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
       </svg>
     </button>
 
-    <button class="lock-btn" (click)="lockVault()">
+    <button class="lock-btn" *ngIf="authStatus === 'Unlocked'" (click)="lockVault()">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path
           d="M12,17A2,2 0 0,0 14,15C14,13.89 13.11,13 12,13A2,2 0 0,0 10,15C10,16.11 10.89,17 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" />
@@ -73,7 +74,7 @@
 <main class="container" *ngIf="authStatus === 'Unlocked'">
 
   <div class="input-group">
-    <textarea #noteInput [(ngModel)]="newNote" placeholder="Write a new note..."
+    <textarea #noteInput [(ngModel)]="newNote" placeholder="Write a new task..."
       (keydown.enter)="handleNoteKeyDown($event)" rows="1"></textarea>
   </div>
 

@@ -358,6 +358,16 @@ fn toggle_pin(id: i64, state: State<'_, DbState>) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn toggle_maximize(window: tauri::Window) -> Result<(), String> {
+    if window.is_maximized().unwrap_or(false) {
+        window.unmaximize().map_err(|e| e.to_string())?;
+    } else {
+        window.maximize().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn lock_vault(state: State<'_, DbState>) -> Result<String, String> {
     let mut db_lock = state.0.lock().unwrap();
     *db_lock = None;
@@ -384,7 +394,8 @@ fn main() {
             toggle_pin,
             restore_note,
             permanent_delete_note,
-            clear_bin
+            clear_bin,
+            toggle_maximize
         ])
         .setup(|app| {
             let ctrl_shift_n =

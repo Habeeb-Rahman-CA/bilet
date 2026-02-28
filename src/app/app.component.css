@@ -78,6 +78,10 @@ body {
   user-select: none;
 }
 
+body.maximized .titlebar {
+  border-bottom: none;
+}
+
 .window-controls {
   display: flex;
   gap: 8px;

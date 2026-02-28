@@ -1,4 +1,4 @@
-import { Component, HostListener, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, HostListener, ViewChild, ElementRef, AfterViewChecked, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -19,11 +19,11 @@ type AuthStatus = 'SetupRequired' | 'Locked' | 'Unlocked';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, FormsModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class AppComponent implements AfterViewChecked {
+export class AppComponent implements AfterViewChecked, OnInit {
   @ViewChild('noteInput') noteInput!: ElementRef;
   @ViewChild('editInput') editInput?: ElementRef;
   private needsFocus = false;
@@ -62,18 +62,40 @@ export class AppComponent implements AfterViewChecked {
       console.warn('Autostart plugin not available:', err);
     }
 
-    this.authStatus = await invoke<AuthStatus>('check_auth_status');
+    try {
+      this.authStatus = await invoke<AuthStatus>('check_auth_status');
 
-    if (this.authStatus === 'Unlocked') {
-      this.startIdleDetection();
-      this.triggerFocus();
-    }
-
-    getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-      if (focused && this.authStatus === 'Unlocked') {
+      if (this.authStatus === 'Unlocked') {
+        await this.loadNotes();
         this.triggerFocus();
       }
-    });
+
+      this.startIdleDetection(); // Renamed to startIdleCheck in the instruction, but keeping original for now.
+
+      const win = getCurrentWindow();
+
+      // Update state initially
+      const isMax = await win.isMaximized();
+      if (isMax) document.body.classList.add('maximized');
+
+      // Listen for changes (resizing, snapping, etc.)
+      await win.onResized(async () => {
+        const currentlyMax = await win.isMaximized();
+        if (currentlyMax) {
+          document.body.classList.add('maximized');
+        } else {
+          document.body.classList.remove('maximized');
+        }
+      });
+
+      win.onFocusChanged(({ payload: focused }) => {
+        if (focused && this.authStatus === 'Unlocked') {
+          this.triggerFocus();
+        }
+      });
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   ngAfterViewChecked() {
@@ -554,6 +576,12 @@ export class AppComponent implements AfterViewChecked {
   }
 
   async minimize() { await getCurrentWindow().minimize(); }
-  async maximize() { await getCurrentWindow().toggleMaximize(); }
+  async maximize() {
+    try {
+      await invoke('toggle_maximize');
+    } catch (err) {
+      console.error(err);
+    }
+  }
   async close() { await getCurrentWindow().close(); }
 }
