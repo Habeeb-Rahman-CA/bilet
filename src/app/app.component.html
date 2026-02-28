@@ -67,7 +67,8 @@
 <main class="container" *ngIf="authStatus === 'Unlocked'">
 
   <div class="input-group">
-    <input #noteInput [(ngModel)]="newNote" placeholder="Write a new bilet..." (keyup.enter)="addNote()" />
+    <textarea #noteInput [(ngModel)]="newNote" placeholder="Write a new note..."
+      (keydown.enter)="handleNoteKeyDown($event)" rows="1"></textarea>
   </div>
 
   <div class="notes-list">
@@ -87,7 +88,8 @@
       <!-- Edit View -->
       <ng-template #editView>
         <div class="edit-mode">
-          <input #editInput [(ngModel)]="editContent" (ngModelChange)="onEditChange()" (keyup.enter)="updateNote()" />
+          <textarea #editInput [(ngModel)]="editContent" (ngModelChange)="onEditChange()"
+            (keydown.enter)="handleEditKeyDown($event)" rows="1"></textarea>
         </div>
       </ng-template>
 

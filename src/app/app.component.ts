@@ -271,6 +271,47 @@ export class AppComponent implements AfterViewChecked {
     }
   }
 
+  handleNoteKeyDown(event: any) {
+    if (event.key === 'Enter') {
+      if (event.ctrlKey) {
+        // Ctrl + Enter: Insert newline manually since we prevent default on plain Enter
+        const target = event.target as HTMLTextAreaElement;
+        const start = target.selectionStart;
+        const end = target.selectionEnd;
+        this.newNote = this.newNote.substring(0, start) + "\n" + this.newNote.substring(end);
+
+        // Return focus and move cursor after next tick
+        setTimeout(() => {
+          target.selectionStart = target.selectionEnd = start + 1;
+        }, 0);
+      } else {
+        // Plain Enter: Save
+        event.preventDefault();
+        this.addNote();
+      }
+    }
+  }
+
+  handleEditKeyDown(event: any) {
+    if (event.key === 'Enter') {
+      if (event.ctrlKey) {
+        // Ctrl + Enter: Insert newline
+        const target = event.target as HTMLTextAreaElement;
+        const start = target.selectionStart;
+        const end = target.selectionEnd;
+        this.editContent = this.editContent.substring(0, start) + "\n" + this.editContent.substring(end);
+
+        setTimeout(() => {
+          target.selectionStart = target.selectionEnd = start + 1;
+        }, 0);
+      } else {
+        // Plain Enter: Save
+        event.preventDefault();
+        this.updateNote();
+      }
+    }
+  }
+
   async toggleAutoStart() {
     try {
       if (this.autoStartEnabled) await disable();
