@@ -104,10 +104,34 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  width: 100px;
-  /* Balance with window-controls */
+  gap: 12px;
+  width: 120px;
+  /* Slightly wider to accommodate two buttons */
   -webkit-app-region: no-drag;
+}
+
+.lock-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
+  opacity: 0.5;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.lock-btn:hover {
+  opacity: 1;
+  background: var(--hover-color);
+}
+
+.lock-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .startup-toggle {

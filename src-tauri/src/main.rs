@@ -202,6 +202,13 @@ fn delete_note(id: i64, state: State<'_, DbState>) -> Result<String, String> {
     Ok("Deleted".to_string())
 }
 
+#[tauri::command]
+fn lock_vault(state: State<'_, DbState>) -> Result<String, String> {
+    let mut db_lock = state.0.lock().unwrap();
+    *db_lock = None;
+    Ok("Locked".to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(DbState(Mutex::new(None)))
@@ -213,6 +220,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             check_auth_status,
             unlock_db,
+            lock_vault,
             get_notes,
             add_note,
             update_note,

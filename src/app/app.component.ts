@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -32,6 +32,11 @@ export class AppComponent {
   password = '';
   errorMessage = '';
 
+  // Idle Detection
+  private idleTimeout = 1 * 60 * 1000; // 5 minutes
+  private lastActivity = Date.now();
+  private idleCheckInterval: any;
+
   async ngOnInit() {
     try {
       this.autoStartEnabled = await isEnabled();
@@ -41,6 +46,32 @@ export class AppComponent {
 
     // Check if we need to setup or unlock
     this.authStatus = await invoke<AuthStatus>('check_auth_status');
+
+    if (this.authStatus === 'Unlocked') {
+      this.startIdleDetection();
+    }
+  }
+
+  @HostListener('window:mousemove')
+  @HostListener('window:keydown')
+  @HostListener('window:click')
+  @HostListener('window:scroll')
+  resetIdleTimer() {
+    this.lastActivity = Date.now();
+  }
+
+  startIdleDetection() {
+    if (this.idleCheckInterval) clearInterval(this.idleCheckInterval);
+
+    this.idleCheckInterval = setInterval(() => {
+      if (this.authStatus === 'Unlocked') {
+        const now = Date.now();
+        if (now - this.lastActivity > this.idleTimeout) {
+          console.log('User idle for too long. Locking vault...');
+          this.lockVault();
+        }
+      }
+    }, 10000); // Check every 10 seconds
   }
 
   async unlockVault() {
@@ -51,10 +82,27 @@ export class AppComponent {
       await invoke('unlock_db', { password: this.password });
       this.authStatus = 'Unlocked';
       this.password = '';
+      this.lastActivity = Date.now();
+      this.startIdleDetection();
       await this.loadNotes();
     } catch (err: any) {
       console.error('Failed to unlock vault:', err);
       this.errorMessage = err.toString();
+    }
+  }
+
+  async lockVault() {
+    try {
+      await invoke('lock_vault');
+      this.authStatus = 'Locked';
+      this.notes = []; // Clear sensitive data from memory
+      this.newNote = '';
+      this.password = '';
+      if (this.idleCheckInterval) {
+        clearInterval(this.idleCheckInterval);
+      }
+    } catch (err) {
+      console.error('Failed to lock vault:', err);
     }
   }
 
