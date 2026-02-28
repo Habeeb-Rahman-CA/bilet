@@ -59,30 +59,27 @@
 <main class="container" *ngIf="authStatus === 'Unlocked'">
 
   <div class="input-group">
-    <input [(ngModel)]="newNote" placeholder="Write a new note..." (keyup.enter)="addNote()" />
-    <button class="primary" (click)="addNote()">Add</button>
+    <input #noteInput [(ngModel)]="newNote" placeholder="Write a new note..." (keyup.enter)="addNote()" />
   </div>
 
   <div class="notes-list">
-    <div class="note-card" *ngFor="let note of notes">
+    <div class="note-card" *ngFor="let note of notes" (click)="selectNote(note, $event)"
+      [class.selected]="selectedNoteId === note.id" [class.editing]="editingNoteId === note.id">
 
       <!-- Normal View -->
-      <div *ngIf="editingNoteId !== note.id; else editView">
+      <div *ngIf="editingNoteId !== note.id; else editView" class="note-wrapper">
         <p class="note-content">{{ note.content }}</p>
-        <div class="card-actions">
-          <button class="btn-link" (click)="startEdit(note)">Edit</button>
-          <button class="btn-link" (click)="$event.stopPropagation(); deleteNote(note.id)">Delete</button>
+
+        <!-- Small Confirmation Overlay -->
+        <div class="delete-overlay" *ngIf="isConfirmingDeleteId === note.id">
+          <span>Delete?</span>
         </div>
       </div>
 
       <!-- Edit View -->
       <ng-template #editView>
         <div class="edit-mode">
-          <input [(ngModel)]="editContent" (keyup.enter)="updateNote()" autofocus />
-          <div class="edit-actions">
-            <button class="btn-link" (click)="updateNote()">Save Changes</button>
-            <button class="btn-link" (click)="cancelEdit()">Cancel</button>
-          </div>
+          <input #editInput [(ngModel)]="editContent" (ngModelChange)="onEditChange()" (keyup.enter)="updateNote()" />
         </div>
       </ng-template>
 

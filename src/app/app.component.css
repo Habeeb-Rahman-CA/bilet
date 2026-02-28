@@ -145,37 +145,6 @@ body {
   /* Added for tooltip positioning */
 }
 
-.tooltip {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: var(--text-color);
-  color: var(--bg-color);
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
-  margin-top: 10px;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transform: translateY(-5px);
-}
-
-.tooltip::after {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  right: 8px;
-  border-width: 5px;
-  border-style: solid;
-  border-color: transparent transparent var(--text-color) transparent;
-}
-
 .startup-toggle:hover .tooltip {
   opacity: 0.95;
   visibility: visible;
@@ -266,55 +235,59 @@ button.primary:hover {
 }
 
 .note-card {
-  border: 1px solid var(--border-color);
+  border: 1px solid transparent;
   border-radius: 8px;
   padding: 16px;
-  background: transparent;
-  transition: transform 0.1s;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.note-card:hover {
+  border: 1px solid #e0e0e0;
+}
+
+.note-card.selected {
+  border: 1px solid #e0e0e0;
+}
+
+.note-card.editing {
+  border-style: dashed;
+  border: 1px dashed #e0e0e0;
 }
 
 .note-content {
-  margin: 0 0 12px 0;
-  font-size: 15px;
-  line-height: 1.5;
+  margin: 0;
+  font-size: 14px;
   white-space: pre-wrap;
 }
 
-.card-actions {
+.delete-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgb(0, 0, 0);
+  color: white;
   display: flex;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 10;
 }
 
-.btn-link {
-  background: none;
+.edit-mode input {
+  width: 100%;
+  background: transparent;
   border: none;
   padding: 0;
-  font-size: 12px;
-  font-family: inherit;
+  font-size: 15px;
   color: var(--text-color);
-  opacity: 0.5;
-  cursor: pointer;
-  text-decoration: underline;
-  transition: opacity 0.2s;
+  outline: none;
 }
 
-.btn-link:hover {
-  opacity: 1;
-}
-
-/* Edit Mode Layout */
-.edit-mode {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.edit-actions {
-  display: flex;
-  gap: 12px;
-}
-
-/* Vault Styles */
 .vault-container {
   display: flex;
   justify-content: center;
