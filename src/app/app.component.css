@@ -273,7 +273,6 @@ button.primary:hover {
 }
 
 .note-card {
-  border: 1px solid transparent;
   border-radius: 8px;
   padding: 16px;
   cursor: pointer;
@@ -282,16 +281,15 @@ button.primary:hover {
 }
 
 .note-card:hover {
-  border: 1px solid #e0e0e0;
+  background: #f5f5f5;
 }
 
 .note-card.selected {
-  border: 1px solid #e0e0e0;
+  background: #f5f5f5;
 }
 
 .note-card.editing {
-  border-style: dashed;
-  border: 1px dashed #e0e0e0;
+  background: #f5f5f5;
 }
 
 .note-wrapper {
@@ -480,4 +478,79 @@ button.primary:hover {
 
 .help-content button.primary {
   width: 100%;
+}
+
+/* Search Modal Specifics */
+.search-content {
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-input-wrapper {
+  margin-bottom: 20px;
+}
+
+.search-input-wrapper input {
+  font-size: 16px;
+  padding: 12px 16px;
+}
+
+.search-results {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  text-align: left;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.search-result-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.2s;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover {
+  background: #f5f5f5;
+}
+
+.search-result-item.selected {
+  background: #f5f5f5;
+}
+
+.search-preview {
+  margin: 0;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+}
+
+.search-date {
+  font-size: 10px;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+
+.search-hint {
+  font-size: 11px;
+  opacity: 0.4;
+  margin: 0;
+}
+
+.scrollable::-webkit-scrollbar {
+  display: block;
+  width: 4px;
 }

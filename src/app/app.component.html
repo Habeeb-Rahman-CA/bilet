@@ -109,13 +109,37 @@
     <div class="shortcut-list">
       <div class="shortcut-item"><span>Ctrl + A</span> Focus New Note Input</div>
       <div class="shortcut-item"><span>Ctrl + L</span> Focus Notes List</div>
+      <div class="shortcut-item"><span>Ctrl + F</span> Open Search</div>
       <div class="shortcut-item"><span> ↑ / ↓ </span> Navigate Notes</div>
       <div class="shortcut-item"><span>Ctrl + E</span> Edit Selected Note</div>
       <div class="shortcut-item"><span>Ctrl + S</span> Save While Editing</div>
       <div class="shortcut-item"><span>Ctrl + D</span> Delete Selected Note</div>
-      <div class="shortcut-item"><span>Enter</span> Confirm Deletion / Action</div>
+      <div class="shortcut-item"><span>Enter</span> Confirm Selection / Action</div>
       <div class="shortcut-item"><span>Esc</span> Cancel / Close Help</div>
     </div>
     <button class="primary" (click)="showHelp = false">Got it</button>
+  </div>
+</div>
+
+<!-- Search Modal -->
+<div class="help-overlay search-overlay" *ngIf="showSearch" (click)="showSearch = false">
+  <div class="help-content search-content" (click)="$event.stopPropagation()">
+    <h2>Search Notes</h2>
+    <div class="search-input-wrapper">
+      <input #searchInput [(ngModel)]="searchQuery" placeholder="Type to search..." />
+    </div>
+
+    <div class="search-results scrollable" *ngIf="searchQuery.trim()">
+      <div class="search-result-item" *ngFor="let note of getFilteredNotes()" (click)="selectSearchResult(note)"
+        [class.selected]="selectedNoteId === note.id">
+        <p class="search-preview">{{ note.content }}</p>
+        <span class="search-date">{{ formatDate(note.timestamp) }}</span>
+      </div>
+      <div class="empty-state" *ngIf="getFilteredNotes().length === 0">
+        No results found for "{{ searchQuery }}"
+      </div>
+    </div>
+
+    <p class="search-hint">↑/↓ to navigate • Enter to go to note</p>
   </div>
 </div>

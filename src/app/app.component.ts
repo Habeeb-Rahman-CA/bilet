@@ -35,6 +35,10 @@ export class AppComponent implements AfterViewChecked {
   editContent = '';
   autoStartEnabled = false;
   showHelp = false;
+  showSearch = false;
+  searchQuery = '';
+  @ViewChild('searchInput') searchInput?: ElementRef;
+  private searchNeedsFocus = false;
 
   // Vault Status
   authStatus: AuthStatus = 'Locked';
@@ -76,6 +80,10 @@ export class AppComponent implements AfterViewChecked {
       this.editInput.nativeElement.focus();
       this.editNeedsFocus = false;
     }
+    if (this.searchNeedsFocus && this.searchInput) {
+      this.searchInput.nativeElement.focus();
+      this.searchNeedsFocus = false;
+    }
   }
 
   triggerFocus() {
@@ -84,6 +92,10 @@ export class AppComponent implements AfterViewChecked {
 
   triggerEditFocus() {
     this.editNeedsFocus = true;
+  }
+
+  triggerSearchFocus() {
+    this.searchNeedsFocus = true;
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -98,17 +110,29 @@ export class AppComponent implements AfterViewChecked {
       this.showHelp = !this.showHelp;
     }
 
+    // Toggle Search (Ctrl + F)
+    if (event.ctrlKey && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      this.showSearch = !this.showSearch;
+      if (this.showSearch) {
+        this.showHelp = false;
+        this.searchQuery = '';
+        this.triggerSearchFocus();
+      }
+    }
+
     // --- List Navigation & Focus ---
 
     // Ctrl + L: Focus List / Select first note
     if (event.ctrlKey && event.key.toLowerCase() === 'l') {
       event.preventDefault();
-      this.showHelp = false; // Hide if navigating
-      if (this.notes.length > 0) {
-        if (this.selectedNoteId === null) {
-          this.selectedNoteId = this.notes[0].id;
+      this.showHelp = false;
+      const list = this.showSearch ? this.getFilteredNotes() : this.notes;
+      if (list.length > 0) {
+        if (this.selectedNoteId === null || !list.find(n => n.id === this.selectedNoteId)) {
+          this.selectedNoteId = list[0].id;
         }
-        this.editingNoteId = null; // Close any open edit
+        this.editingNoteId = null;
         this.isConfirmingDeleteId = null;
       }
     }
@@ -117,44 +141,53 @@ export class AppComponent implements AfterViewChecked {
     if (event.ctrlKey && event.key.toLowerCase() === 'a') {
       event.preventDefault();
       this.showHelp = false;
+      this.showSearch = false;
       this.selectedNoteId = null;
       this.editingNoteId = null;
       this.isConfirmingDeleteId = null;
       this.triggerFocus();
 
-      // Scroll container to top
       const container = document.querySelector('.container');
-      if (container) {
-        container.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // Escape Handler (Global Close)
+    // Escape Handler
     if (event.key === 'Escape') {
-      if (this.showHelp) {
+      if (this.showHelp || this.showSearch) {
         this.showHelp = false;
+        this.showSearch = false;
         event.preventDefault();
-        return; // Consume event if help was open
+        return;
       }
     }
 
-    // Arrow keys for navigation (only if something is selected and not editing)
+    // Arrow keys for navigation
     if (this.selectedNoteId !== null && this.editingNoteId === null && this.isConfirmingDeleteId === null) {
-      const currentIndex = this.notes.findIndex(n => n.id === this.selectedNoteId);
+      const list = this.showSearch ? this.getFilteredNotes() : this.notes;
+      const currentIndex = list.findIndex(n => n.id === this.selectedNoteId);
 
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        const nextIndex = (currentIndex + 1) % this.notes.length;
-        this.selectedNoteId = this.notes[nextIndex].id;
-        this.scrollSelectedIntoView();
-      }
+      if (currentIndex !== -1) {
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          const nextIndex = (currentIndex + 1) % list.length;
+          this.selectedNoteId = list[nextIndex].id;
+          if (!this.showSearch) this.scrollSelectedIntoView();
+        }
 
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        const prevIndex = (currentIndex - 1 + this.notes.length) % this.notes.length;
-        this.selectedNoteId = this.notes[prevIndex].id;
-        this.scrollSelectedIntoView();
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          const prevIndex = (currentIndex - 1 + list.length) % list.length;
+          this.selectedNoteId = list[prevIndex].id;
+          if (!this.showSearch) this.scrollSelectedIntoView();
+        }
       }
+    }
+
+    // Enter in Search to select and scroll
+    if (this.showSearch && event.key === 'Enter' && this.selectedNoteId) {
+      const note = this.notes.find(n => n.id === this.selectedNoteId);
+      if (note) this.selectSearchResult(note);
+      event.preventDefault();
     }
 
     // --- Actions on Selected Note ---
@@ -412,6 +445,19 @@ export class AppComponent implements AfterViewChecked {
     } catch (err) {
       console.error(err);
     }
+  }
+
+  getFilteredNotes(): Note[] {
+    if (!this.searchQuery.trim()) return this.notes;
+    return this.notes.filter(n =>
+      n.content.toLowerCase().includes(this.searchQuery.toLowerCase())
+    );
+  }
+
+  selectSearchResult(note: Note) {
+    this.showSearch = false;
+    this.selectedNoteId = note.id;
+    this.scrollSelectedIntoView();
   }
 
   async minimize() { await getCurrentWindow().minimize(); }
