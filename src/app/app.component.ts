@@ -247,6 +247,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     // If in notepad section, handle notepad shortcuts then skip task shortcuts
     // If in notepad section, handle notepad specific keys completely here
     if (this.activeSection === 'notepad') {
+      // Ctrl + Space: Cycle tabs
+      if (event.ctrlKey && !event.shiftKey && event.code === 'Space') {
+        event.preventDefault();
+        this.cycleTab();
+        return;
+      }
+
       // Ctrl + N: New tab
       if (event.ctrlKey && event.key.toLowerCase() === 'n') {
         event.preventDefault();
@@ -860,6 +867,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.activeTabId === padId) {
       this.openTab(this.openTabs[this.openTabs.length - 1].padId);
     }
+  }
+
+  cycleTab() {
+    if (this.openTabs.length <= 1) return;
+    const currentIndex = this.openTabs.findIndex(t => t.padId === this.activeTabId);
+    const nextIndex = (currentIndex + 1) % this.openTabs.length;
+    this.switchTab(this.openTabs[nextIndex].padId);
   }
 
   switchTab(padId: number) {
