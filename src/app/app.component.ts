@@ -53,10 +53,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   showSearch = false;
   showBin = false;
   searchQuery = '';
-  binNotes: Note[] = [];
-  selectedBinNoteId: number | null = null;
-  isConfirmingBinDeleteId: number | null = null;
-  isConfirmingRestoreId: number | null = null;
+  binItems: { id: number, type: 'task' | 'pad', content: string, timestamp: string }[] = [];
+  selectedBinItemId: { id: number, type: 'task' | 'pad' } | null = null;
+  isConfirmingBinDeleteId: { id: number, type: 'task' | 'pad' } | null = null;
+  isConfirmingRestoreId: { id: number, type: 'task' | 'pad' } | null = null;
   isConfirmingClearAll = false;
   @ViewChild('searchInput') searchInput?: ElementRef;
   @ViewChild('padEditor') padEditor?: ElementRef;
@@ -245,13 +245,24 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     // If in notepad section, handle notepad shortcuts then skip task shortcuts
+    // If in notepad section, handle notepad specific keys completely here
     if (this.activeSection === 'notepad') {
       // Ctrl + N: New tab
       if (event.ctrlKey && event.key.toLowerCase() === 'n') {
         event.preventDefault();
         this.createPad();
+        return;
       }
-      return;
+
+      // Ctrl + Shift + D: Remove working tab
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'd') {
+        event.preventDefault();
+        if (this.activeTabId) {
+          this.deletePad(this.activeTabId);
+        }
+        return;
+      }
+      // Note: We do NOT 'return;' arbitrarily here so that Ctrl+H, Ctrl+B, etc below still run!
     }
 
     if (this.showFontSettings) {
@@ -288,7 +299,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         this.isConfirmingBinDeleteId = null;
         this.isConfirmingRestoreId = null;
         this.isConfirmingClearAll = false;
-        this.loadBinNotes();
+        this.loadBinItems();
       }
     }
 
@@ -301,6 +312,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         this.searchQuery = '';
         this.triggerSearchFocus();
       }
+    }
+
+    // --- Section Exclusive Shortcuts ---
+    if (this.activeSection === 'notepad' && !this.showBin && !this.showSearch) {
+      return; // Skip task-specific shortcuts unless in a global modal
     }
 
     // --- List Navigation & Focus ---
@@ -364,13 +380,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       if (event.key === 'Enter') {
         if (this.isConfirmingBinDeleteId !== null) {
           event.preventDefault();
-          this.permanentDeleteNote(this.isConfirmingBinDeleteId);
+          this.permanentDeleteItem(this.isConfirmingBinDeleteId);
           this.isConfirmingBinDeleteId = null;
           return;
         }
         if (this.isConfirmingRestoreId !== null) {
           event.preventDefault();
-          this.restoreNote(this.isConfirmingRestoreId);
+          this.restoreItem(this.isConfirmingRestoreId);
           this.isConfirmingRestoreId = null;
           return;
         }
@@ -382,31 +398,31 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         }
       }
 
-      if (this.binNotes.length > 0 && !this.isConfirmingBinDeleteId && !this.isConfirmingRestoreId && !this.isConfirmingClearAll) {
-        let currentIndex = this.binNotes.findIndex(n => n.id === this.selectedBinNoteId);
+      if (this.binItems.length > 0 && !this.isConfirmingBinDeleteId && !this.isConfirmingRestoreId && !this.isConfirmingClearAll) {
+        let currentIndex = this.binItems.findIndex(n => n.id === this.selectedBinItemId?.id && n.type === this.selectedBinItemId?.type);
 
         // Ctrl + D (Permanent Delete)
         if (event.ctrlKey && event.key.toLowerCase() === 'd') {
           event.preventDefault();
-          this.isConfirmingBinDeleteId = this.selectedBinNoteId;
+          this.isConfirmingBinDeleteId = this.selectedBinItemId;
           return;
         }
         // Ctrl + R (Restore)
         if (event.ctrlKey && event.key.toLowerCase() === 'r') {
           event.preventDefault();
-          this.isConfirmingRestoreId = this.selectedBinNoteId;
+          this.isConfirmingRestoreId = this.selectedBinItemId;
           return;
         }
 
         if (event.key === 'ArrowDown') {
           event.preventDefault();
-          const nextIndex = (currentIndex + 1) % this.binNotes.length;
-          this.selectedBinNoteId = this.binNotes[nextIndex].id;
+          const nextIndex = (currentIndex + 1) % this.binItems.length;
+          this.selectedBinItemId = { id: this.binItems[nextIndex].id, type: this.binItems[nextIndex].type };
         }
         if (event.key === 'ArrowUp') {
           event.preventDefault();
-          const prevIndex = (currentIndex - 1 + this.binNotes.length) % this.binNotes.length;
-          this.selectedBinNoteId = this.binNotes[prevIndex].id;
+          const prevIndex = (currentIndex - 1 + this.binItems.length) % this.binItems.length;
+          this.selectedBinItemId = { id: this.binItems[prevIndex].id, type: this.binItems[prevIndex].type };
         }
       }
       return;
@@ -790,6 +806,27 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     return firstLine || 'Untitled';
   }
 
+  async deletePad(padId: number, event?: MouseEvent) {
+    if (event) event.stopPropagation();
+
+    try {
+      await invoke('delete_pad', { id: padId });
+
+      const isOpen = this.openTabs.some(t => t.padId === padId);
+      if (isOpen) {
+        this.closeTab(padId);
+      } else {
+        await this.loadPads();
+      }
+
+      if (this.showBin) {
+        this.loadBinItems();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   openTab(padId: number) {
     const pad = this.pads.find(p => p.id === padId);
     if (!pad) return;
@@ -849,6 +886,94 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.lineNumbers = Array.from({ length: count }, (_, i) => i + 1);
   }
 
+  handlePadKeyDown(event: KeyboardEvent, editor: HTMLTextAreaElement) {
+    if (event.altKey && event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      event.preventDefault();
+      this.duplicateLine(event.key, editor);
+    } else if (event.altKey && !event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      event.preventDefault();
+      this.moveLine(event.key, editor);
+    }
+  }
+
+  duplicateLine(direction: string, editor: HTMLTextAreaElement) {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const text = this.padContent;
+
+    let lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = text.indexOf('\n', end);
+    if (lineEnd === -1) lineEnd = text.length;
+
+    const selectedLines = text.substring(lineStart, lineEnd);
+
+    const before = text.substring(0, lineStart);
+    const after = text.substring(lineEnd);
+
+    this.padContent = before + selectedLines + '\n' + selectedLines + after;
+    this.onPadContentChange();
+
+    setTimeout(() => {
+      if (direction === 'ArrowUp') {
+        editor.setSelectionRange(start, end);
+      } else {
+        const offset = selectedLines.length + 1;
+        editor.setSelectionRange(start + offset, end + offset);
+      }
+    });
+  }
+
+  moveLine(direction: string, editor: HTMLTextAreaElement) {
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const text = this.padContent;
+
+    let lineStart = text.lastIndexOf('\n', start - 1) + 1;
+    let lineEnd = text.indexOf('\n', end);
+    // If exact end is on newline, avoid selecting the next line
+    if (end > start && text[end - 1] === '\n') {
+      lineEnd = end - 1;
+    } else if (lineEnd === -1) {
+      lineEnd = text.length;
+    }
+
+    const selectedLines = text.substring(lineStart, lineEnd);
+
+    if (direction === 'ArrowUp') {
+      if (lineStart === 0) return;
+      let prevLineStart = text.lastIndexOf('\n', lineStart - 2) + 1;
+      const prevLineText = text.substring(prevLineStart, lineStart - 1);
+
+      const before = text.substring(0, prevLineStart);
+      const after = text.substring(lineEnd);
+
+      this.padContent = before + selectedLines + '\n' + prevLineText + after;
+      this.onPadContentChange();
+
+      const offset = -(prevLineText.length + 1);
+      setTimeout(() => {
+        editor.setSelectionRange(start + offset, end + offset);
+      });
+    } else {
+      if (lineEnd === text.length) return;
+      let nextLineEnd = text.indexOf('\n', lineEnd + 1);
+      if (nextLineEnd === -1) nextLineEnd = text.length;
+
+      const nextLineText = text.substring(lineEnd + 1, nextLineEnd);
+
+      const before = text.substring(0, lineStart);
+      const after = text.substring(nextLineEnd);
+
+      this.padContent = before + nextLineText + '\n' + selectedLines + after;
+      this.onPadContentChange();
+
+      const offset = nextLineText.length + 1;
+      setTimeout(() => {
+        editor.setSelectionRange(start + offset, end + offset);
+      });
+    }
+  }
+
   onEditorScroll(event: Event) {
     const editor = event.target as HTMLElement;
     const gutter = document.querySelector('.line-gutter') as HTMLElement;
@@ -887,41 +1012,51 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  async deletePad(padId: number) {
-    try {
-      await invoke('delete_pad', { id: padId });
-      this.closeTab(padId);
-      await this.loadPads();
-    } catch (err) {
-      console.error(err);
-    }
-  }
 
-  async loadBinNotes() {
+  async loadBinItems() {
     try {
-      this.binNotes = await invoke<Note[]>('get_bin_notes');
-      if (this.binNotes.length > 0 && this.selectedBinNoteId === null) {
-        this.selectedBinNoteId = this.binNotes[0].id;
+      const notes = await invoke<Note[]>('get_bin_notes');
+      const pads = await invoke<Pad[]>('get_bin_pads');
+
+      this.binItems = [
+        ...notes.map(n => ({ id: n.id, type: 'task' as 'task' | 'pad', content: n.content, timestamp: n.timestamp })),
+        ...pads.map(p => ({ id: p.id, type: 'pad' as 'task' | 'pad', content: this.getPadTabTitle(p), timestamp: p.updated_at }))
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      if (this.binItems.length > 0 && this.selectedBinItemId === null) {
+        this.selectedBinItemId = { id: this.binItems[0].id, type: this.binItems[0].type };
       }
     } catch (err) {
       console.error(err);
     }
   }
 
-  async restoreNote(id: number) {
+  async restoreItem(item: { id: number, type: 'task' | 'pad' }) {
     try {
-      await invoke('restore_note', { id });
-      await this.loadBinNotes();
-      await this.loadNotes();
+      if (item.type === 'task') {
+        await invoke('restore_note', { id: item.id });
+        await this.loadNotes();
+      } else {
+        await invoke('restore_pad', { id: item.id });
+        await this.loadPads();
+
+        // Re-open the tab if it's a pad so it's visible to the user immediately
+        this.openTab(item.id);
+      }
+      await this.loadBinItems();
     } catch (err) {
       console.error(err);
     }
   }
 
-  async permanentDeleteNote(id: number) {
+  async permanentDeleteItem(item: { id: number, type: 'task' | 'pad' }) {
     try {
-      await invoke('permanent_delete_note', { id });
-      await this.loadBinNotes();
+      if (item.type === 'task') {
+        await invoke('permanent_delete_note', { id: item.id });
+      } else {
+        await invoke('permanent_delete_pad', { id: item.id });
+      }
+      await this.loadBinItems();
     } catch (err) {
       console.error(err);
     }
@@ -930,7 +1065,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   async clearBin() {
     try {
       await invoke('clear_bin');
-      await this.loadBinNotes();
+      await invoke('clear_pad_bin');
+      await this.loadBinItems();
     } catch (err) {
       console.error(err);
     }

@@ -36,6 +36,7 @@ struct Pad {
     content: String,
     created_at: String,
     updated_at: String,
+    is_deleted: bool,
 }
 
 // Internal structure to handle DB + Key
@@ -174,6 +175,26 @@ async fn unlock_db(
     if !has_is_deleted {
         let _ = conn.execute(
             "ALTER TABLE secure_notes ADD COLUMN is_deleted BOOLEAN DEFAULT 0",
+            [],
+        );
+    }
+
+    let mut has_pad_is_deleted = false;
+    {
+        let mut stmt = conn
+            .prepare("PRAGMA table_info(secure_pads)")
+            .map_err(|e| e.to_string())?;
+        let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            let name: String = row.get(1).map_err(|e| e.to_string())?;
+            if name == "is_deleted" {
+                has_pad_is_deleted = true;
+            }
+        }
+    }
+    if !has_pad_is_deleted {
+        let _ = conn.execute(
+            "ALTER TABLE secure_pads ADD COLUMN is_deleted BOOLEAN DEFAULT 0",
             [],
         );
     }
@@ -390,7 +411,7 @@ fn get_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
     let cipher = Aes256Gcm::new(key.into());
 
     let mut stmt = conn
-        .prepare("SELECT id, title_nonce, title_ciphertext, content_nonce, content_ciphertext, created_at, updated_at FROM secure_pads ORDER BY updated_at DESC")
+        .prepare("SELECT id, title_nonce, title_ciphertext, content_nonce, content_ciphertext, created_at, updated_at, is_deleted FROM secure_pads WHERE is_deleted = 0 ORDER BY updated_at DESC")
         .map_err(|e| e.to_string())?;
 
     let pad_iter = stmt
@@ -402,6 +423,7 @@ fn get_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
             let content_ciphertext: Vec<u8> = row.get(4)?;
             let created_at: String = row.get(5).unwrap_or_default();
             let updated_at: String = row.get(6).unwrap_or_default();
+            let is_deleted: bool = row.get(7).unwrap_or(false);
 
             let title_nonce = Nonce::from_slice(&title_nonce_bytes);
             let title_dec = cipher
@@ -422,6 +444,7 @@ fn get_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
                 content,
                 created_at,
                 updated_at,
+                is_deleted,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -496,9 +519,97 @@ fn delete_pad(id: i64, state: State<'_, DbState>) -> Result<String, String> {
     let db_lock = state.0.lock().unwrap();
     let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
 
+    conn.execute(
+        "UPDATE secure_pads SET is_deleted = 1 WHERE id = ?1",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok("Deleted".to_string())
+}
+
+#[tauri::command]
+fn get_bin_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, key) = db_lock.as_ref().ok_or("Vault is locked")?;
+    let cipher = Aes256Gcm::new(key.into());
+
+    let mut stmt = conn
+        .prepare("SELECT id, title_nonce, title_ciphertext, content_nonce, content_ciphertext, created_at, updated_at, is_deleted FROM secure_pads WHERE is_deleted = 1 ORDER BY updated_at DESC")
+        .map_err(|e| e.to_string())?;
+
+    let pad_iter = stmt
+        .query_map(params![], |row| {
+            let id: i64 = row.get(0)?;
+            let title_nonce_bytes: Vec<u8> = row.get(1)?;
+            let title_ciphertext: Vec<u8> = row.get(2)?;
+            let content_nonce_bytes: Vec<u8> = row.get(3)?;
+            let content_ciphertext: Vec<u8> = row.get(4)?;
+            let created_at: String = row.get(5).unwrap_or_default();
+            let updated_at: String = row.get(6).unwrap_or_default();
+            let is_deleted: bool = row.get(7).unwrap_or(false);
+
+            let title_nonce = Nonce::from_slice(&title_nonce_bytes);
+            let title_dec = cipher
+                .decrypt(title_nonce, title_ciphertext.as_ref())
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+            let title = String::from_utf8(title_dec).map_err(|_| rusqlite::Error::InvalidQuery)?;
+
+            let content_nonce = Nonce::from_slice(&content_nonce_bytes);
+            let content_dec = cipher
+                .decrypt(content_nonce, content_ciphertext.as_ref())
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+            let content =
+                String::from_utf8(content_dec).map_err(|_| rusqlite::Error::InvalidQuery)?;
+
+            Ok(Pad {
+                id,
+                title,
+                content,
+                created_at,
+                updated_at,
+                is_deleted,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut pads = Vec::new();
+    for pad in pad_iter {
+        pads.push(pad.map_err(|e| format!("Decryption error: {}", e))?);
+    }
+    Ok(pads)
+}
+
+#[tauri::command]
+fn restore_pad(id: i64, state: State<'_, DbState>) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+
+    conn.execute(
+        "UPDATE secure_pads SET is_deleted = 0 WHERE id = ?1",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok("Restored".to_string())
+}
+
+#[tauri::command]
+fn permanent_delete_pad(id: i64, state: State<'_, DbState>) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+
     conn.execute("DELETE FROM secure_pads WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
-    Ok("Deleted".to_string())
+    Ok("Deleted Forever".to_string())
+}
+
+#[tauri::command]
+fn clear_pad_bin(state: State<'_, DbState>) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+
+    conn.execute("DELETE FROM secure_pads WHERE is_deleted = 1", [])
+        .map_err(|e| e.to_string())?;
+    Ok("Bin Cleared".to_string())
 }
 
 #[tauri::command]
@@ -543,7 +654,11 @@ fn main() {
             get_pads,
             add_pad,
             update_pad,
-            delete_pad
+            delete_pad,
+            get_bin_pads,
+            restore_pad,
+            permanent_delete_pad,
+            clear_pad_bin
         ])
         .setup(|app| {
             let ctrl_shift_n =

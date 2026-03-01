@@ -967,6 +967,8 @@ button.primary:hover {
   font-family: inherit;
   cursor: pointer;
   position: relative;
+  width: 15px;
+  text-align: end;
   transition: all 0.2s ease;
 }
 

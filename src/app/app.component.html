@@ -23,7 +23,7 @@
       </svg>
     </button>
 
-    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="showBin = true; loadBinNotes()">
+    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="showBin = true; loadBinItems()">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path
           d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
@@ -150,7 +150,8 @@
       </span>
     </div>
     <textarea #padEditor class="pad-content-editor" [(ngModel)]="padContent" (ngModelChange)="onPadContentChange()"
-      (scroll)="onEditorScroll($event)" placeholder="Start writing..." spellcheck="false"></textarea>
+      (keydown)="handlePadKeyDown($event, padEditor)" (scroll)="onEditorScroll($event)" placeholder="Start writing..."
+      spellcheck="false"></textarea>
   </div>
 
   <!-- Empty state -->
@@ -178,6 +179,9 @@
       <div class="shortcut-group">
         <div class="shortcut-group-title">Notepad</div>
         <div class="shortcut-item"><span>Ctrl + N</span> New Tab</div>
+        <div class="shortcut-item"><span>Ctrl + Shift + D</span> Delete Current Tab</div>
+        <div class="shortcut-item"><span>Alt + Shift + ↑/↓</span> Duplicate Line</div>
+        <div class="shortcut-item"><span>Alt + ↑/↓</span> Move Line</div>
       </div>
 
       <!-- Tasks -->
@@ -234,21 +238,26 @@
       <h2>History / Trash</h2>
     </div>
 
-    <div class="search-results scrollable" *ngIf="binNotes.length > 0">
-      <div class="bin-item" *ngFor="let note of binNotes" (click)="selectedBinNoteId = note.id"
-        [class.selected]="selectedBinNoteId === note.id">
+    <div class="search-results scrollable" *ngIf="binItems.length > 0">
+      <div class="bin-item" *ngFor="let item of binItems" (click)="selectedBinItemId = { id: item.id, type: item.type }"
+        [class.selected]="selectedBinItemId?.id === item.id && selectedBinItemId?.type === item.type">
         <div class="bin-item-content">
-          <p class="bin-text">{{ note.content }}</p>
-          <span class="bin-date">{{ formatDate(note.timestamp) }}</span>
+          <p class="bin-text">{{ item.content }}</p>
+          <span class="bin-date">
+            <span *ngIf="item.type === 'pad'" style="opacity:0.5; margin-right:6px;">Pad</span>
+            {{ formatDate(item.timestamp) }}
+          </span>
         </div>
 
         <!-- Individual Restoration Confirmation -->
-        <div class="delete-overlay" *ngIf="isConfirmingRestoreId === note.id">
+        <div class="delete-overlay"
+          *ngIf="isConfirmingRestoreId?.id === item.id && isConfirmingRestoreId?.type === item.type">
           <span>Restore?</span>
         </div>
 
         <!-- Individual Permanent Deletion Confirmation -->
-        <div class="delete-overlay" *ngIf="isConfirmingBinDeleteId === note.id">
+        <div class="delete-overlay"
+          *ngIf="isConfirmingBinDeleteId?.id === item.id && isConfirmingBinDeleteId?.type === item.type">
           <span>Delete Forever?</span>
         </div>
       </div>
@@ -259,7 +268,7 @@
       <span>Clear all history?</span>
     </div>
 
-    <div class="empty-state" *ngIf="binNotes.length === 0">
+    <div class="empty-state" *ngIf="binItems.length === 0">
       <p>Bilet history is empty.</p>
     </div>
   </div>
