@@ -258,10 +258,10 @@ textarea:focus {
   border-color: var(--accent-color);
 }
 
-input:focus::placeholder,
+/* input:focus::placeholder,
 textarea:focus::placeholder {
   color: transparent;
-}
+} */
 
 
 button.primary {
