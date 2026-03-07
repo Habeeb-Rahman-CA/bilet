@@ -6,7 +6,7 @@
     "analytics": false
   },
   "projects": {
-    "first-tauri-app": {
+    "bilet": {
       "projectType": "application",
       "root": "",
       "sourceRoot": "src",
@@ -15,12 +15,16 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/first-tauri-app",
+            "outputPath": "dist/bilet",
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "polyfills": ["zone.js"],
+            "polyfills": [
+              "zone.js"
+            ],
             "tsConfig": "tsconfig.app.json",
-            "assets": ["src/assets"]
+            "assets": [
+              "src/assets"
+            ]
           },
           "configurations": {
             "production": {
@@ -32,8 +36,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "2kb",
-                  "maximumError": "4kb"
+                  "maximumWarning": "500kb",
+                  "maximumError": "1mb"
                 }
               ],
               "outputHashing": "all"
@@ -53,10 +57,10 @@
           },
           "configurations": {
             "production": {
-              "buildTarget": "first-tauri-app:build:production"
+              "buildTarget": "bilet:build:production"
             },
             "development": {
-              "buildTarget": "first-tauri-app:build:development"
+              "buildTarget": "bilet:build:development"
             }
           },
           "defaultConfiguration": "development"

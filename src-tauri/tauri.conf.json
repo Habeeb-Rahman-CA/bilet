@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "first-tauri-app",
+  "productName": "bilet",
   "version": "0.1.0",
-  "identifier": "com.first-tauri-app.app",
+  "identifier": "com.bilet.app",
   "build": {
     "beforeDevCommand": "npm run start",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist/first-tauri-app/browser"
+    "frontendDist": "../dist/bilet/browser"
   },
   "app": {
     "windows": [
