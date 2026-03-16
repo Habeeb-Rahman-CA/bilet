@@ -6,12 +6,15 @@
   </div>
   <div class="title-text">bilet</div>
   <div class="header-actions">
-    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleDarkMode()" title="Toggle Dark Mode">
+    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleDarkMode()"
+      title="Toggle Dark Mode">
       <svg *ngIf="!isDarkMode" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM11 1h2v4h-2V1zm0 18h2v4h-2v-4zM1 11h4v2H1v-2zm18 0h4v2h-4v-2z" />
+        <path
+          d="M12 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM11 1h2v4h-2V1zm0 18h2v4h-2v-4zM1 11h4v2H1v-2zm18 0h4v2h-4v-2z" />
       </svg>
       <svg *ngIf="isDarkMode" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+        <path
+          d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
       </svg>
     </button>
 
@@ -87,10 +90,12 @@
 <main class="container" *ngIf="authStatus === 'Unlocked' && activeSection === 'tasks'">
 
   <div class="input-group">
-    <div #noteInput class="note-input-editor" contenteditable="true" 
-      (keydown)="handleNoteKeyDown($event)" placeholder="Write a new task..."></div>
+    <div #noteInput class="note-input-editor" contenteditable="true" (keydown)="handleNoteKeyDown($event)"
+      placeholder="Write a new task..."></div>
     <button class="add-btn" (click)="addNote()">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" /></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+      </svg>
     </button>
   </div>
 
@@ -119,8 +124,8 @@
       <!-- Edit View -->
       <ng-template #editView>
         <div class="edit-mode">
-          <div #editInput class="edit-input-editor" contenteditable="true"
-            (keydown)="handleEditKeyDown($event, note)" [innerHTML]="formatContent(note.content)"></div>
+          <div #editInput class="edit-input-editor" contenteditable="true" (keydown)="handleEditKeyDown($event, note)"
+            [innerHTML]="formatContent(note.content)"></div>
         </div>
       </ng-template>
 
@@ -223,7 +228,7 @@
         <div class="shortcut-item"><span>Ctrl + Shift + C</span> Clear All history</div>
       </div>
       <div class="modal-footer">
-         <p class="version-text">Version {{ appVersion }}</p>
+        <p class="version-text">Version {{ appVersion }}</p>
       </div>
     </div>
     <button class="primary" (click)="showHelp = false">Got it</button>
@@ -313,10 +318,17 @@
         (click)="setFont(font.name); showFontSettings = false" [class.selected]="selectedFont === font.name"
         [class.focused]="focusedFontIndex === i">
         <span [style.font-family]="font.family">{{ font.name }}</span>
+        <button class="font-delete-btn" *ngIf="font.isCustom" (click)="deleteCustomFont(font.name, $event)"
+          title="Remove font">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
 
-      <div class="font-item coming-soon">
-        <span>Add Custom Fonts (Coming Soon)</span>
+      <div class="font-item upload-font" (click)="uploadFont()">
+        <span>Upload Custom Font (.ttf/.otf)</span>
       </div>
     </div>
   </div>

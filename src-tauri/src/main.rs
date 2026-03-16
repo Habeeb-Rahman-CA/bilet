@@ -774,6 +774,58 @@ fn get_session(_state: State<'_, DbState>) -> Result<Option<Session>, String> {
     Ok(None)
 }
 
+#[tauri::command]
+fn upload_custom_font(app_handle: tauri::AppHandle, name: String, src_path: String) -> Result<String, String> {
+    let app_dir = app_handle.path().app_data_dir().unwrap();
+    let fonts_dir = app_dir.join("custom_fonts");
+    fs::create_dir_all(&fonts_dir).map_err(|e| e.to_string())?;
+
+    let dest_path = fonts_dir.join(format!("{}.ttf", name));
+    fs::copy(&src_path, &dest_path).map_err(|e| e.to_string())?;
+
+    Ok(dest_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn get_custom_fonts(app_handle: tauri::AppHandle) -> Result<Vec<(String, String)>, String> {
+    let app_dir = app_handle.path().app_data_dir().unwrap();
+    let fonts_dir = app_dir.join("custom_fonts");
+    
+    if !fonts_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut fonts = Vec::new();
+    for entry in fs::read_dir(fonts_dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()).map(|e| e == "ttf" || e == "otf").unwrap_or(false) {
+            let name = path.file_stem().unwrap().to_string_lossy().to_string();
+            fonts.push((name, path.to_string_lossy().to_string()));
+        }
+    }
+    Ok(fonts)
+}
+
+#[tauri::command]
+fn delete_custom_font(app_handle: tauri::AppHandle, name: String) -> Result<String, String> {
+    let app_dir = app_handle.path().app_data_dir().unwrap();
+    let fonts_dir = app_dir.join("custom_fonts");
+
+    // Try both .ttf and .otf
+    let ttf_path = fonts_dir.join(format!("{}.ttf", name));
+    let otf_path = fonts_dir.join(format!("{}.otf", name));
+
+    if ttf_path.exists() {
+        fs::remove_file(ttf_path).map_err(|e| e.to_string())?;
+    }
+    if otf_path.exists() {
+        fs::remove_file(otf_path).map_err(|e| e.to_string())?;
+    }
+
+    Ok("Deleted".to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(DbState(Mutex::new(None)))
@@ -810,7 +862,10 @@ fn main() {
             clear_pad_bin,
             save_session,
             get_session,
-            update_pad_metadata
+            update_pad_metadata,
+            upload_custom_font,
+            get_custom_fonts,
+            delete_custom_font
         ])
         .setup(|app| {
             let ctrl_shift_n =

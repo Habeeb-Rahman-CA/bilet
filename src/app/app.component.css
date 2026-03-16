@@ -292,7 +292,6 @@ button.primary:hover {
 .note-card.selected {
   background: var(--hover-color);
   border-color: var(--border-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .note-card.editing {
@@ -513,7 +512,6 @@ button.primary:hover {
   width: 90%;
   max-width: 440px;
   max-height: 85vh;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   overflow-y: auto;
   text-align: center;
   position: relative;
@@ -873,6 +871,9 @@ button.primary:hover {
   cursor: pointer;
   transition: all 0.2s;
   border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .font-item:hover {
@@ -887,15 +888,33 @@ button.primary:hover {
   background: var(--hover-color);
 }
 
-.font-item.coming-soon {
-  opacity: 0.4;
-  cursor: default;
-  font-style: italic;
-  font-size: 12px;
+.font-item.upload-font {
+  opacity: 0.6;
+  font-size: 13px;
+  gap: 8px;
+  justify-content: flex-start;
+  margin-top: 8px;
 }
 
-.font-item.coming-soon:hover {
-  background: transparent;
+.font-item.upload-font:hover {
+  opacity: 1;
+}
+
+.font-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  opacity: 0.3;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.font-delete-btn:hover {
+  opacity: 1;
 }
 
 /* ===== Notepad Section ===== */

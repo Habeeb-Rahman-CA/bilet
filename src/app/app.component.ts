@@ -11,9 +11,9 @@ import { CommonModule } from "@angular/common";
 import { RouterOutlet } from "@angular/router";
 import { FormsModule } from "@angular/forms";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { save } from "@tauri-apps/plugin-dialog";
+import { save, open } from "@tauri-apps/plugin-dialog";
 
 interface Note {
   id: number;
@@ -138,8 +138,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     }
   }
-  availableFonts = [
-    { name: "Open Sans", family: "'Open Sans', sans-serif" },
+  availableFonts: { name: string; family: string; isCustom?: boolean }[] = [
     { name: "Cascadia Code", family: "'Cascadia Code', monospace" },
     { name: "Fira Code", family: "'Fira Code', monospace" },
     { name: "JetBrains Mono", family: "'JetBrains Mono', monospace" },
@@ -154,6 +153,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   private idleCheckInterval: any;
 
   async ngOnInit() {
+    await this.loadCustomFonts();
     try {
       this.autoStartEnabled = await isEnabled();
     } catch (err) {
@@ -1450,5 +1450,100 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     return result;
+  }
+
+  async uploadFont() {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [{
+          name: 'Font',
+          extensions: ['ttf', 'otf']
+        }]
+      });
+
+      console.log('File dialog result:', selected);
+
+      if (!selected) return;
+
+      const filePath = typeof selected === 'string' ? selected : String(selected);
+      console.log('Selected file path:', filePath);
+
+      const fileName = filePath.split('\\').pop()?.split('/').pop() || '';
+      const name = fileName.replace(/\.(ttf|otf)$/i, '') || 'CustomFont';
+      console.log('Font name:', name);
+
+      const result = await invoke('upload_custom_font', { name, srcPath: filePath });
+      console.log('Upload result:', result);
+
+      await this.loadCustomFonts();
+
+      // Auto-select the newly added font
+      this.setFont(name);
+      this.showFontSettings = false;
+    } catch (err) {
+      console.error('Failed to upload font:', err);
+    }
+  }
+
+  async loadCustomFonts() {
+    try {
+      const fonts = await invoke<any[]>('get_custom_fonts');
+      console.log('Custom fonts from backend:', fonts);
+
+      // Remove existing custom fonts from list to avoid duplicates
+      this.availableFonts = this.availableFonts.filter(f => !f.isCustom);
+
+      if (!fonts || fonts.length === 0) return;
+
+      for (const font of fonts) {
+        // Rust tuples serialize as arrays: [name, path]
+        const name = font[0] || font.name;
+        const path = font[1] || font.path;
+        if (!name || !path) continue;
+
+        const familyName = `Custom-${name}`;
+        const assetUrl = convertFileSrc(path);
+        console.log('Loading font:', name, 'from:', assetUrl);
+
+        try {
+          // Register @font-face dynamically
+          const fontFace = new FontFace(familyName, `url("${assetUrl}")`);
+          await fontFace.load();
+          (document.fonts as any).add(fontFace);
+          console.log('Font loaded successfully:', familyName);
+        } catch (fontErr) {
+          console.warn('FontFace load failed, trying style injection:', fontErr);
+          // Fallback: inject a <style> tag with @font-face
+          const style = document.createElement('style');
+          style.textContent = `@font-face { font-family: "${familyName}"; src: url("${assetUrl}"); }`;
+          document.head.appendChild(style);
+        }
+
+        this.availableFonts.push({
+          name: name,
+          family: `"${familyName}", monospace`,
+          isCustom: true
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load custom fonts:', err);
+    }
+  }
+
+  async deleteCustomFont(fontName: string, event: MouseEvent) {
+    event.stopPropagation();
+    try {
+      await invoke('delete_custom_font', { name: fontName });
+
+      // If the deleted font was selected, switch to default
+      if (this.selectedFont === fontName) {
+        this.setFont('Cascadia Code');
+      }
+
+      await this.loadCustomFonts();
+    } catch (err) {
+      console.error('Failed to delete font:', err);
+    }
   }
 }
