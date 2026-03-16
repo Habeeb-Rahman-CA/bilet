@@ -76,7 +76,10 @@
 
     <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
 
-    <p class="vault-footer" *ngIf="authStatus === 'SetupRequired'">Don't forget this password! We cannot recover it.</p>
+    <div class="vault-footer">
+      <p *ngIf="authStatus === 'SetupRequired'">Don't forget this password! We cannot recover it.</p>
+      <p class="version-text">v{{ appVersion }}</p>
+    </div>
   </div>
 </div>
 
@@ -212,6 +215,9 @@
         <div class="shortcut-item"><span>Ctrl + P</span> Pin / Unpin</div>
         <div class="shortcut-item"><span>Ctrl + R</span> Restore Item</div>
         <div class="shortcut-item"><span>Ctrl + Shift + C</span> Clear All history</div>
+      </div>
+      <div class="modal-footer">
+         <p class="version-text">Version {{ appVersion }}</p>
       </div>
     </div>
     <button class="primary" (click)="showHelp = false">Got it</button>

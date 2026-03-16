@@ -115,6 +115,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   password = "";
   errorMessage = "";
   isDarkMode = false;
+  appVersion = "1.0.0";
 
   private async saveSession() {
     // Deprecated
