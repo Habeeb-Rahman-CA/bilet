@@ -13,6 +13,8 @@
   --titlebar-bg: #ffffff;
   --main-font: 'Cascadia Code', monospace;
   --transition-speed: 0.3s;
+  --selection-bg: transparent;
+  --selection-color: #cacaca;
 }
 
 body.dark-mode {
@@ -23,6 +25,8 @@ body.dark-mode {
   --accent-color: #ffffff;
   --hover-color: #181818;
   --titlebar-bg: #0d0d0d;
+  --selection-bg: transparent;
+  --selection-color: #444444;
 }
 
 *,
@@ -79,4 +83,9 @@ input:focus,
 textarea:focus {
   border: none !important;
   outline: none !important;
+}
+
+::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-color);
 }
