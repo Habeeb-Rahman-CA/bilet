@@ -139,13 +139,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
   availableFonts = [
-    { name: "Montserrat", family: "'Montserrat', sans-serif" },
     { name: "Open Sans", family: "'Open Sans', sans-serif" },
     { name: "Cascadia Code", family: "'Cascadia Code', monospace" },
     { name: "Fira Code", family: "'Fira Code', monospace" },
     { name: "JetBrains Mono", family: "'JetBrains Mono', monospace" },
   ];
-  selectedFont = "Montserrat";
+  selectedFont = "Cascadia Code";
   showFontSettings = false;
   focusedFontIndex = 0;
 
@@ -233,7 +232,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (saved) {
       this.setFont(saved);
     } else {
-      this.setFont("Montserrat");
+      this.setFont("Cascadia Code");
     }
   }
 
