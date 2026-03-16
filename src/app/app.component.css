@@ -1,74 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
-@import url('https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@5.0.1/index.min.css');
-
-:root {
-  --bg-color: #ffffff;
-  --text-color: #000000;
-  --border-color: #e0e0e0;
-  --accent-color: #000000;
-  --hover-color: #f5f5f5;
-  --titlebar-bg: #ffffff;
-  --main-font: 'Cascadia Code', monospace;
-}
-
-*,
-*::before,
-*::after {
-  font-family: var(--main-font);
-  box-sizing: border-box;
-}
-
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --bg-color: #0a0a0a;
-    --text-color: #ffffff;
-    --border-color: #262626;
-    --accent-color: #ffffff;
-    --hover-color: #1a1a1a;
-    --titlebar-bg: #0a0a0a;
-  }
-} */
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background-color: var(--bg-color);
-}
-
-body {
-  font-family: var(--main-font);
-  color: var(--text-color);
-}
-
-/* Minimalist Scrollbar Style */
-::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--text-color);
-  opacity: 0.1;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-color);
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--text-color) transparent;
-}
+/* Component specific styles start here */
 
 /* Titlebar */
 .titlebar {
@@ -77,7 +7,6 @@ body {
   background: var(--titlebar-bg);
   align-items: center;
   padding: 0 12px;
-  border-bottom: 1px solid var(--border-color);
   -webkit-app-region: drag;
   user-select: none;
 }
@@ -204,8 +133,7 @@ body.maximized .titlebar {
 
 .startup-toggle.enabled {
   opacity: 1;
-  color: var(--mac-maximize);
-  /* Using the green from mac controls */
+  color: var(--accent-color);
 }
 
 .startup-toggle.enabled:hover {
@@ -660,7 +588,6 @@ button.primary:hover {
 .search-results {
   margin-bottom: 20px;
   text-align: left;
-  border: 1px solid var(--border-color);
   border-radius: 8px;
   flex-grow: 1;
   overflow-y: auto;
@@ -673,7 +600,6 @@ button.primary:hover {
 
 .search-result-item {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   display: flex;
   justify-content: space-between;
@@ -751,7 +677,6 @@ button.primary:hover {
 
 .bin-item {
   padding: 8px;
-  border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -797,7 +722,6 @@ button.primary:hover {
 
 .icon-btn {
   background: transparent;
-  border: 1px solid var(--border-color);
   padding: 6px;
   border-radius: 6px;
   cursor: pointer;
