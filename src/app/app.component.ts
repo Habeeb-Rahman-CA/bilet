@@ -694,6 +694,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   startIdleDetection() {
+    // Disabled as per user request to never ask for password again after first setup.
+    /*
     if (this.idleCheckInterval) clearInterval(this.idleCheckInterval);
     this.idleCheckInterval = setInterval(() => {
       if (this.authStatus === "Unlocked") {
@@ -703,6 +705,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         }
       }
     }, 10000);
+    */
   }
 
   switchSection(section: "tasks" | "notepad") {

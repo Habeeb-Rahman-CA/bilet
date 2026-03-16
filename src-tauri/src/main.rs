@@ -59,13 +59,34 @@ enum AuthStatus {
 }
 
 #[tauri::command]
-fn check_auth_status(app_handle: tauri::AppHandle) -> AuthStatus {
+async fn check_auth_status(
+    app_handle: tauri::AppHandle,
+    state: State<'_, DbState>,
+) -> Result<AuthStatus, String> {
     let app_dir = app_handle.path().app_data_dir().unwrap();
     let master_path = app_dir.join("vault_master.txt");
+    let persistent_path = app_dir.join("vault_persistent.txt");
+
+    // Check if already unlocked in state
+    {
+        let db_lock = state.0.lock().unwrap();
+        if db_lock.is_some() {
+            return Ok(AuthStatus::Unlocked);
+        }
+    }
+
     if !master_path.exists() {
-        AuthStatus::SetupRequired
+        Ok(AuthStatus::SetupRequired)
     } else {
-        AuthStatus::Locked
+        // Try auto-unlock if persistent password exists
+        if persistent_path.exists() {
+            if let Ok(password) = fs::read_to_string(&persistent_path) {
+                if unlock_db_internal(password, state, app_handle).await.is_ok() {
+                    return Ok(AuthStatus::Unlocked);
+                }
+            }
+        }
+        Ok(AuthStatus::Locked)
     }
 }
 
@@ -78,8 +99,7 @@ fn derive_key(password: &str, salt_str: &str) -> Result<[u8; 32], String> {
     Ok(key)
 }
 
-#[tauri::command]
-async fn unlock_db(
+async fn unlock_db_internal(
     password: String,
     state: State<'_, DbState>,
     app_handle: tauri::AppHandle,
@@ -109,7 +129,6 @@ async fn unlock_db(
     }
 
     // Derive the actual AES key from the password
-    // We use a fixed salt-suffix for derivation that is distinct from the verification hash salt
     let key = derive_key(&password, "fixed-derivation-salt-123")?;
 
     // Open DB and ensure table exists
@@ -146,101 +165,95 @@ async fn unlock_db(
     )
     .map_err(|e| e.to_string())?;
 
-    // Drop secure_session table if it exists (cleaning up previous step's approach)
+    // Drop secure_session table if it exists
     let _ = conn.execute("DROP TABLE IF EXISTS secure_session", []);
 
-    // Migration: Add columns if they don't exist
-    let mut has_is_pinned = false;
-    let mut has_created_at = false;
-    let mut has_is_deleted = false;
+    // Migration logic
     {
-        let mut stmt = conn
-            .prepare("PRAGMA table_info(secure_notes)")
-            .map_err(|e| e.to_string())?;
-        let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
-        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
-            let name: String = row.get(1).map_err(|e| e.to_string())?;
-            if name == "is_pinned" {
-                has_is_pinned = true;
-            }
-            if name == "created_at" {
-                has_created_at = true;
-            }
-            if name == "is_deleted" {
-                has_is_deleted = true;
+        let mut has_is_pinned = false;
+        let mut has_created_at = false;
+        let mut has_is_deleted = false;
+        {
+            let mut stmt = conn
+                .prepare("PRAGMA table_info(secure_notes)")
+                .map_err(|e| e.to_string())?;
+            let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+            while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+                let name: String = row.get(1).map_err(|e| e.to_string())?;
+                if name == "is_pinned" {
+                    has_is_pinned = true;
+                }
+                if name == "created_at" {
+                    has_created_at = true;
+                }
+                if name == "is_deleted" {
+                    has_is_deleted = true;
+                }
             }
         }
-    }
+        if !has_created_at {
+            let _ = conn.execute("ALTER TABLE secure_notes ADD COLUMN created_at DATETIME", []);
+            let _ = conn.execute("UPDATE secure_notes SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL", []);
+        }
+        if !has_is_pinned {
+            let _ = conn.execute("ALTER TABLE secure_notes ADD COLUMN is_pinned BOOLEAN DEFAULT 0", []);
+        }
+        if !has_is_deleted {
+            let _ = conn.execute("ALTER TABLE secure_notes ADD COLUMN is_deleted BOOLEAN DEFAULT 0", []);
+        }
 
-    if !has_created_at {
-        let _ = conn.execute(
-            "ALTER TABLE secure_notes ADD COLUMN created_at DATETIME",
-            [],
-        );
-        let _ = conn.execute(
-            "UPDATE secure_notes SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL",
-            [],
-        );
-    }
-    if !has_is_pinned {
-        let _ = conn.execute(
-            "ALTER TABLE secure_notes ADD COLUMN is_pinned BOOLEAN DEFAULT 0",
-            [],
-        );
-    }
-    if !has_is_deleted {
-        let _ = conn.execute(
-            "ALTER TABLE secure_notes ADD COLUMN is_deleted BOOLEAN DEFAULT 0",
-            [],
-        );
-    }
-
-    let mut has_is_open = false;
-    let mut has_is_active = false;
-    let mut has_tab_index = false;
-
-    {
-        let mut stmt = conn
-            .prepare("PRAGMA table_info(secure_pads)")
-            .map_err(|e| e.to_string())?;
-        let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
-        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
-            let name: String = row.get(1).map_err(|e| e.to_string())?;
-            if name == "is_open" {
-                has_is_open = true;
-            }
-            if name == "is_active" {
-                has_is_active = true;
-            }
-            if name == "tab_index" {
-                has_tab_index = true;
+        let mut has_is_open = false;
+        let mut has_is_active = false;
+        let mut has_tab_index = false;
+        {
+            let mut stmt = conn
+                .prepare("PRAGMA table_info(secure_pads)")
+                .map_err(|e| e.to_string())?;
+            let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+            while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+                let name: String = row.get(1).map_err(|e| e.to_string())?;
+                if name == "is_open" {
+                    has_is_open = true;
+                }
+                if name == "is_active" {
+                    has_is_active = true;
+                }
+                if name == "tab_index" {
+                    has_tab_index = true;
+                }
             }
         }
-    }
-
-    if !has_is_open {
-        let _ = conn.execute(
-            "ALTER TABLE secure_pads ADD COLUMN is_open BOOLEAN DEFAULT 0",
-            [],
-        );
-    }
-    if !has_is_active {
-        let _ = conn.execute(
-            "ALTER TABLE secure_pads ADD COLUMN is_active BOOLEAN DEFAULT 0",
-            [],
-        );
-    }
-    if !has_tab_index {
-        let _ = conn.execute(
-            "ALTER TABLE secure_pads ADD COLUMN tab_index INTEGER DEFAULT 0",
-            [],
-        );
+        if !has_is_open {
+            let _ = conn.execute("ALTER TABLE secure_pads ADD COLUMN is_open BOOLEAN DEFAULT 0", []);
+        }
+        if !has_is_active {
+            let _ = conn.execute("ALTER TABLE secure_pads ADD COLUMN is_active BOOLEAN DEFAULT 0", []);
+        }
+        if !has_tab_index {
+            let _ = conn.execute("ALTER TABLE secure_pads ADD COLUMN tab_index INTEGER DEFAULT 0", []);
+        }
     }
 
     let mut db_lock = state.0.lock().unwrap();
     *db_lock = Some((conn, key));
 
     Ok("Unlocked".to_string())
+}
+
+#[tauri::command]
+async fn unlock_db(
+    password: String,
+    state: State<'_, DbState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    let res = unlock_db_internal(password.clone(), state, app_handle.clone()).await?;
+
+    // On successful manual unlock, save it for future auto-unlock
+    let app_dir = app_handle.path().app_data_dir().unwrap();
+    let persistent_path = app_dir.join("vault_persistent.txt");
+    let _ = fs::write(persistent_path, password);
+
+    Ok(res)
 }
 
 #[tauri::command]
@@ -682,9 +695,17 @@ fn save_file_to_local(path: String, content: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn lock_vault(state: State<'_, DbState>) -> Result<String, String> {
+fn lock_vault(state: State<'_, DbState>, app_handle: tauri::AppHandle) -> Result<String, String> {
     let mut db_lock = state.0.lock().unwrap();
     *db_lock = None;
+
+    // Delete persistent password on manual lock
+    let app_dir = app_handle.path().app_data_dir().unwrap();
+    let persistent_path = app_dir.join("vault_persistent.txt");
+    if persistent_path.exists() {
+        let _ = fs::remove_file(persistent_path);
+    }
+
     Ok("Locked".to_string())
 }
 
