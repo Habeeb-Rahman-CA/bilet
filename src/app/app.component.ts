@@ -35,7 +35,7 @@ interface Pad {
   tab_index: number;
 }
 
-type AuthStatus = "SetupRequired" | "Locked" | "Unlocked";
+type AuthStatus = "SetupRequired" | "Locked" | "Unlocked" | "Checking";
 
 @Component({
   selector: "app-root",
@@ -111,7 +111,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   // Vault Status
-  authStatus: AuthStatus = "Locked";
+  authStatus: AuthStatus = "Checking";
   password = "";
   errorMessage = "";
 
@@ -741,6 +741,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   async lockVault() {
+    // Manual locking is disabled as per user request to 'never ask again'.
+    /*
     try {
       await invoke("lock_vault");
       this.authStatus = "Locked";
@@ -749,7 +751,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.password = "";
       this.selectedNoteId = null;
       this.editingNoteId = null;
-      // Reset notepad state
       this.pads = [];
       this.activeTabId = null;
       this.activePad = null;
@@ -761,6 +762,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     } catch (err) {
       console.error(err);
     }
+    */
   }
 
   async loadNotes() {
