@@ -87,8 +87,11 @@
 <main class="container" *ngIf="authStatus === 'Unlocked' && activeSection === 'tasks'">
 
   <div class="input-group">
-    <textarea #noteInput [(ngModel)]="newNote" placeholder="Write a new task..."
-      (keydown.enter)="handleNoteKeyDown($event)" rows="1"></textarea>
+    <div #noteInput class="note-input-editor" contenteditable="true" 
+      (keydown)="handleNoteKeyDown($event)" placeholder="Write a new task..."></div>
+    <button class="add-btn" (click)="addNote()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" /></svg>
+    </button>
   </div>
 
   <div class="notes-list">
@@ -98,7 +101,7 @@
       <!-- Normal View -->
       <div *ngIf="editingNoteId !== note.id; else editView" class="note-wrapper">
         <div class="note-header">
-          <p class="note-content">{{ note.content }}</p>
+          <p class="note-content" [innerHTML]="formatContent(note.content)"></p>
           <div class="pin-icon" *ngIf="note.is_pinned">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11V22L12,23L13,22V16H18V14L16,12Z" />
@@ -116,8 +119,8 @@
       <!-- Edit View -->
       <ng-template #editView>
         <div class="edit-mode">
-          <textarea #editInput [(ngModel)]="editContent" (ngModelChange)="onEditChange()"
-            (keydown.enter)="handleEditKeyDown($event)" rows="1"></textarea>
+          <div #editInput class="edit-input-editor" contenteditable="true"
+            (keydown)="handleEditKeyDown($event, note)" [innerHTML]="formatContent(note.content)"></div>
         </div>
       </ng-template>
 
@@ -136,7 +139,7 @@
   <div class="tab-bar">
     <div class="tab" *ngFor="let pad of openOrderedTabs" (click)="switchTab(pad.id)"
       [class.active]="activeTabId === pad.id">
-      <span class="tab-title">{{ pad.title || 'Untitled' }}</span>
+      <span class="tab-title" [innerHTML]="formatContent(pad.title || 'Untitled')"></span>
       <button class="tab-close" (click)="closeTab(pad.id, $event)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18" />
@@ -155,9 +158,9 @@
         {{ num }}
       </span>
     </div>
-    <textarea #padEditor class="pad-content-editor" [(ngModel)]="padContent" (ngModelChange)="onPadContentChange()"
+    <div #padEditor class="pad-content-editor" contenteditable="true" (input)="onPadInput()"
       (keydown)="handlePadKeyDown($event, padEditor)" (scroll)="onEditorScroll($event)" placeholder="Start writing..."
-      spellcheck="false"></textarea>
+      spellcheck="false"></div>
   </div>
 
   <!-- Empty state -->
@@ -186,7 +189,7 @@
         <div class="shortcut-group-title">App Navigation</div>
         <div class="shortcut-item"><span>Ctrl + Shift + Space</span> Switch Section</div>
         <div class="shortcut-item"><span>Ctrl + F</span> Search</div>
-        <div class="shortcut-item"><span>Ctrl + B</span> History / Bin</div>
+        <div class="shortcut-item"><span>Ctrl + Shift + B</span> History / Bin</div>
         <div class="shortcut-item"><span>Ctrl + H</span> Help</div>
         <div class="shortcut-item"><span>Esc</span> Close Modal</div>
       </div>
@@ -198,6 +201,9 @@
         <div class="shortcut-item"><span>Ctrl + S</span> Save File</div>
         <div class="shortcut-item"><span>Ctrl + Space</span> Shift/Cycle Tabs</div>
         <div class="shortcut-item"><span>Ctrl + Shift + D</span> Delete Current Tab</div>
+        <div class="shortcut-item"><span>Ctrl + B</span> Bold</div>
+        <div class="shortcut-item"><span>Ctrl + I</span> Italic</div>
+        <div class="shortcut-item"><span>Ctrl + U</span> Underline</div>
         <div class="shortcut-item"><span>Alt + Shift + ↑/↓</span> Duplicate Line</div>
         <div class="shortcut-item"><span>Alt + ↑/↓</span> Move Line</div>
       </div>
@@ -236,7 +242,7 @@
       <div class="search-result-item" *ngFor="let note of getFilteredNotes()" (click)="selectSearchResult(note)"
         [class.selected]="selectedNoteId === note.id">
         <div class="search-info">
-          <p class="search-preview">{{ note.content }}</p>
+          <p class="search-preview" [innerHTML]="formatContent(note.content)"></p>
           <div class="pin-icon mini" *ngIf="note.is_pinned">
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11V22L12,23L13,22V16H18V14L16,12Z" />
@@ -263,7 +269,7 @@
       <div class="bin-item" *ngFor="let item of binItems" (click)="selectedBinItemId = { id: item.id, type: item.type }"
         [class.selected]="selectedBinItemId?.id === item.id && selectedBinItemId?.type === item.type">
         <div class="bin-item-content">
-          <p class="bin-text">{{ item.content }}</p>
+          <p class="bin-text" [innerHTML]="formatContent(item.content)"></p>
           <span class="bin-date">
             <span *ngIf="item.type === 'pad'" style="opacity:0.5; margin-right:6px;">Pad</span>
             {{ formatDate(item.timestamp) }}

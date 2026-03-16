@@ -162,8 +162,33 @@ h2 {
 /* Input & Add Button area */
 .input-group {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 32px;
+  align-items: flex-end;
+}
+
+.add-btn {
+  background: var(--accent-color);
+  color: var(--bg-color);
+  border: none;
+  border-radius: 6px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.add-btn:hover {
+  opacity: 0.9;
+}
+
+.add-btn svg {
+  width: 24px;
+  height: 24px;
 }
 
 input,
@@ -183,8 +208,41 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+.note-input-editor:focus,
+.edit-input-editor:focus {
   border-color: var(--accent-color);
+}
+
+.note-input-editor,
+.edit-input-editor {
+  flex-grow: 1;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+  color: var(--text-color);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  min-height: 52px;
+  line-height: 1.4;
+  word-break: break-word;
+  overflow-y: auto;
+}
+
+.note-input-editor:empty:before {
+  content: attr(placeholder);
+  color: var(--text-color);
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.edit-input-editor {
+  padding: 0;
+  border: none;
+  min-height: unset;
 }
 
 /* input:focus::placeholder,
@@ -980,7 +1038,7 @@ button.primary:hover {
 
 .line-gutter span.marked {
   opacity: 1;
-  color: #000000;
+  color: var(--text-color);
   font-weight: 600;
 }
 

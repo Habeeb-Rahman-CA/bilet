@@ -45,17 +45,15 @@ type AuthStatus = "SetupRequired" | "Locked" | "Unlocked" | "Checking";
   styleUrl: "./app.component.css",
 })
 export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
-  @ViewChild("noteInput") noteInput!: ElementRef;
-  @ViewChild("editInput") editInput?: ElementRef;
+  @ViewChild("noteInput") noteInput!: ElementRef<HTMLDivElement>;
+  @ViewChild("editInput") editInput?: ElementRef<HTMLDivElement>;
   private needsFocus = false;
   private editNeedsFocus = false;
 
   notes: Note[] = [];
-  newNote = "";
   selectedNoteId: number | null = null;
   editingNoteId: number | null = null;
   isConfirmingDeleteId: number | null = null;
-  editContent = "";
   autoStartEnabled = false;
   showHelp = false;
   showSearch = false;
@@ -72,7 +70,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   isConfirmingRestoreId: { id: number; type: "task" | "pad" } | null = null;
   isConfirmingClearAll = false;
   @ViewChild("searchInput") searchInput?: ElementRef;
-  @ViewChild("padEditor") padEditor?: ElementRef;
+  @ViewChild("padEditor") padEditor?: ElementRef<HTMLDivElement>;
   private searchNeedsFocus = false;
   private padEditorNeedsFocus = false;
   isConfirmingPadCloseId: number | null = null;
@@ -380,8 +378,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.showHelp = !this.showHelp;
     }
 
-    // Toggle Bin (Ctrl + B)
-    if (event.ctrlKey && event.key.toLowerCase() === "b") {
+    // Toggle Bin (Ctrl + Shift + B)
+    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "b") {
       event.preventDefault();
       this.showBin = !this.showBin;
       if (this.showBin) {
@@ -392,6 +390,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         this.isConfirmingClearAll = false;
         this.loadBinItems();
       }
+      return;
     }
 
     // Toggle Search (Ctrl + F)
@@ -813,10 +812,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   async addNote() {
-    if (!this.newNote.trim()) return;
+    const content = this.noteInput.nativeElement.innerHTML.trim();
+    if (!content) return;
     try {
-      await invoke("add_note", { content: this.newNote });
-      this.newNote = "";
+      await invoke("add_note", { content });
+      this.noteInput.nativeElement.innerHTML = "";
       await this.loadNotes();
       this.selectedNoteId = null;
       this.triggerFocus();
@@ -825,48 +825,49 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  handleNoteKeyDown(event: any) {
-    if (event.key === "Enter") {
-      if (event.ctrlKey) {
-        // Ctrl + Enter: Insert newline manually since we prevent default on plain Enter
-        const target = event.target as HTMLTextAreaElement;
-        const start = target.selectionStart;
-        const end = target.selectionEnd;
-        this.newNote =
-          this.newNote.substring(0, start) + "\n" + this.newNote.substring(end);
+  handleNoteKeyDown(event: KeyboardEvent) {
+    if (event.ctrlKey) {
+      const key = event.key.toLowerCase();
+      if (key === 'b' || key === 'i' || key === 'u') {
+        event.preventDefault();
+        const command = key === 'b' ? 'bold' : key === 'i' ? 'italic' : 'underline';
+        document.execCommand(command, false);
+        return;
+      }
+    }
 
-        // Return focus and move cursor after next tick
-        setTimeout(() => {
-          target.selectionStart = target.selectionEnd = start + 1;
-        }, 0);
-      } else {
+    if (event.key === "Enter") {
+      if (!event.ctrlKey && !event.shiftKey) {
         // Plain Enter: Save
         event.preventDefault();
         this.addNote();
       }
+      // Ctrl+Enter and Shift+Enter will naturally insert newline/div in contenteditable
     }
   }
 
-  handleEditKeyDown(event: any) {
-    if (event.key === "Enter") {
-      if (event.ctrlKey) {
-        // Ctrl + Enter: Insert newline
-        const target = event.target as HTMLTextAreaElement;
-        const start = target.selectionStart;
-        const end = target.selectionEnd;
-        this.editContent =
-          this.editContent.substring(0, start) +
-          "\n" +
-          this.editContent.substring(end);
+  handleEditKeyDown(event: KeyboardEvent, note: Note) {
+    if (event.ctrlKey) {
+      const key = event.key.toLowerCase();
+      if (key === 'b' || key === 'i' || key === 'u') {
+        event.preventDefault();
+        const command = key === 'b' ? 'bold' : key === 'i' ? 'italic' : 'underline';
+        document.execCommand(command, false);
+        return;
+      }
+    }
 
-        setTimeout(() => {
-          target.selectionStart = target.selectionEnd = start + 1;
-        }, 0);
-      } else {
+    if (event.key === "Enter") {
+      if (!event.ctrlKey && !event.shiftKey) {
         // Plain Enter: Save
         event.preventDefault();
         this.updateNote();
       }
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      this.cancelEdit();
     }
   }
 
@@ -891,41 +892,21 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   startEdit(note: Note) {
     this.editingNoteId = note.id;
-    this.editContent = note.content;
     this.triggerEditFocus();
   }
 
   cancelEdit() {
     this.editingNoteId = null;
-    this.editContent = "";
     this.triggerFocus();
   }
 
-  async onEditChange() {
-    if (this.editingNoteId === null) return;
-    try {
-      await invoke("update_note", {
-        id: this.editingNoteId,
-        content: this.editContent,
-      });
-      const note = this.notes.find((n) => n.id === this.editingNoteId);
-      if (note) note.content = this.editContent;
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
   async updateNote() {
-    if (!this.editContent.trim() || this.editingNoteId === null) return;
+    if (this.editingNoteId === null || !this.editInput) return;
+    const content = this.editInput.nativeElement.innerHTML.trim();
     try {
-      await invoke("update_note", {
-        id: this.editingNoteId,
-        content: this.editContent,
-      });
+      await invoke("update_note", { id: this.editingNoteId, content });
       this.editingNoteId = null;
-      this.editContent = "";
       await this.loadNotes();
-      this.triggerFocus();
     } catch (err) {
       console.error(err);
     }
@@ -999,7 +980,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   getPadTabTitle(pad: Pad): string {
-    const firstLine = pad.content.split("\n")[0]?.trim();
+    // If it's a contenteditable blob, we extract text and get first line
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = pad.content;
+    const text = tempDiv.innerText || '';
+    const firstLine = text.split("\n")[0]?.trim();
     return firstLine || "Untitled";
   }
 
@@ -1040,8 +1025,14 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.activeTabId = padId;
     this.activePad = { ...pad };
     this.padContent = pad.content;
-    this.updateLineNumbers();
-    this.triggerPadEditorFocus();
+
+    setTimeout(() => {
+      if (this.padEditor) {
+        this.padEditor.nativeElement.innerHTML = this.padContent;
+        this.updateLineNumbers();
+        this.triggerPadEditorFocus();
+      }
+    });
   }
 
   get openOrderedTabs(): Pad[] {
@@ -1158,23 +1149,34 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     await this.openTab(padId);
   }
 
+  onPadInput() {
+    if (this.padEditor) {
+      this.padContent = this.padEditor.nativeElement.innerHTML;
+      this.onPadContentChange();
+    }
+  }
+
   onPadContentChange() {
     this.updateLineNumbers();
-    // Update tab title from first line in local state for instant feedback
     const pad = this.pads.find((p) => p.id === this.activeTabId);
     if (pad) {
-      const firstLine = this.padContent.split("\n")[0]?.trim();
+      if (!this.padEditor) return;
+      // Get title from text content only
+      const text = this.padEditor.nativeElement.innerText || '';
+      const firstLine = text.split("\n")[0]?.trim();
       pad.title = firstLine || "Untitled";
     }
     this.schedulePadAutoSave();
   }
 
   updateLineNumbers() {
-    const count = this.padContent ? this.padContent.split("\n").length : 1;
+    if (!this.padEditor) return;
+    const text = this.padEditor.nativeElement.innerText;
+    const count = text ? text.split("\n").length : 1;
     this.lineNumbers = Array.from({ length: count }, (_, i) => i + 1);
   }
 
-  handlePadKeyDown(event: KeyboardEvent, editor: HTMLTextAreaElement) {
+  handlePadKeyDown(event: KeyboardEvent, editor: HTMLElement) {
     if (
       this.showHelp ||
       this.showSearch ||
@@ -1183,6 +1185,16 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     ) {
       event.preventDefault();
       return;
+    }
+    if (event.ctrlKey) {
+      const key = event.key.toLowerCase();
+      if (key === 'b' || key === 'i' || key === 'u') {
+        event.preventDefault();
+        const command = key === 'b' ? 'bold' : key === 'i' ? 'italic' : 'underline';
+        document.execCommand(command, false);
+        this.onPadInput();
+        return;
+      }
     }
 
     if (
@@ -1202,81 +1214,86 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  duplicateLine(direction: string, editor: HTMLTextAreaElement) {
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const text = this.padContent;
 
-    let lineStart = text.lastIndexOf("\n", start - 1) + 1;
-    let lineEnd = text.indexOf("\n", end);
-    if (lineEnd === -1) lineEnd = text.length;
+  duplicateLine(direction: string, editor: any) {
+    if (editor instanceof HTMLTextAreaElement) {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const text = this.padContent;
 
-    const selectedLines = text.substring(lineStart, lineEnd);
+      let lineStart = text.lastIndexOf("\n", start - 1) + 1;
+      let lineEnd = text.indexOf("\n", end);
+      if (lineEnd === -1) lineEnd = text.length;
 
-    const before = text.substring(0, lineStart);
-    const after = text.substring(lineEnd);
-
-    this.padContent = before + selectedLines + "\n" + selectedLines + after;
-    this.onPadContentChange();
-
-    setTimeout(() => {
-      if (direction === "ArrowUp") {
-        editor.setSelectionRange(start, end);
-      } else {
-        const offset = selectedLines.length + 1;
-        editor.setSelectionRange(start + offset, end + offset);
-      }
-    });
-  }
-
-  moveLine(direction: string, editor: HTMLTextAreaElement) {
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    const text = this.padContent;
-
-    let lineStart = text.lastIndexOf("\n", start - 1) + 1;
-    let lineEnd = text.indexOf("\n", end);
-    // If exact end is on newline, avoid selecting the next line
-    if (end > start && text[end - 1] === "\n") {
-      lineEnd = end - 1;
-    } else if (lineEnd === -1) {
-      lineEnd = text.length;
-    }
-
-    const selectedLines = text.substring(lineStart, lineEnd);
-
-    if (direction === "ArrowUp") {
-      if (lineStart === 0) return;
-      let prevLineStart = text.lastIndexOf("\n", lineStart - 2) + 1;
-      const prevLineText = text.substring(prevLineStart, lineStart - 1);
-
-      const before = text.substring(0, prevLineStart);
-      const after = text.substring(lineEnd);
-
-      this.padContent = before + selectedLines + "\n" + prevLineText + after;
-      this.onPadContentChange();
-
-      const offset = -(prevLineText.length + 1);
-      setTimeout(() => {
-        editor.setSelectionRange(start + offset, end + offset);
-      });
-    } else {
-      if (lineEnd === text.length) return;
-      let nextLineEnd = text.indexOf("\n", lineEnd + 1);
-      if (nextLineEnd === -1) nextLineEnd = text.length;
-
-      const nextLineText = text.substring(lineEnd + 1, nextLineEnd);
+      const selectedLines = text.substring(lineStart, lineEnd);
 
       const before = text.substring(0, lineStart);
-      const after = text.substring(nextLineEnd);
+      const after = text.substring(lineEnd);
 
-      this.padContent = before + nextLineText + "\n" + selectedLines + after;
+      this.padContent = before + selectedLines + "\n" + selectedLines + after;
       this.onPadContentChange();
 
-      const offset = nextLineText.length + 1;
       setTimeout(() => {
-        editor.setSelectionRange(start + offset, end + offset);
+        if (direction === "ArrowUp") {
+          editor.setSelectionRange(start, end);
+        } else {
+          const offset = selectedLines.length + 1;
+          editor.setSelectionRange(start + offset, end + offset);
+        }
       });
+    }
+  }
+
+  moveLine(direction: string, editor: any) {
+    if (editor instanceof HTMLTextAreaElement) {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const text = this.padContent;
+
+      let lineStart = text.lastIndexOf("\n", start - 1) + 1;
+      let lineEnd = text.indexOf("\n", end);
+      // If exact end is on newline, avoid selecting the next line
+      if (end > start && text[end - 1] === "\n") {
+        lineEnd = end - 1;
+      } else if (lineEnd === -1) {
+        lineEnd = text.length;
+      }
+
+      const selectedLines = text.substring(lineStart, lineEnd);
+
+      if (direction === "ArrowUp") {
+        if (lineStart === 0) return;
+        let prevLineStart = text.lastIndexOf("\n", lineStart - 2) + 1;
+        const prevLineText = text.substring(prevLineStart, lineStart - 1);
+
+        const before = text.substring(0, prevLineStart);
+        const after = text.substring(lineEnd);
+
+        this.padContent = before + selectedLines + "\n" + prevLineText + after;
+        this.onPadContentChange();
+
+        const offset = -(prevLineText.length + 1);
+        setTimeout(() => {
+          editor.setSelectionRange(start + offset, end + offset);
+        });
+      } else {
+        if (lineEnd === text.length) return;
+        let nextLineEnd = text.indexOf("\n", lineEnd + 1);
+        if (nextLineEnd === -1) nextLineEnd = text.length;
+
+        const nextLineText = text.substring(lineEnd + 1, nextLineEnd);
+
+        const before = text.substring(0, lineStart);
+        const after = text.substring(nextLineEnd);
+
+        this.padContent = before + nextLineText + "\n" + selectedLines + after;
+        this.onPadContentChange();
+
+        const offset = nextLineText.length + 1;
+        setTimeout(() => {
+          editor.setSelectionRange(start + offset, end + offset);
+        });
+      }
     }
   }
 
@@ -1296,8 +1313,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   private async savePadNow() {
-    if (!this.activePad) return;
-    const firstLine = this.padContent.split("\n")[0]?.trim();
+    if (!this.activePad || !this.padEditor) return;
+    const text = this.padEditor.nativeElement.innerText || '';
+    const firstLine = text.split("\n")[0]?.trim();
     const title = firstLine || "Untitled";
     try {
       await invoke("update_pad", {
@@ -1409,5 +1427,28 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
   async close() {
     await getCurrentWindow().close();
+  }
+
+  formatContent(content: string): string {
+    if (!content) return '';
+
+    // If it already contains HTML tags (from contenteditable), we want to preserve them
+    // but we also want to support Markdown-style markers for the Task textareas.
+
+    let result = content;
+
+    // 1. Handle Markdown markers (for plain text areas)
+    // Bold **text** -> <b>text</b>
+    result = result.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    // Italic *text* -> <i>text</i>
+    result = result.replace(/\*(.*?)\*/g, '<i>$1</i>');
+
+    // 2. We don't escape everything because contenteditable uses tags like <b>, <i>, <u> directly.
+    // However, we should still handle newlines for plain text.
+    if (!result.includes('<br>') && !result.includes('<div>')) {
+      result = result.replace(/\n/g, '<br>');
+    }
+
+    return result;
   }
 }
