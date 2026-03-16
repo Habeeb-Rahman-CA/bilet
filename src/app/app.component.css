@@ -3,12 +3,13 @@
 /* Titlebar */
 .titlebar {
   display: flex;
-  height: 38px;
+  height: 42px;
   background: var(--titlebar-bg);
   align-items: center;
-  padding: 0 12px;
+  padding: 0 16px;
   -webkit-app-region: drag;
   user-select: none;
+  z-index: 1000;
 }
 
 body.maximized .titlebar {
@@ -41,15 +42,18 @@ body.maximized .titlebar {
 }
 
 .close {
-  background-color: #0a0a0a;
+  background-color: var(--text-color);
+  opacity: 0.2;
 }
 
 .minimize {
-  background-color: #0a0a0a;
+  background-color: var(--text-color);
+  opacity: 0.15;
 }
 
 .maximize {
-  background-color: #0a0a0a;
+  background-color: var(--text-color);
+  opacity: 0.1;
 }
 
 .title-text {
@@ -213,23 +217,31 @@ button.primary:hover {
 }
 
 .note-card {
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 12px;
+  padding: 16px 20px;
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .note-card:hover {
-  background: #f5f5f5;
+  background: var(--hover-color);
+  transform: translateY(-1px);
+  border-color: var(--border-color);
 }
 
 .note-card.selected {
-  background: #f5f5f5;
+  background: var(--hover-color);
+  border-color: var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .note-card.editing {
-  background: #f5f5f5;
+  background: var(--bg-color);
+  border-color: var(--accent-color);
+  cursor: default;
 }
 
 .note-header {
@@ -282,8 +294,8 @@ button.primary:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgb(0, 0, 0);
-  color: white;
+  background: var(--text-color);
+  color: var(--bg-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -413,7 +425,7 @@ button.primary:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(var(--bg-rgb), 0.5);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -423,22 +435,21 @@ button.primary:hover {
 }
 
 .help-content {
-  background: #ffffff;
-  border: 1px solid #e7e7e7;
-  border-radius: 12px;
-  padding: 32px;
-  width: 100%;
-  max-width: 400px;
-  max-height: 400px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 40px;
+  width: 90%;
+  max-width: 440px;
+  max-height: 85vh;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   overflow-y: auto;
   text-align: center;
   position: relative;
   display: flex;
   flex-direction: column;
   scrollbar-width: none;
-  /* Firefox */
   -ms-overflow-style: none;
-  /* IE/Edge */
 }
 
 
@@ -613,11 +624,11 @@ button.primary:hover {
 }
 
 .search-result-item:hover {
-  background: #f5f5f5;
+  background: var(--hover-color);
 }
 
 .search-result-item.selected {
-  background: #f5f5f5;
+  background: var(--hover-color);
 }
 
 .search-preview {
@@ -693,7 +704,7 @@ button.primary:hover {
 }
 
 .bin-item.selected {
-  background: #f5f5f5;
+  background: var(--hover-color);
 }
 
 .bin-item-content {
@@ -754,8 +765,8 @@ button.primary:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #0a0a0a;
-  color: white;
+  background: var(--text-color);
+  color: var(--bg-color);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -794,15 +805,15 @@ button.primary:hover {
 }
 
 .font-item:hover {
-  background: #f5f5f5;
+  background: var(--hover-color);
 }
 
 .font-item.selected {
-  background: #f5f5f5;
+  background: var(--hover-color);
 }
 
 .font-item.focused {
-  background: #f5f5f5;
+  background: var(--hover-color);
 }
 
 .font-item.coming-soon {
@@ -854,11 +865,11 @@ button.primary:hover {
 }
 
 .tab:hover {
-  background: #f5f5f5;
+  background: var(--hover-color);
 }
 
 .tab.active {
-  background: #f5f5f5;
+  background: var(--hover-color);
 }
 
 .tab-title {

@@ -114,6 +114,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   authStatus: AuthStatus = "Checking";
   password = "";
   errorMessage = "";
+  isDarkMode = false;
 
   private async saveSession() {
     // Deprecated
@@ -199,6 +200,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       console.error(err);
     }
     this.loadFont();
+    this.loadDarkMode();
   }
 
   ngOnDestroy() {
@@ -242,6 +244,24 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     const font = this.availableFonts.find((f) => f.name === fontName);
     if (font) {
       document.documentElement.style.setProperty("--main-font", font.family);
+    }
+  }
+
+  loadDarkMode() {
+    const saved = localStorage.getItem("darkMode");
+    if (saved === "true" || (saved === null && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+      this.isDarkMode = true;
+      document.body.classList.add("dark-mode");
+    }
+  }
+
+  toggleDarkMode() {
+    this.isDarkMode = !this.isDarkMode;
+    localStorage.setItem("darkMode", this.isDarkMode.toString());
+    if (this.isDarkMode) {
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
     }
   }
 
