@@ -146,6 +146,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   selectedFont = "Cascadia Code";
   showFontSettings = false;
   focusedFontIndex = 0;
+  spellCheckEnabled = localStorage.getItem('spellcheck') === 'true';
 
   // Idle Detection
   private idleTimeout = 10 * 60 * 1000; // 10 minutes
@@ -1545,5 +1546,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     } catch (err) {
       console.error('Failed to delete font:', err);
     }
+  }
+
+  toggleSpellCheck() {
+    this.spellCheckEnabled = !this.spellCheckEnabled;
+    localStorage.setItem('spellcheck', String(this.spellCheckEnabled));
   }
 }
