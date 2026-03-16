@@ -5,7 +5,7 @@
     "email": "habeebrahmanca07@gmail.com",
     "url": "https://habrhmnc.dev"
   },
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

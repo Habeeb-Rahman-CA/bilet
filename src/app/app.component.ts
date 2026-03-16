@@ -115,7 +115,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   password = "";
   errorMessage = "";
   isDarkMode = false;
-  appVersion = "1.0.0";
+  appVersion = "1.1.0";
 
   private async saveSession() {
     // Deprecated
@@ -1521,7 +1521,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         const familyName = `Custom-${name}`;
         const assetUrl = convertFileSrc(path);
         console.log('Loading font:', name, 'from:', assetUrl);
-        
+
         fontCache[familyName] = assetUrl;
 
         try {
@@ -1544,10 +1544,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
           isCustom: true
         });
       }
-      
+
       // Cache custom fonts to immediately load them on next startup before Tauri initializes
       localStorage.setItem('customFontsCache', JSON.stringify(fontCache));
-      
+
     } catch (err) {
       console.error('Failed to load custom fonts:', err);
     }

@@ -16,6 +16,7 @@ All your data is encrypted at rest using **AES-256-GCM**, behind a master passwo
 
 ### 📝 Tasks (Quick Notes)
 - Create, edit, and delete short task-style notes
+- **Rich Text Formatting** (Bold, Italic, Underline) via shortcuts
 - **Pin** important notes to keep them at the top
 - Inline editing with auto-save
 - **Search** across all tasks with `Ctrl + F`
@@ -26,6 +27,8 @@ All your data is encrypted at rest using **AES-256-GCM**, behind a master passwo
 - **Line numbers** with clickable line bookmarks/markers
 - **Auto-save** with debounced writes to the database
 - **Save to local file** via native file dialog (`Ctrl + S`)
+- **Rich Text Formatting** inline capabilities built-in
+- **Built-in Spell Checker** with browser native support (Toggle via header button)
 - Code-editor-style shortcuts:
   - `Alt + ↑/↓` to move lines
   - `Alt + Shift + ↑/↓` to duplicate lines
@@ -34,8 +37,11 @@ All your data is encrypted at rest using **AES-256-GCM**, behind a master passwo
 - Session persistence — open tabs and active tab restored on relaunch
 
 ### 🎨 Customization
-- **5 built-in fonts**: Montserrat, Open Sans, Cascadia Code, Fira Code, JetBrains Mono
-- Font selection persisted via localStorage
+- **Minimalist Splash Screen** — Clean, aesthetic loading screen with zero FOUC (Flash of Unstyled Content)
+- **Dark & Light Mode** toggle instantly, cached securely for seamless reloads
+- **Built-in fonts**: Cascadia Code, Fira Code, JetBrains Mono
+- **Custom Font Uploads**: Add your own `.ttf` or `.otf` fonts and delete them as needed
+- Advanced caching instantly applies themes and custom fonts before the app even renders
 - Clean, minimalist black-and-white design with Mac-style window controls
 
 ### ⚡ Productivity
@@ -63,17 +69,20 @@ All your data is encrypted at rest using **AES-256-GCM**, behind a master passwo
 |---|---|
 | `Ctrl + Shift + Space` | Switch between Tasks and Notepad |
 | `Ctrl + F` | Search |
-| `Ctrl + B` | History / Bin |
+| `Ctrl + Shift + B` | History / Bin |
 | `Ctrl + H` | Help |
 | `Esc` | Close modal |
 
-### Notepad
+### Notepad & Global Formatting
 | Shortcut | Action |
 |---|---|
 | `Ctrl + N` | New tab |
 | `Ctrl + S` | Save to file |
 | `Ctrl + Space` | Cycle tabs |
 | `Ctrl + Shift + D` | Delete current tab |
+| `Ctrl + B` | Bold |
+| `Ctrl + I` | Italic |
+| `Ctrl + U` | Underline |
 | `Alt + Shift + ↑/↓` | Duplicate line |
 | `Alt + ↑/↓` | Move line |
 
