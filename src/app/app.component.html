@@ -1,3 +1,11 @@
+<!-- Splash Screen -->
+<div class="splash-screen" *ngIf="showSplash" [class.fade-out]="splashFading">
+  <div class="splash-content">
+    <div class="splash-logo">bilet</div>
+    <div class="splash-tagline">A clean desk for your thoughts and code.</div>
+  </div>
+</div>
+
 <div class="titlebar">
   <div class="window-controls">
     <button class="control close" (click)="close()"></button>

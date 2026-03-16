@@ -16,7 +16,8 @@
   --selection-color: #cacaca;
 }
 
-body.dark-mode {
+body.dark-mode,
+html.dark-mode {
   --bg-color: #0d0d0d;
   --bg-rgb: 13, 13, 13;
   --text-color: #f0f0f0;

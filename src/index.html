@@ -1,12 +1,54 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Tauri + Angular</title>
-    <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-  <body>
-    <app-root></app-root>
-  </body>
+
+<head>
+  <meta charset="utf-8" />
+  <title>bilet</title>
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script>
+    // Prevent FOUC (Flash of Unstyled Content) by applying theme before render
+    const savedTheme = localStorage.getItem("darkMode");
+    if (savedTheme === "true" || (savedTheme === null && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+      document.documentElement.classList.add("dark-mode");
+    }
+
+    const savedFont = localStorage.getItem("selectedFont");
+    if (savedFont) {
+      // 1. Restore Custom Fonts early from cache to avoid FOUC
+      try {
+        const cachedFonts = localStorage.getItem('customFontsCache');
+        if (cachedFonts) {
+          const fontMap = JSON.parse(cachedFonts);
+          let customStyles = '';
+          for (const [familyName, assetUrl] of Object.entries(fontMap)) {
+            customStyles += `@font-face { font-family: "${familyName}"; src: url("${assetUrl}"); } `;
+          }
+          if (customStyles) {
+            const style = document.createElement('style');
+            style.textContent = customStyles;
+            document.head.appendChild(style);
+          }
+        }
+      } catch (e) { console.error('Error loading cached fonts', e); }
+
+      // 2. Apply Custom Font
+      let family = "'Cascadia Code', monospace";
+      if (savedFont === "Fira Code") family = "'Fira Code', monospace";
+      else if (savedFont === "JetBrains Mono") family = "'JetBrains Mono', monospace";
+      else if (savedFont.startsWith("Custom-")) family = `"${savedFont}", monospace`;
+      else if (savedFont.startsWith("CustomFont")) family = `"${savedFont}", monospace`;
+      else if (savedFont && !['Cascadia Code', 'Fira Code', 'JetBrains Mono'].includes(savedFont)) {
+        family = `"Custom-${savedFont}", monospace`;
+      }
+
+      document.documentElement.style.setProperty("--main-font", family);
+    }
+  </script>
+</head>
+
+<body>
+  <app-root></app-root>
+</body>
+
 </html>

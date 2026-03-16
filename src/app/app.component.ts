@@ -58,6 +58,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   showHelp = false;
   showSearch = false;
   showBin = false;
+  showSplash = true;
+  splashFading = false;
   searchQuery = "";
   binItems: {
     id: number;
@@ -171,6 +173,14 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         this.triggerFocus();
       }
 
+      // Dismiss splash screen
+      setTimeout(() => {
+        this.splashFading = true;
+        setTimeout(() => {
+          this.showSplash = false;
+        }, 600);
+      }, 1400);
+
       this.startIdleDetection();
 
       const win = getCurrentWindow();
@@ -251,7 +261,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     const saved = localStorage.getItem("darkMode");
     if (saved === "true" || (saved === null && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
       this.isDarkMode = true;
-      document.body.classList.add("dark-mode");
+      document.documentElement.classList.add("dark-mode");
     }
   }
 
@@ -259,9 +269,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.isDarkMode = !this.isDarkMode;
     localStorage.setItem("darkMode", this.isDarkMode.toString());
     if (this.isDarkMode) {
-      document.body.classList.add("dark-mode");
+      document.documentElement.classList.add("dark-mode");
     } else {
-      document.body.classList.remove("dark-mode");
+      document.documentElement.classList.remove("dark-mode");
     }
   }
 
@@ -1495,7 +1505,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       // Remove existing custom fonts from list to avoid duplicates
       this.availableFonts = this.availableFonts.filter(f => !f.isCustom);
 
-      if (!fonts || fonts.length === 0) return;
+      if (!fonts || fonts.length === 0) {
+        localStorage.removeItem('customFontsCache');
+        return;
+      }
+
+      const fontCache: Record<string, string> = {};
 
       for (const font of fonts) {
         // Rust tuples serialize as arrays: [name, path]
@@ -1506,6 +1521,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         const familyName = `Custom-${name}`;
         const assetUrl = convertFileSrc(path);
         console.log('Loading font:', name, 'from:', assetUrl);
+        
+        fontCache[familyName] = assetUrl;
 
         try {
           // Register @font-face dynamically
@@ -1527,6 +1544,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
           isCustom: true
         });
       }
+      
+      // Cache custom fonts to immediately load them on next startup before Tauri initializes
+      localStorage.setItem('customFontsCache', JSON.stringify(fontCache));
+      
     } catch (err) {
       console.error('Failed to load custom fonts:', err);
     }
