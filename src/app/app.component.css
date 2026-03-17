@@ -220,29 +220,6 @@ h2 {
   align-items: flex-end;
 }
 
-.add-btn {
-  background: var(--accent-color);
-  color: var(--bg-color);
-  border: none;
-  border-radius: 6px;
-  width: 52px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  flex-shrink: 0;
-}
-
-.add-btn:hover {
-  opacity: 0.9;
-}
-
-.add-btn svg {
-  width: 24px;
-  height: 24px;
-}
 
 input,
 textarea {
@@ -260,19 +237,12 @@ textarea {
   /* Hide resize grabber */
 }
 
-input:focus,
-textarea:focus,
-.note-input-editor:focus,
-.edit-input-editor:focus {
-  border-color: var(--accent-color);
-}
 
 .note-input-editor,
 .edit-input-editor {
   flex-grow: 1;
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border: none;
   padding: 16px;
   color: var(--text-color);
   font-size: 14px;
