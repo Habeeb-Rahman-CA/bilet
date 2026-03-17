@@ -1226,85 +1226,91 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
 
-  duplicateLine(direction: string, editor: any) {
-    if (editor instanceof HTMLTextAreaElement) {
-      const start = editor.selectionStart;
-      const end = editor.selectionEnd;
-      const text = this.padContent;
+  /** Returns the 0-based line index the cursor/caret is on inside a contenteditable element. */
+  private getCaretLineIndex(el: HTMLElement): number {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return 0;
+    const range = sel.getRangeAt(0).cloneRange();
+    range.collapse(true);
+    // Measure characters before the caret using innerText split by newlines
+    const preRange = document.createRange();
+    preRange.selectNodeContents(el);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    const pre = preRange.toString();
+    return pre.split('\n').length - 1;
+  }
 
-      let lineStart = text.lastIndexOf("\n", start - 1) + 1;
-      let lineEnd = text.indexOf("\n", end);
-      if (lineEnd === -1) lineEnd = text.length;
-
-      const selectedLines = text.substring(lineStart, lineEnd);
-
-      const before = text.substring(0, lineStart);
-      const after = text.substring(lineEnd);
-
-      this.padContent = before + selectedLines + "\n" + selectedLines + after;
-      this.onPadContentChange();
-
-      setTimeout(() => {
-        if (direction === "ArrowUp") {
-          editor.setSelectionRange(start, end);
-        } else {
-          const offset = selectedLines.length + 1;
-          editor.setSelectionRange(start + offset, end + offset);
-        }
-      });
+  /** Places the caret at the beginning of a given 0-based line index in a contenteditable element. */
+  private setCaretToLine(el: HTMLElement, lineIndex: number) {
+    el.focus();
+    const text = el.innerText;
+    const lines = text.split('\n');
+    let charOffset = 0;
+    for (let i = 0; i < lineIndex && i < lines.length; i++) {
+      charOffset += lines[i].length + 1; // +1 for the newline
+    }
+    // Walk text nodes to find the right position
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node: Text | null = null;
+    let remaining = charOffset;
+    while (walker.nextNode()) {
+      const t = walker.currentNode as Text;
+      if (remaining <= t.length) {
+        node = t;
+        break;
+      }
+      remaining -= t.length;
+    }
+    if (node) {
+      const range = document.createRange();
+      const sel = window.getSelection()!;
+      range.setStart(node, remaining);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
     }
   }
 
-  moveLine(direction: string, editor: any) {
-    if (editor instanceof HTMLTextAreaElement) {
-      const start = editor.selectionStart;
-      const end = editor.selectionEnd;
-      const text = this.padContent;
+  duplicateLine(direction: string, editor: HTMLElement) {
+    const text = editor.innerText;
+    const lines = text.split('\n');
+    const currentLine = this.getCaretLineIndex(editor);
 
-      let lineStart = text.lastIndexOf("\n", start - 1) + 1;
-      let lineEnd = text.indexOf("\n", end);
-      // If exact end is on newline, avoid selecting the next line
-      if (end > start && text[end - 1] === "\n") {
-        lineEnd = end - 1;
-      } else if (lineEnd === -1) {
-        lineEnd = text.length;
-      }
+    if (direction === 'ArrowDown') {
+      lines.splice(currentLine + 1, 0, lines[currentLine]);
+    } else {
+      lines.splice(currentLine, 0, lines[currentLine]);
+    }
 
-      const selectedLines = text.substring(lineStart, lineEnd);
+    this.padContent = lines.join('\n');
+    editor.innerHTML = this.padContent;
+    this.onPadContentChange();
 
-      if (direction === "ArrowUp") {
-        if (lineStart === 0) return;
-        let prevLineStart = text.lastIndexOf("\n", lineStart - 2) + 1;
-        const prevLineText = text.substring(prevLineStart, lineStart - 1);
+    const targetLine = direction === 'ArrowDown' ? currentLine + 1 : currentLine;
+    setTimeout(() => this.setCaretToLine(editor, targetLine));
+  }
 
-        const before = text.substring(0, prevLineStart);
-        const after = text.substring(lineEnd);
+  moveLine(direction: string, editor: HTMLElement) {
+    const text = editor.innerText;
+    const lines = text.split('\n');
+    const currentLine = this.getCaretLineIndex(editor);
 
-        this.padContent = before + selectedLines + "\n" + prevLineText + after;
-        this.onPadContentChange();
-
-        const offset = -(prevLineText.length + 1);
-        setTimeout(() => {
-          editor.setSelectionRange(start + offset, end + offset);
-        });
-      } else {
-        if (lineEnd === text.length) return;
-        let nextLineEnd = text.indexOf("\n", lineEnd + 1);
-        if (nextLineEnd === -1) nextLineEnd = text.length;
-
-        const nextLineText = text.substring(lineEnd + 1, nextLineEnd);
-
-        const before = text.substring(0, lineStart);
-        const after = text.substring(nextLineEnd);
-
-        this.padContent = before + nextLineText + "\n" + selectedLines + after;
-        this.onPadContentChange();
-
-        const offset = nextLineText.length + 1;
-        setTimeout(() => {
-          editor.setSelectionRange(start + offset, end + offset);
-        });
-      }
+    if (direction === 'ArrowUp') {
+      if (currentLine === 0) return;
+      // Swap current line with the one above
+      [lines[currentLine - 1], lines[currentLine]] = [lines[currentLine], lines[currentLine - 1]];
+      this.padContent = lines.join('\n');
+      editor.innerHTML = this.padContent;
+      this.onPadContentChange();
+      setTimeout(() => this.setCaretToLine(editor, currentLine - 1));
+    } else {
+      if (currentLine >= lines.length - 1) return;
+      // Swap current line with the one below
+      [lines[currentLine], lines[currentLine + 1]] = [lines[currentLine + 1], lines[currentLine]];
+      this.padContent = lines.join('\n');
+      editor.innerHTML = this.padContent;
+      this.onPadContentChange();
+      setTimeout(() => this.setCaretToLine(editor, currentLine + 1));
     }
   }
 
