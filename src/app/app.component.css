@@ -1153,6 +1153,25 @@ button.primary:hover {
   font-family: inherit;
 }
 
+.status-action {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.status-action:hover {
+  opacity: 1;
+  background: var(--hover-color);
+}
+
 .status-code {
   font-weight: 700;
   font-size: 9px;

@@ -175,8 +175,9 @@
       </span>
     </div>
     <div #padEditor class="pad-content-editor" contenteditable="true" (input)="onPadInput()"
-      (keydown)="handlePadKeyDown($event, padEditor)" (scroll)="onEditorScroll($event)" placeholder="Start writing..."
-      [attr.spellcheck]="spellCheckEnabled"></div>
+      (keydown)="handlePadKeyDown($event, padEditor)" (scroll)="onEditorScroll($event)"
+      (mouseup)="onPadSelect()" (keyup)="onPadSelect()"
+      placeholder="Start writing..." [attr.spellcheck]="spellCheckEnabled"></div>
   </div>
 
   <!-- Empty state -->
@@ -186,6 +187,11 @@
 
   <!-- Status Bar -->
   <div class="status-bar" *ngIf="activePad">
+    <!-- Base64 smart action (visible when text is selected) -->
+    <ng-container *ngIf="selectedPadText">
+      <button class="status-action" (mousedown)="$event.preventDefault()" (click)="toggleBase64()">Base64</button>
+      <span class="status-divider">·</span>
+    </ng-container>
     <span class="status-stat"><span class="status-code">W</span>{{ padStats.w }}</span>
     <span class="status-divider">·</span>
     <span class="status-stat"><span class="status-code">C</span>{{ padStats.c }}</span>

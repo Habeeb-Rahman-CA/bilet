@@ -88,6 +88,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   padContent = "";
   padText = ""; // plain-text mirror, always in sync with padEditor.innerText
   lineNumbers: number[] = [1];
+  selectedPadText = ""; // currently selected text in the pad editor
   private autoSaveTimer: any = null;
 
   // Bookmarking/Marking lines
@@ -753,6 +754,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.showSearch = false;
     this.showBin = false;
     this.showFontSettings = false;
+    this.selectedPadText = "";
 
     if (section === "tasks") {
       this.triggerFocus();
@@ -1165,6 +1167,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async switchTab(padId: number) {
     if (this.activeTabId === padId) return;
+    this.selectedPadText = "";
     if (this.activePad) {
       this.savePadNow();
     }
@@ -1176,6 +1179,51 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.padContent = this.padEditor.nativeElement.innerHTML;
       this.padText = this.padEditor.nativeElement.innerText || '';
       this.onPadContentChange();
+    }
+  }
+
+  onPadSelect() {
+    const sel = window.getSelection();
+    this.selectedPadText = sel ? sel.toString() : "";
+  }
+
+  toggleBase64() {
+    if (!this.selectedPadText) return;
+
+    // Try to decode first. If it succeeds and matches a Base64 pattern, we assume user wants to decode.
+    // Otherwise, we encode.
+    if (this.isBase64(this.selectedPadText)) {
+      try {
+        const decoded = decodeURIComponent(atob(this.selectedPadText).split('').map((c) => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        document.execCommand('insertText', false, decoded);
+        this.selectedPadText = "";
+        this.onPadInput();
+        return;
+      } catch (e) {
+        // Fall through to encode if decode fails
+      }
+    }
+
+    // Encode path
+    try {
+      const encoded = btoa(encodeURIComponent(this.selectedPadText).replace(/%([0-9A-F]{2})/g,
+        (match, p1) => String.fromCharCode(parseInt(p1, 16))));
+      document.execCommand('insertText', false, encoded);
+      this.selectedPadText = "";
+      this.onPadInput();
+    } catch (e) {
+      console.error("Base64 operation failed", e);
+    }
+  }
+
+  private isBase64(str: string): boolean {
+    if (!str || str.trim() === "" || str.length % 4 !== 0) return false;
+    try {
+      return btoa(atob(str)) === str.trim();
+    } catch (err) {
+      return false;
     }
   }
 
