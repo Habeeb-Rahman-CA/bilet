@@ -1174,6 +1174,15 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     await this.openTab(padId);
   }
 
+  handlePadPaste(event: ClipboardEvent) {
+    event.preventDefault();
+    const text = event.clipboardData?.getData('text/plain');
+    if (text) {
+      document.execCommand('insertText', false, text);
+      this.onPadInput();
+    }
+  }
+
   onPadInput() {
     if (this.padEditor) {
       this.padContent = this.padEditor.nativeElement.innerHTML;
@@ -1190,32 +1199,80 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   toggleBase64() {
     if (!this.selectedPadText) return;
 
-    // Try to decode first. If it succeeds and matches a Base64 pattern, we assume user wants to decode.
-    // Otherwise, we encode.
     if (this.isBase64(this.selectedPadText)) {
       try {
         const decoded = decodeURIComponent(atob(this.selectedPadText).split('').map((c) => {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
-        document.execCommand('insertText', false, decoded);
-        this.selectedPadText = "";
-        this.onPadInput();
+        this.replaceSelectionClean(decoded);
         return;
       } catch (e) {
-        // Fall through to encode if decode fails
+        // Fall through to encode
       }
     }
 
-    // Encode path
     try {
       const encoded = btoa(encodeURIComponent(this.selectedPadText).replace(/%([0-9A-F]{2})/g,
         (match, p1) => String.fromCharCode(parseInt(p1, 16))));
-      document.execCommand('insertText', false, encoded);
-      this.selectedPadText = "";
-      this.onPadInput();
+      this.replaceSelectionClean(encoded);
     } catch (e) {
-      console.error("Base64 operation failed", e);
+      console.error('Base64 operation failed', e);
     }
+  }
+
+  toggleJSON() {
+    if (!this.selectedPadText) return;
+    try {
+      const obj = JSON.parse(this.selectedPadText);
+      const hasNewlines = this.selectedPadText.includes('\n');
+      const result = hasNewlines ? JSON.stringify(obj) : JSON.stringify(obj, null, 2);
+      this.replaceSelectionClean(result);
+    } catch (e) {
+      console.error('JSON toggle failed', e);
+    }
+  }
+
+  /**
+   * Replace the current selectedPadText in the editor with newText, then
+   * rebuild the editor's innerHTML cleanly (one <div> per line) to avoid
+   * orphaned block elements left by contenteditable's execCommand.
+   */
+  private replaceSelectionClean(newText: string) {
+    if (!this.padEditor) return;
+    const el = this.padEditor.nativeElement;
+
+    // Get full plain text, strip the phantom trailing \n browsers append
+    const full = (el.innerText || '').replace(/\n$/, '');
+    const selected = this.selectedPadText.replace(/\n$/, ''); // strip trailing too
+
+    const idx = full.indexOf(selected);
+    let rebuilt: string;
+    if (idx !== -1) {
+      rebuilt = full.slice(0, idx) + newText + full.slice(idx + selected.length);
+    } else {
+      // Fallback: append replacement (shouldn't normally happen)
+      rebuilt = full + newText;
+    }
+
+    // Work out which line the cursor should land on after insertion
+    const targetLine = (full.slice(0, idx !== -1 ? idx : full.length) + newText).split('\n').length - 1;
+
+    // Rebuild innerHTML with exactly one <div> per logical line
+    const lines = rebuilt.split('\n');
+    el.innerHTML = lines
+      .map(line => `<div>${this.htmlEscape(line) || '<br>'}</div>`)
+      .join('');
+
+    this.selectedPadText = '';
+    this.onPadInput();
+    setTimeout(() => this.setCaretToLine(el, targetLine));
+  }
+
+  private htmlEscape(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
   private isBase64(str: string): boolean {
