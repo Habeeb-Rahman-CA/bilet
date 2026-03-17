@@ -183,6 +183,16 @@
   <div class="editor-empty" *ngIf="!activePad">
     <p>Create a new note</p>
   </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar" *ngIf="activePad">
+    <span class="status-stat"><span class="status-code">W</span>{{ padStats.w }}</span>
+    <span class="status-divider">·</span>
+    <span class="status-stat"><span class="status-code">C</span>{{ padStats.c }}</span>
+    <span class="status-divider">·</span>
+    <span class="status-stat"><span class="status-code">L</span>{{ padStats.l }}</span>
+  </div>
+
 </div>
 
 <!-- Pad Close Confirmation Modal -->

@@ -86,6 +86,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   activeTabId: number | null = null;
   activePad: Pad | null = null;
   padContent = "";
+  padText = ""; // plain-text mirror, always in sync with padEditor.innerText
   lineNumbers: number[] = [1];
   private autoSaveTimer: any = null;
 
@@ -291,6 +292,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
     if (this.padEditorNeedsContent && this.padEditor) {
       this.padEditor.nativeElement.innerHTML = this.padContent;
+      this.padText = this.padEditor.nativeElement.innerText || '';
       this.updateLineNumbers();
       this.padEditorNeedsContent = false;
     }
@@ -1048,6 +1050,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     setTimeout(() => {
       if (this.padEditor) {
         this.padEditor.nativeElement.innerHTML = this.padContent;
+        this.padText = this.padEditor.nativeElement.innerText || '';
         this.updateLineNumbers();
         this.triggerPadEditorFocus();
       }
@@ -1171,6 +1174,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   onPadInput() {
     if (this.padEditor) {
       this.padContent = this.padEditor.nativeElement.innerHTML;
+      this.padText = this.padEditor.nativeElement.innerText || '';
       this.onPadContentChange();
     }
   }
@@ -1188,11 +1192,17 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.schedulePadAutoSave();
   }
 
+  get padStats(): { w: number; c: number; l: number } {
+    const trimmed = this.padText ? this.padText.replace(/\n$/, '') : '';
+    const words = trimmed.trim() ? trimmed.trim().split(/\s+/).length : 0;
+    const chars = trimmed.length;
+    const lines = trimmed ? trimmed.split('\n').length : 1;
+    return { w: words, c: chars, l: lines };
+  }
+
   updateLineNumbers() {
-    if (!this.padEditor) return;
-    const text = this.padEditor.nativeElement.innerText;
-    // contenteditable appends trailing \n characters — strip them before counting
-    const trimmed = text ? text.replace(/\n$/, '') : '';
+    // Use padText (plain-text mirror of the editor) — consistent with padStats
+    const trimmed = this.padText ? this.padText.replace(/\n$/, '') : '';
     const count = trimmed ? trimmed.split('\n').length : 1;
     this.lineNumbers = Array.from({ length: count }, (_, i) => i + 1);
   }
