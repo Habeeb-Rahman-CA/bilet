@@ -75,6 +75,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   @ViewChild("padEditor") padEditor?: ElementRef<HTMLDivElement>;
   private searchNeedsFocus = false;
   private padEditorNeedsFocus = false;
+  private padEditorNeedsContent = false;
   isConfirmingPadCloseId: number | null = null;
 
   // Section switching
@@ -287,6 +288,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.searchNeedsFocus && this.searchInput) {
       this.searchInput.nativeElement.focus();
       this.searchNeedsFocus = false;
+    }
+    if (this.padEditorNeedsContent && this.padEditor) {
+      this.padEditor.nativeElement.innerHTML = this.padContent;
+      this.updateLineNumbers();
+      this.padEditorNeedsContent = false;
     }
     if (this.padEditorNeedsFocus && this.padEditor) {
       this.padEditor.nativeElement.focus();
@@ -749,6 +755,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (section === "tasks") {
       this.triggerFocus();
     } else {
+      // The notepad DOM is destroyed/recreated by *ngIf; re-hydrate editor content
+      this.padEditorNeedsContent = true;
       this.triggerPadEditorFocus();
     }
   }
