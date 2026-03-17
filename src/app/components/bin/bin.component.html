@@ -1,0 +1,44 @@
+<div class="help-overlay bin-overlay" *ngIf="show" (click)="close.emit()">
+  <div class="help-content bin-content" (click)="$event.stopPropagation()">
+    <div class="bin-header">
+      <h2>History / Trash</h2>
+    </div>
+
+    <div class="search-results scrollable" *ngIf="(items$ | async) as items">
+      <div class="bin-item" *ngFor="let item of items" 
+        (click)="selectItem(item.id, item.type)"
+        [class.selected]="selectedId?.id === item.id && selectedId?.type === item.type">
+        <div class="bin-item-content">
+          <p class="bin-text" [innerHTML]="formatContent(item.content)"></p>
+          <span class="bin-date">
+            <span *ngIf="item.type === 'pad'" style="opacity:0.5; margin-right:6px;">Pad</span>
+            {{ formatDate(item.timestamp) }}
+          </span>
+        </div>
+
+        <!-- Individual Restoration Confirmation -->
+        <div class="delete-overlay"
+          *ngIf="confirmingRestoreId?.id === item.id && confirmingRestoreId?.type === item.type"
+          (click)="restoreItem(item.id, item.type)">
+          <span>Click to Restore</span>
+        </div>
+
+        <!-- Individual Permanent Deletion Confirmation -->
+        <div class="delete-overlay"
+          *ngIf="confirmingDeleteId?.id === item.id && confirmingDeleteId?.type === item.type"
+          (click)="deleteItem(item.id, item.type)">
+          <span>Delete Forever?</span>
+        </div>
+      </div>
+      
+      <div class="empty-state" *ngIf="items.length === 0">
+        <p>Bilet history is empty.</p>
+      </div>
+    </div>
+
+    <!-- Bulk Clear Confirmation -->
+    <div class="delete-overlay bulk-clear-overlay" *ngIf="confirmingClearAll" (click)="clearBin()">
+      <span>Clear all history?</span>
+    </div>
+  </div>
+</div>

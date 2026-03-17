@@ -1,0 +1,14 @@
+<div class="help-overlay save-prompt-overlay" *ngIf="show" (click)="action.emit('cancel')">
+  <div class="help-content prompt-content" (click)="$event.stopPropagation()" style="text-align: center;">
+    <h2 style="margin-top: 0; margin-bottom: 24px;">Close Pad?</h2>
+    <p style="margin-bottom: 24px; opacity: 0.8;">What would you like to do with this tab? Saving will download to your
+      files. Deleting moves it to history.</p>
+    <div class="prompt-actions">
+      <button class="action-btn save-btn" (click)="action.emit('save')">Save & Close</button>
+      <button class="action-btn delete-btn" (click)="action.emit('delete')">Delete & Close</button>
+      <button class="action-btn" (click)="action.emit('force')">Close Without Saving</button>
+      <button class="action-btn" (click)="action.emit('cancel')"
+        style="opacity: 0.5; border: none;">Cancel</button>
+    </div>
+  </div>
+</div>

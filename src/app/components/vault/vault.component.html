@@ -1,0 +1,32 @@
+<div class="vault-container" *ngIf="authStatus !== 'Unlocked' && authStatus !== 'Checking'">
+  <div class="vault-card">
+    <div class="vault-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+    </div>
+
+    <h2 *ngIf="authStatus === 'SetupRequired'">Security Setup</h2>
+    <h2 *ngIf="authStatus === 'Locked'">Vault Locked</h2>
+
+    <p class="vault-subtitle" *ngIf="authStatus === 'SetupRequired'">Set a master password to encrypt your <b>bilet</b>.
+    </p>
+    <p class="vault-subtitle" *ngIf="authStatus === 'Locked'">Enter your password to decrypt your <b>bilet</b>.</p>
+
+    <div class="vault-input-group">
+      <input type="password" [(ngModel)]="password" placeholder="Master Password" (keyup.enter)="onSubmit()"
+        autofocus />
+      <button class="primary" (click)="onSubmit()">
+        {{ authStatus === 'SetupRequired' ? 'Create Vault' : 'Unlock' }}
+      </button>
+    </div>
+
+    <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+    <div class="vault-footer">
+      <p *ngIf="authStatus === 'SetupRequired'">Don't forget this password! We cannot recover it.</p>
+      <p class="version-text">v{{ appVersion }}</p>
+    </div>
+  </div>
+</div>

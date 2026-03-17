@@ -1,0 +1,43 @@
+<main class="container">
+  <div class="input-group">
+    <div #noteInput class="note-input-editor" contenteditable="true" (keydown)="handleNoteKeyDown($event)"
+      placeholder="Write a new task..." [attr.spellcheck]="spellCheckEnabled"></div>
+  </div>
+
+  <div class="notes-list">
+    <div class="note-card" *ngFor="let note of notes" (click)="selectNote(note, $event)"
+      [class.selected]="selectedNoteId === note.id" [class.editing]="editingNoteId === note.id">
+
+      <!-- Normal View -->
+      <div *ngIf="editingNoteId !== note.id; else editView" class="note-wrapper">
+        <div class="note-header">
+          <p class="note-content" [innerHTML]="formatContent(note.content)"></p>
+          <div class="pin-icon" *ngIf="note.is_pinned">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11V22L12,23L13,22V16H18V14L16,12Z" />
+            </svg>
+          </div>
+        </div>
+        <span class="note-date">{{ formatDate(note.timestamp) }}</span>
+
+        <!-- Small Confirmation Overlay -->
+        <div class="delete-overlay" *ngIf="isConfirmingDeleteId === note.id">
+          <span>Delete?</span>
+        </div>
+      </div>
+
+      <!-- Edit View -->
+      <ng-template #editView>
+        <div class="edit-mode">
+          <div #editInput class="edit-input-editor" contenteditable="true" (keydown)="handleEditKeyDown($event, note)"
+            [innerHTML]="formatContent(note.content)" [attr.spellcheck]="spellCheckEnabled"></div>
+        </div>
+      </ng-template>
+
+    </div>
+
+    <div class="empty-state" *ngIf="notes.length === 0">
+      <p>No <b>bilets</b> found. Start by adding one above!</p>
+    </div>
+  </div>
+</main>

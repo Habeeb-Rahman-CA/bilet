@@ -1,0 +1,49 @@
+<div class="help-overlay" *ngIf="show" (click)="close.emit()">
+  <div class="help-content" (click)="$event.stopPropagation()">
+    <h2>Keyboard Shortcuts</h2>
+    <div class="shortcut-list">
+      <!-- App Navigation -->
+      <div class="shortcut-group">
+        <div class="shortcut-group-title">App Navigation</div>
+        <div class="shortcut-item"><span>Ctrl + Shift + Space</span> Switch Section</div>
+        <div class="shortcut-item"><span>Ctrl + F</span> Search</div>
+        <div class="shortcut-item"><span>Ctrl + Shift + B</span> History / Bin</div>
+        <div class="shortcut-item"><span>Ctrl + H</span> Help</div>
+        <div class="shortcut-item"><span>Esc</span> Close Modal</div>
+      </div>
+
+      <!-- Notepad -->
+      <div class="shortcut-group">
+        <div class="shortcut-group-title">Notepad</div>
+        <div class="shortcut-item"><span>Ctrl + N</span> New Tab</div>
+        <div class="shortcut-item"><span>Ctrl + S</span> Save File</div>
+        <div class="shortcut-item"><span>Ctrl + Space</span> Shift/Cycle Tabs</div>
+        <div class="shortcut-item"><span>Ctrl + Shift + D</span> Delete Current Tab</div>
+        <div class="shortcut-item"><span>Ctrl + B</span> Bold</div>
+        <div class="shortcut-item"><span>Ctrl + I</span> Italic</div>
+        <div class="shortcut-item"><span>Ctrl + U</span> Underline</div>
+        <div class="shortcut-item"><span>Alt + Shift + ↑/↓</span> Duplicate Line</div>
+        <div class="shortcut-item"><span>Alt + ↑/↓</span> Move Line</div>
+      </div>
+
+      <!-- Tasks -->
+      <div class="shortcut-group">
+        <div class="shortcut-group-title">Tasks</div>
+        <div class="shortcut-item"><span>Ctrl + A</span> Focus Input</div>
+        <div class="shortcut-item"><span>Ctrl + L</span> Focus List</div>
+        <div class="shortcut-item"><span> ↑ / ↓ </span> Navigate</div>
+        <div class="shortcut-item"><span>Enter</span> Select / Confirm</div>
+        <div class="shortcut-item"><span>Ctrl + E</span> Edit</div>
+        <div class="shortcut-item"><span>Ctrl + S</span> Save</div>
+        <div class="shortcut-item"><span>Ctrl + D</span> Delete</div>
+        <div class="shortcut-item"><span>Ctrl + P</span> Pin / Unpin</div>
+        <div class="shortcut-item"><span>Ctrl + R</span> Restore Item</div>
+        <div class="shortcut-item"><span>Ctrl + Shift + C</span> Clear All history</div>
+      </div>
+      <div class="modal-footer">
+        <p class="version-text">Version {{ appVersion }}</p>
+      </div>
+    </div>
+    <button class="primary" (click)="close.emit()">Got it</button>
+  </div>
+</div>

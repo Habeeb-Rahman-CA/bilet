@@ -1,0 +1,61 @@
+<div class="notepad-container">
+
+  <!-- Tab Bar -->
+  <div class="tab-bar" [class.is-dragging]="draggedTabId !== null">
+    <div class="tab" *ngFor="let pad of openOrderedTabs" (click)="switchTab(pad.id)"
+      [class.active]="activeTabId === pad.id"
+      [class.dragging]="draggedTabId === pad.id"
+      [class.drag-over]="dragEnterId === pad.id"
+      draggable="true"
+      (dragstart)="onTabDragStart($event, pad.id)"
+      (dragover)="onTabDragOver($event)"
+      (dragenter)="onTabDragEnter($event, pad.id)"
+      (dragleave)="onTabDragLeave($event)"
+      (dragend)="onTabDragEnd()"
+      (drop)="onTabDrop($event, pad.id)">
+      <span class="tab-title" [innerHTML]="formatContent(pad.title || 'Untitled')"></span>
+      <button class="tab-close" (click)="onCloseTab(pad.id, $event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <button class="tab-add" (click)="createPad()" title="New tab">+</button>
+  </div>
+
+  <!-- Editor with Line Numbers -->
+  <div class="editor-area" *ngIf="activePad">
+    <div class="line-gutter">
+      <span *ngFor="let num of lineNumbers" class="gutter-line" [class.marked]="isLineMarked(num)"
+        (click)="onToggleLineMark(num)">
+        {{ num }}
+      </span>
+    </div>
+    <div #padEditor class="pad-content-editor" contenteditable="true" (input)="onPadInput()"
+      (keydown)="handlePadKeyDown($event, padEditor)" (scroll)="onEditorScroll($event)" (mouseup)="onPadSelect()"
+      (keyup)="onPadSelect()" (paste)="handlePadPaste($event)" placeholder="Start writing..."
+      [attr.spellcheck]="spellCheckEnabled"></div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="editor-empty" *ngIf="!activePad">
+    <p>Create a new note</p>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="status-bar" *ngIf="activePad">
+    <!-- Smart actions (visible when text is selected) -->
+    <ng-container *ngIf="selectedPadText">
+      <button class="status-action" (mousedown)="$event.preventDefault()" (click)="toggleJSON()">JSON</button>
+      <button class="status-action" (mousedown)="$event.preventDefault()" (click)="toggleBase64()">Base64</button>
+      <span class="status-divider">·</span>
+    </ng-container>
+    <span class="status-stat"><span class="status-code">W</span>{{ padStats.w }}</span>
+    <span class="status-divider">·</span>
+    <span class="status-stat"><span class="status-code">C</span>{{ padStats.c }}</span>
+    <span class="status-divider">·</span>
+    <span class="status-stat"><span class="status-code">L</span>{{ padStats.l }}</span>
+  </div>
+
+</div>

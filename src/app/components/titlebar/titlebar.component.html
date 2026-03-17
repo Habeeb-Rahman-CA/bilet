@@ -1,0 +1,60 @@
+<div class="titlebar">
+  <div class="window-controls">
+    <button class="control close" (click)="onClose()"></button>
+    <button class="control minimize" (click)="onMinimize()"></button>
+    <button class="control maximize" (click)="onMaximize()"></button>
+  </div>
+  <div class="title-text">bilet</div>
+  <div class="header-actions">
+    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleDarkMode.emit()"
+      title="Toggle Dark Mode">
+      <svg *ngIf="!isDarkMode" viewBox="0 0 24 24" fill="currentColor">
+        <path
+          d="M12 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM11 1h2v4h-2V1zm0 18h2v4h-2v-4zM1 11h4v2H1v-2zm18 0h4v2h-4v-2z" />
+      </svg>
+      <svg *ngIf="isDarkMode" viewBox="0 0 24 24" fill="currentColor">
+        <path
+          d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z" />
+      </svg>
+    </button>
+
+    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleFontSettings.emit()">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path
+          d="M13,12H20V13.5H13V12M13,9.5H20V11H13V9.5M13,14.5H20V16H13V14.5M21,4H3A2,2 0 0,0 1,6V18A2,2 0 0,0 3,20H21A2,2 0 0,0 23,18V6A2,2 0 0,0 21,4M21,18H3V6H21V18M8,8H6V16H8V13H11V16H13V8H11V11H8V8Z" />
+      </svg>
+    </button>
+
+    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleSpellCheck.emit()"
+      [class.enabled]="spellCheckEnabled" title="Spell Check">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path
+          d="M12.45,16H14.54L9.43,3H7.57L2.46,16H4.55L5.67,13H11.33L12.45,16M6.43,11L8.5,5.48L10.57,11H6.43M21.59,11.59L13.5,19.68L9.83,16L8.42,17.41L13.5,22.5L23,13L21.59,11.59Z" />
+      </svg>
+    </button>
+
+    <button class="startup-toggle" [class.enabled]="autoStartEnabled" (click)="toggleAutoStart.emit()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.71-2.13.09-2.91a2.18 2.18 0 0 0-3.09-.09z" />
+        <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+        <path d="M9 12H4s.55-3.03 2-5c1.62-2.2 5-3 5-3" />
+        <path d="M12 15v5s3.03-.55 5-2c2.2-1.62 3-5 3-5" />
+      </svg>
+    </button>
+
+    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="toggleBin.emit()">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path
+          d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
+      </svg>
+    </button>
+
+    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="toggleHelp.emit()">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path
+          d="M11.07,12.85C11.17,12.45 11.39,12.11 11.73,11.82C12.07,11.53 12.39,11.23 12.68,10.93C12.97,10.63 13.11,10.3 13.11,9.94C13.11,9.58 12.97,9.27 12.7,9C12.42,8.73 12.07,8.59 11.64,8.59C11.19,8.59 10.84,8.73 10.58,9C10.32,9.27 10.15,9.62 10.08,10.04L8.06,9.22C8.25,8.41 8.65,7.74 9.27,7.21C9.89,6.67 10.68,6.4 11.64,6.4C12.66,6.4 13.5,6.72 14.16,7.35C14.81,7.98 15.14,8.74 15.14,9.65C15.14,10.33 14.96,10.92 14.59,11.4C14.23,11.89 13.78,12.39 13.25,12.91L12.72,13.43C12.56,13.59 12.45,13.75 12.39,13.91C12.33,14.07 12.29,14.34 12.28,14.73H10.19C10.2,14 10.35,13.37 10.61,12.87C10.61,12.87 11.07,12.85 11.07,12.85M12.5,19A1.25,1.25 0 0,1 11.25,17.75A1.25,1.25 0 0,1 12.5,16.5A1.25,1.25 0 0,1 13.75,17.75A1.25,1.25 0 0,1 12.5,19M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
+      </svg>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,121 @@
+.help-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(var(--bg-rgb), 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.help-content {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 40px;
+  width: 90%;
+  max-width: 440px;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: none;
+}
+
+.help-content::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-header {
+  margin-bottom: 24px;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 20px;
+  text-align: center;
+}
+
+.font-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 0;
+  text-align: left;
+  flex-grow: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.font-list::-webkit-scrollbar {
+  display: none;
+}
+
+.font-item {
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.font-item:hover {
+  background: var(--hover-color);
+}
+
+.font-item.selected {
+  background: var(--hover-color);
+  border-color: var(--primary-color-alpha);
+}
+
+.font-item.focused {
+  background: var(--hover-color);
+  outline: 2px solid var(--primary-color-alpha);
+}
+
+.font-item.upload-font {
+  opacity: 0.6;
+  font-size: 13px;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+  border: 1px dashed var(--border-color);
+}
+
+.font-item.upload-font:hover {
+  opacity: 1;
+  background: var(--hover-color);
+  border-style: solid;
+}
+
+.font-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  opacity: 0.3;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.font-delete-btn:hover {
+  opacity: 1;
+  color: #ff4444;
+}

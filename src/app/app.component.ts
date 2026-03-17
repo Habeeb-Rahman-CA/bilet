@@ -8,45 +8,64 @@ import {
   OnDestroy,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { RouterOutlet } from "@angular/router";
 import { FormsModule } from "@angular/forms";
+import { take } from 'rxjs';
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { save, open } from "@tauri-apps/plugin-dialog";
+import { save } from "@tauri-apps/plugin-dialog";
 
-interface Note {
-  id: number;
-  content: string;
-  timestamp: string;
-  is_pinned: boolean;
-  is_deleted: boolean;
-}
+import { Note, Pad, BinItem, AuthStatus } from "./models/interfaces";
+import { VaultService } from "./services/vault.service";
+import { NotesService } from "./services/notes.service";
+import { PadsService } from "./services/pads.service";
+import { FontService, FontEntry } from "./services/font.service";
+import { SettingsService } from "./services/settings.service";
+import { BinService } from "./services/bin.service";
+import { SearchService } from "./services/search.service";
+import { NotepadService } from "./services/notepad.service";
 
-interface Pad {
-  id: number;
-  title: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-  is_deleted: boolean;
-  is_open: boolean;
-  is_active: boolean;
-  tab_index: number;
-}
-
-type AuthStatus = "SetupRequired" | "Locked" | "Unlocked" | "Checking";
+import { SplashComponent } from "./components/splash/splash.component";
+import { TitlebarComponent } from "./components/titlebar/titlebar.component";
+import { VaultComponent } from "./components/vault/vault.component";
+import { TasksComponent } from "./components/tasks/tasks.component";
+import { NotepadComponent } from './components/notepad/notepad.component';
+import { HelpComponent } from './components/help/help.component';
+import { SearchComponent } from './components/search/search.component';
+import { BinComponent } from './components/bin/bin.component';
+import { SettingsModalComponent } from './components/settings-modal/settings-modal.component';
+import { PadCloseModalComponent } from './components/pad-close-modal/pad-close-modal.component';
 
 @Component({
   selector: "app-root",
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule, 
+    FormsModule, 
+    SplashComponent, 
+    TitlebarComponent, 
+    VaultComponent, 
+    TasksComponent, 
+    NotepadComponent,
+    HelpComponent,
+    SearchComponent,
+    BinComponent,
+    SettingsModalComponent,
+    PadCloseModalComponent
+  ],
   templateUrl: "./app.component.html",
   styleUrl: "./app.component.css",
 })
 export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
-  @ViewChild("noteInput") noteInput!: ElementRef<HTMLDivElement>;
-  @ViewChild("editInput") editInput?: ElementRef<HTMLDivElement>;
+  constructor(
+    private vaultService: VaultService,
+    private notesService: NotesService,
+    private padsService: PadsService,
+    private fontService: FontService,
+    private settingsService: SettingsService,
+    private binService: BinService,
+    private searchService: SearchService,
+    private notepadService: NotepadService,
+  ) {}
+  @ViewChild(TasksComponent) tasksComponent?: TasksComponent;
   private needsFocus = false;
   private editNeedsFocus = false;
 
@@ -61,16 +80,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   showSplash = true;
   splashFading = false;
   searchQuery = "";
-  binItems: {
-    id: number;
-    type: "task" | "pad";
-    content: string;
-    timestamp: string;
-  }[] = [];
-  selectedBinItemId: { id: number; type: "task" | "pad" } | null = null;
-  isConfirmingBinDeleteId: { id: number; type: "task" | "pad" } | null = null;
-  isConfirmingRestoreId: { id: number; type: "task" | "pad" } | null = null;
-  isConfirmingClearAll = false;
   @ViewChild("searchInput") searchInput?: ElementRef;
   @ViewChild("padEditor") padEditor?: ElementRef<HTMLDivElement>;
   private searchNeedsFocus = false;
@@ -89,36 +98,32 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   padText = ""; // plain-text mirror, always in sync with padEditor.innerText
   lineNumbers: number[] = [1];
   selectedPadText = ""; // currently selected text in the pad editor
+  draggedTabId: number | null = null;
+  dragEnterId: number | null = null; // for visual drop target feedback
   private autoSaveTimer: any = null;
 
   // Bookmarking/Marking lines
-  padLineMarks: { [padId: number]: Set<number> } = {};
 
   isLineMarked(num: number): boolean {
     if (!this.activeTabId) return false;
-    const marks = this.padLineMarks[this.activeTabId];
-    return marks ? marks.has(num) : false;
+    return this.notepadService.getLineMarks(this.activeTabId).has(num);
   }
 
   toggleLineMark(num: number) {
     if (!this.activeTabId) return;
-    if (!this.padLineMarks[this.activeTabId]) {
-      this.padLineMarks[this.activeTabId] = new Set<number>();
-    }
-    const marks = this.padLineMarks[this.activeTabId];
-    if (marks.has(num)) {
-      marks.delete(num);
-    } else {
-      marks.add(num);
-    }
+    this.notepadService.toggleLineMark(this.activeTabId, num);
   }
 
-  // Vault Status
-  authStatus: AuthStatus = "Checking";
-  password = "";
+  onSearchQueryChange(query: string) {
+    this.searchService.setQuery(query);
+  }
+  authStatus: AuthStatus = "Checking";  // State
   errorMessage = "";
-  isDarkMode = false;
   appVersion = "1.1.0";
+  // Idle Detection
+  private idleTimeout = 10 * 60 * 1000; // 10 minutes
+  private lastActivity = Date.now();
+  private idleCheckInterval: any;
 
   private async saveSession() {
     // Deprecated
@@ -143,31 +148,22 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     }
   }
-  availableFonts: { name: string; family: string; isCustom?: boolean }[] = [
-    { name: "Cascadia Code", family: "'Cascadia Code', monospace" },
-    { name: "Fira Code", family: "'Fira Code', monospace" },
-    { name: "JetBrains Mono", family: "'JetBrains Mono', monospace" },
-  ];
+  availableFonts: FontEntry[] = [...this.fontService.defaultFonts];
   selectedFont = "Cascadia Code";
   showFontSettings = false;
   focusedFontIndex = 0;
-  spellCheckEnabled = localStorage.getItem('spellcheck') === 'true';
-
-  // Idle Detection
-  private idleTimeout = 10 * 60 * 1000; // 10 minutes
-  private lastActivity = Date.now();
-  private idleCheckInterval: any;
+  spellCheckEnabled = this.settingsService.loadSpellCheck();
+  isDarkMode = false;
 
   async ngOnInit() {
+    this.notesService.notes$.subscribe((notes: Note[]) => this.notes = notes);
+    this.padsService.pads$.subscribe((pads: Pad[]) => this.pads = pads);
+
     await this.loadCustomFonts();
-    try {
-      this.autoStartEnabled = await isEnabled();
-    } catch (err) {
-      console.warn("Autostart plugin not available:", err);
-    }
+    this.autoStartEnabled = await this.settingsService.isAutoStartEnabled();
 
     try {
-      this.authStatus = await invoke<AuthStatus>("check_auth_status");
+      this.authStatus = await this.vaultService.checkAuthStatus();
 
       if (this.authStatus === "Unlocked") {
         await this.loadNotes();
@@ -200,7 +196,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         }
       });
 
-      win.onFocusChanged(({ payload: focused }) => {
+      win.onFocusChanged(({ payload: focused }: { payload: boolean }) => {
         if (focused && this.authStatus === "Unlocked") {
           if (this.activeSection === "tasks") {
             this.triggerFocus();
@@ -243,48 +239,35 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   loadFont() {
-    const saved = localStorage.getItem("selectedFont");
-    if (saved) {
-      this.setFont(saved);
-    } else {
-      this.setFont("Cascadia Code");
-    }
+    const saved = this.settingsService.loadSelectedFont();
+    this.setFont(saved || 'Cascadia Code');
   }
 
   setFont(fontName: string) {
     this.selectedFont = fontName;
-    localStorage.setItem("selectedFont", fontName);
+    this.settingsService.saveSelectedFont(fontName);
     const font = this.availableFonts.find((f) => f.name === fontName);
     if (font) {
-      document.documentElement.style.setProperty("--main-font", font.family);
+      this.fontService.setFontCSSVariable(font.family);
     }
   }
 
   loadDarkMode() {
-    const saved = localStorage.getItem("darkMode");
-    if (saved === "true" || (saved === null && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-      this.isDarkMode = true;
-      document.documentElement.classList.add("dark-mode");
-    }
+    this.isDarkMode = this.settingsService.loadDarkMode();
   }
 
   toggleDarkMode() {
     this.isDarkMode = !this.isDarkMode;
-    localStorage.setItem("darkMode", this.isDarkMode.toString());
-    if (this.isDarkMode) {
-      document.documentElement.classList.add("dark-mode");
-    } else {
-      document.documentElement.classList.remove("dark-mode");
-    }
+    this.settingsService.setDarkMode(this.isDarkMode);
   }
 
   ngAfterViewChecked() {
-    if (this.needsFocus && this.noteInput) {
-      this.noteInput.nativeElement.focus();
+    if (this.needsFocus && this.tasksComponent?.noteInput) {
+      this.tasksComponent.noteInput.nativeElement.focus();
       this.needsFocus = false;
     }
-    if (this.editNeedsFocus && this.editInput) {
-      this.editInput.nativeElement.focus();
+    if (this.editNeedsFocus && this.tasksComponent?.editInput) {
+      this.tasksComponent.editInput.nativeElement.focus();
       this.editNeedsFocus = false;
     }
     if (this.searchNeedsFocus && this.searchInput) {
@@ -405,10 +388,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       if (this.showBin) {
         this.showHelp = false;
         this.showSearch = false;
-        this.isConfirmingBinDeleteId = null;
-        this.isConfirmingRestoreId = null;
-        this.isConfirmingClearAll = false;
-        this.loadBinItems();
       }
       return;
     }
@@ -449,18 +428,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     // Escape Handler
     if (event.key === "Escape") {
       if (
-        this.showBin &&
-        (this.isConfirmingBinDeleteId ||
-          this.isConfirmingRestoreId ||
-          this.isConfirmingClearAll)
-      ) {
-        this.isConfirmingBinDeleteId = null;
-        this.isConfirmingRestoreId = null;
-        this.isConfirmingClearAll = false;
-        event.preventDefault();
-        return;
-      }
-      if (
         this.showHelp ||
         this.showSearch ||
         this.showBin ||
@@ -475,14 +442,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     }
 
-    // --- Section Exclusive Shortcuts ---
-    if (
-      this.activeSection === "notepad" &&
-      !this.showBin &&
-      !this.showSearch &&
-      !this.showHelp
-    ) {
-      return; // Skip task-specific shortcuts unless in a global modal
+    // Modal check – if any major modal is open, we stop here (delegated to components)
+    if (this.showSearch || this.showBin || this.showHelp || this.showFontSettings) {
+      return;
     }
 
     // --- List Navigation & Focus ---
@@ -491,7 +453,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (event.ctrlKey && event.key.toLowerCase() === "l") {
       event.preventDefault();
       this.showHelp = false;
-      const list = this.showSearch ? this.getFilteredNotes() : this.notes;
+      const list = this.notes;
       if (list.length > 0) {
         if (
           this.selectedNoteId === null ||
@@ -502,6 +464,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         this.editingNoteId = null;
         this.isConfirmingDeleteId = null;
       }
+      return;
     }
 
     // Ctrl + A: Focus Input
@@ -516,84 +479,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
       const container = document.querySelector(".container");
       if (container) container.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    // Arrow keys for navigation
-    if (this.showBin) {
-      // Clear All Shortcut (Ctrl + Shift + C)
-      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "c") {
-        event.preventDefault();
-        this.isConfirmingClearAll = true;
-        return;
-      }
-
-      // Enter for Bin confirmations
-      if (event.key === "Enter") {
-        if (this.isConfirmingBinDeleteId !== null) {
-          event.preventDefault();
-          this.permanentDeleteItem(this.isConfirmingBinDeleteId);
-          this.isConfirmingBinDeleteId = null;
-          return;
-        }
-        if (this.isConfirmingRestoreId !== null) {
-          event.preventDefault();
-          this.restoreItem(this.isConfirmingRestoreId);
-          this.isConfirmingRestoreId = null;
-          return;
-        }
-        if (this.isConfirmingClearAll) {
-          event.preventDefault();
-          this.clearBin();
-          this.isConfirmingClearAll = false;
-          return;
-        }
-      }
-
-      if (
-        this.binItems.length > 0 &&
-        !this.isConfirmingBinDeleteId &&
-        !this.isConfirmingRestoreId &&
-        !this.isConfirmingClearAll
-      ) {
-        let currentIndex = this.binItems.findIndex(
-          (n) =>
-            n.id === this.selectedBinItemId?.id &&
-            n.type === this.selectedBinItemId?.type,
-        );
-
-        // Ctrl + D (Permanent Delete)
-        if (event.ctrlKey && event.key.toLowerCase() === "d") {
-          event.preventDefault();
-          this.isConfirmingBinDeleteId = this.selectedBinItemId;
-          return;
-        }
-        // Ctrl + R (Restore)
-        if (event.ctrlKey && event.key.toLowerCase() === "r") {
-          event.preventDefault();
-          this.isConfirmingRestoreId = this.selectedBinItemId;
-          return;
-        }
-
-        if (event.key === "ArrowDown") {
-          event.preventDefault();
-          const nextIndex = (currentIndex + 1) % this.binItems.length;
-          this.selectedBinItemId = {
-            id: this.binItems[nextIndex].id,
-            type: this.binItems[nextIndex].type,
-          };
-          this.scrollSelectedBinIntoView();
-        }
-        if (event.key === "ArrowUp") {
-          event.preventDefault();
-          const prevIndex =
-            (currentIndex - 1 + this.binItems.length) % this.binItems.length;
-          this.selectedBinItemId = {
-            id: this.binItems[prevIndex].id,
-            type: this.binItems[prevIndex].type,
-          };
-          this.scrollSelectedBinIntoView();
-        }
-      }
       return;
     }
 
@@ -602,7 +487,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.editingNoteId === null &&
       this.isConfirmingDeleteId === null
     ) {
-      const list = this.showSearch ? this.getFilteredNotes() : this.notes;
+      const list = this.notes;
       const currentIndex = list.findIndex((n) => n.id === this.selectedNoteId);
 
       if (currentIndex !== -1) {
@@ -610,31 +495,16 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
           event.preventDefault();
           const nextIndex = (currentIndex + 1) % list.length;
           this.selectedNoteId = list[nextIndex].id;
-          if (!this.showSearch) {
-            this.scrollSelectedIntoView();
-          } else {
-            this.scrollSelectedSearchResultIntoView();
-          }
+          this.scrollSelectedIntoView();
         }
 
         if (event.key === "ArrowUp") {
           event.preventDefault();
           const prevIndex = (currentIndex - 1 + list.length) % list.length;
           this.selectedNoteId = list[prevIndex].id;
-          if (!this.showSearch) {
-            this.scrollSelectedIntoView();
-          } else {
-            this.scrollSelectedSearchResultIntoView();
-          }
+          this.scrollSelectedIntoView();
         }
       }
-    }
-
-    // Enter in Search to select and scroll
-    if (this.showSearch && event.key === "Enter" && this.selectedNoteId) {
-      const note = this.notes.find((n) => n.id === this.selectedNoteId);
-      if (note) this.selectSearchResult(note);
-      event.preventDefault();
     }
 
     // --- Actions on Selected Note ---
@@ -698,24 +568,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }, 10);
   }
 
-  private scrollSelectedBinIntoView() {
-    setTimeout(() => {
-      const element = document.querySelector(".bin-item.selected");
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    }, 10);
-  }
-
-  private scrollSelectedSearchResultIntoView() {
-    setTimeout(() => {
-      const element = document.querySelector(".search-result-item.selected");
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    }, 10);
-  }
-
   private scrollSelectedFontIntoView() {
     setTimeout(() => {
       const element = document.querySelector(".font-item.focused");
@@ -765,13 +617,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  async unlockVault() {
-    if (!this.password.trim()) return;
+  async unlockVault(password: string) {
+    if (!password.trim()) return;
     try {
       this.errorMessage = "";
-      await invoke("unlock_db", { password: this.password });
+      await this.vaultService.unlock(password);
       this.authStatus = "Unlocked";
-      this.password = "";
       this.lastActivity = Date.now();
       this.startIdleDetection();
       await this.loadNotes();
@@ -809,11 +660,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   async loadNotes() {
-    try {
-      this.notes = await invoke<Note[]>("get_notes");
-    } catch (err) {
-      console.error(err);
-    }
+    await this.notesService.loadNotes();
   }
 
   formatDate(dateStr: string): string {
@@ -835,12 +682,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   async addNote() {
-    const content = this.noteInput.nativeElement.innerHTML.trim();
+    if (!this.tasksComponent?.noteInput) return;
+    const content = this.tasksComponent.noteInput.nativeElement.innerHTML.trim();
     if (!content) return;
     try {
-      await invoke("add_note", { content });
-      this.noteInput.nativeElement.innerHTML = "";
-      await this.loadNotes();
+      await this.notesService.addNote(content);
+      this.tasksComponent.noteInput.nativeElement.innerHTML = "";
       this.selectedNoteId = null;
       this.triggerFocus();
     } catch (err) {
@@ -896,9 +743,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async toggleAutoStart() {
     try {
-      if (this.autoStartEnabled) await disable();
-      else await enable();
-      this.autoStartEnabled = await isEnabled();
+      this.autoStartEnabled = await this.settingsService.toggleAutoStart(this.autoStartEnabled);
     } catch (err) {
       console.error(err);
     }
@@ -924,12 +769,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   async updateNote() {
-    if (this.editingNoteId === null || !this.editInput) return;
-    const content = this.editInput.nativeElement.innerHTML.trim();
+    if (this.editingNoteId === null || !this.tasksComponent?.editInput) return;
+    const content = this.tasksComponent.editInput.nativeElement.innerHTML.trim();
     try {
-      await invoke("update_note", { id: this.editingNoteId, content });
+      await this.notesService.updateNote(this.editingNoteId, content);
       this.editingNoteId = null;
-      await this.loadNotes();
     } catch (err) {
       console.error(err);
     }
@@ -940,9 +784,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     const index = this.notes.findIndex((n) => n.id === id);
 
     try {
-      await invoke("delete_note", { id });
+      await this.notesService.deleteNote(id);
       this.isConfirmingDeleteId = null;
-      await this.loadNotes();
 
       if (this.notes.length > 0) {
         // Select next available note at same index, or the last one if we deleted the end item
@@ -958,10 +801,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   getFilteredNotes(): Note[] {
-    if (!this.searchQuery.trim()) return this.notes;
-    return this.notes.filter((n) =>
-      n.content.toLowerCase().includes(this.searchQuery.toLowerCase()),
-    );
+    return this.searchService.getFilteredNotes(this.notes);
   }
 
   selectSearchResult(note: Note) {
@@ -972,8 +812,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async togglePin(id: number) {
     try {
-      await invoke("toggle_pin", { id });
-      await this.loadNotes();
+      await this.notesService.togglePin(id);
     } catch (err) {
       console.error(err);
     }
@@ -982,20 +821,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   // ===== Notepad Methods =====
 
   async loadPads() {
-    try {
-      this.pads = await invoke<Pad[]>("get_pads");
-    } catch (err) {
-      console.error(err);
-    }
+    await this.padsService.loadPads();
   }
 
   async createPad() {
     try {
-      const id = await invoke<number>("add_pad", {
-        title: "Untitled",
-        content: "",
-      });
-      await this.loadPads();
+      const id = await this.padsService.addPad('Untitled', '');
       this.openTab(id);
     } catch (err) {
       console.error(err);
@@ -1015,17 +846,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (event) event.stopPropagation();
 
     try {
-      await invoke("delete_pad", { id: padId });
+      await this.padsService.deletePad(padId);
 
       const padToDelete = this.pads.find(p => p.id === padId);
       if (padToDelete && padToDelete.is_open) {
         this.forceCloseTabUI(padId);
       } else {
         await this.loadPads();
-      }
-
-      if (this.showBin) {
-        this.loadBinItems();
       }
     } catch (err) {
       console.error(err);
@@ -1037,8 +864,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (!pad) return;
 
     if (!skipMetadata) {
-      await invoke("update_pad_metadata", {
-        id: padId,
+      await this.padsService.updatePadMetadata(padId, {
         is_open: true,
         is_active: true,
       });
@@ -1065,12 +891,84 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       .sort((a, b) => a.tab_index - b.tab_index);
   }
 
+  onTabDragStart(event: DragEvent, padId: number) {
+    this.draggedTabId = padId;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', padId.toString());
+    }
+  }
+
+  onTabDragOver(event: DragEvent) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onTabDragEnter(event: DragEvent, padId: number) {
+    event.preventDefault();
+    this.dragEnterId = padId;
+  }
+
+  onTabDragLeave(event: DragEvent) {
+    this.dragEnterId = null;
+  }
+
+  onTabDragEnd() {
+    this.draggedTabId = null;
+    this.dragEnterId = null;
+  }
+
+  async onTabDrop(event: DragEvent, targetPadId: number) {
+    event.preventDefault();
+    this.dragEnterId = null;
+    
+    if (this.draggedTabId === null || this.draggedTabId === targetPadId) {
+      this.draggedTabId = null;
+      return;
+    }
+
+    const tabs = [...this.openOrderedTabs];
+    const draggedIdx = tabs.findIndex(t => t.id === this.draggedTabId);
+    const targetIdx = tabs.findIndex(t => t.id === targetPadId);
+
+    if (draggedIdx === -1 || targetIdx === -1) {
+      this.draggedTabId = null;
+      return;
+    }
+
+    const [draggedTab] = tabs.splice(draggedIdx, 1);
+    tabs.splice(targetIdx, 0, draggedTab);
+
+    tabs.forEach((tab, index) => {
+      tab.tab_index = index;
+      const originalPad = this.pads.find(p => p.id === tab.id);
+      if (originalPad) originalPad.tab_index = index;
+    });
+
+    this.pads = [...this.pads];
+
+    const updates = tabs.map((tab, index) => {
+      return this.padsService.updatePadMetadata(tab.id, { tab_index: index });
+    });
+
+    this.draggedTabId = null;
+    
+    try {
+      await Promise.all(updates);
+      await this.loadPads();
+    } catch (err) {
+      console.error("Failed to update tab order in DB:", err);
+    }
+  }
+
   closeTab(padId: number, event?: MouseEvent) {
     if (event) event.stopPropagation();
     this.isConfirmingPadCloseId = padId;
   }
 
-  async handlePadCloseModalAction(action: 'save' | 'delete' | 'cancel') {
+  async handlePadCloseModalAction(action: 'save' | 'delete' | 'force' | 'cancel') {
     if (!this.isConfirmingPadCloseId) return;
     const padId = this.isConfirmingPadCloseId;
 
@@ -1085,6 +983,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     } else if (action === 'delete') {
       this.isConfirmingPadCloseId = null;
       await this.deletePad(padId);
+      await this._closeTabInternal(padId);
+    } else if (action === 'force') {
+      this.isConfirmingPadCloseId = null;
       await this._closeTabInternal(padId);
     }
   }
@@ -1103,7 +1004,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         }
       }
 
-      await invoke("update_pad_metadata", { id: padId, is_open: false, is_active: false });
+      await this.padsService.updatePadMetadata(padId, { is_open: false, is_active: false });
       if (nextId) {
         await this.openTab(nextId);
       } else {
@@ -1116,7 +1017,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         }
       }
     } else {
-      await invoke("update_pad_metadata", { id: padId, is_open: false });
+      await this.padsService.updatePadMetadata(padId, { is_open: false });
       await this.loadPads();
     }
   }
@@ -1126,7 +1027,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (!pad) return;
 
     let contentToSave = pad.content;
-    let titleToSave = this.getPadTabTitle(pad);
+    const titleToSave = this.getPadTabTitle(pad);
     if (this.activeTabId === padId) {
       contentToSave = this.padContent;
     }
@@ -1139,10 +1040,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       });
 
       if (filePath) {
-        await invoke("save_file_to_local", {
-          path: filePath,
-          content: contentToSave,
-        });
+        await this.vaultService.saveFileToLocal(filePath, contentToSave);
         if (closeTabAfter) {
           this._closeTabInternal(padId);
         }
@@ -1460,11 +1358,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     const firstLine = text.split("\n")[0]?.trim();
     const title = firstLine || "Untitled";
     try {
-      await invoke("update_pad", {
-        id: this.activePad.id,
+      await this.padsService.updatePad(
+        this.activePad.id,
         title,
-        content: this.padContent,
-      });
+        this.padContent,
+      );
 
       const pad = this.pads.find((p) => p.id === this.activePad!.id);
       if (pad) {
@@ -1482,93 +1380,14 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  async loadBinItems() {
-    try {
-      const notes = await invoke<Note[]>("get_bin_notes");
-      const pads = await invoke<Pad[]>("get_bin_pads");
-
-      this.binItems = [
-        ...notes.map((n) => ({
-          id: n.id,
-          type: "task" as "task" | "pad",
-          content: n.content,
-          timestamp: n.timestamp,
-        })),
-        ...pads.map((p) => ({
-          id: p.id,
-          type: "pad" as "task" | "pad",
-          content: this.getPadTabTitle(p),
-          timestamp: p.updated_at,
-        })),
-      ].sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-      );
-
-      if (this.binItems.length > 0 && this.selectedBinItemId === null) {
-        this.selectedBinItemId = {
-          id: this.binItems[0].id,
-          type: this.binItems[0].type,
-        };
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async restoreItem(item: { id: number; type: "task" | "pad" }) {
-    try {
-      if (item.type === "task") {
-        await invoke("restore_note", { id: item.id });
-        await this.loadNotes();
-      } else {
-        await invoke("restore_pad", { id: item.id });
-        await this.loadPads();
-
-        // Re-open the tab if it's a pad so it's visible to the user immediately
-        this.openTab(item.id);
-      }
-      await this.loadBinItems();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async permanentDeleteItem(item: { id: number; type: "task" | "pad" }) {
-    try {
-      if (item.type === "task") {
-        await invoke("permanent_delete_note", { id: item.id });
-      } else {
-        await invoke("permanent_delete_pad", { id: item.id });
-      }
-      await this.loadBinItems();
-    } catch (err) {
-      console.error(err);
+  async onBinItemRestored(item: { id: number; type: "task" | "pad" }) {
+    if (item.type === 'pad') {
+      this.openTab(item.id);
     }
   }
 
   async clearBin() {
-    try {
-      await invoke("clear_bin");
-      await invoke("clear_pad_bin");
-      await this.loadBinItems();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async minimize() {
-    await getCurrentWindow().minimize();
-  }
-  async maximize() {
-    try {
-      await invoke("toggle_maximize");
-    } catch (err) {
-      console.error(err);
-    }
-  }
-  async close() {
-    await getCurrentWindow().close();
+    await this.binService.clearBin();
   }
 
   formatContent(content: string): string {
@@ -1596,28 +1415,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async uploadFont() {
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [{
-          name: 'Font',
-          extensions: ['ttf', 'otf']
-        }]
-      });
-
-      console.log('File dialog result:', selected);
-
-      if (!selected) return;
-
-      const filePath = typeof selected === 'string' ? selected : String(selected);
-      console.log('Selected file path:', filePath);
+      const filePath = await this.fontService.openFontDialog();
+      if (!filePath) return;
 
       const fileName = filePath.split('\\').pop()?.split('/').pop() || '';
       const name = fileName.replace(/\.(ttf|otf)$/i, '') || 'CustomFont';
-      console.log('Font name:', name);
 
-      const result = await invoke('upload_custom_font', { name, srcPath: filePath });
-      console.log('Upload result:', result);
-
+      await this.fontService.uploadCustomFont(name, filePath);
       await this.loadCustomFonts();
 
       // Auto-select the newly added font
@@ -1630,8 +1434,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async loadCustomFonts() {
     try {
-      const fonts = await invoke<any[]>('get_custom_fonts');
-      console.log('Custom fonts from backend:', fonts);
+      const fonts = await this.fontService.getCustomFonts();
 
       // Remove existing custom fonts from list to avoid duplicates
       this.availableFonts = this.availableFonts.filter(f => !f.isCustom);
@@ -1649,25 +1452,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         const path = font[1] || font.path;
         if (!name || !path) continue;
 
-        const familyName = `Custom-${name}`;
-        const assetUrl = convertFileSrc(path);
-        console.log('Loading font:', name, 'from:', assetUrl);
+        const familyName = await this.fontService.registerFontFace(name, path);
 
-        fontCache[familyName] = assetUrl;
-
-        try {
-          // Register @font-face dynamically
-          const fontFace = new FontFace(familyName, `url("${assetUrl}")`);
-          await fontFace.load();
-          (document.fonts as any).add(fontFace);
-          console.log('Font loaded successfully:', familyName);
-        } catch (fontErr) {
-          console.warn('FontFace load failed, trying style injection:', fontErr);
-          // Fallback: inject a <style> tag with @font-face
-          const style = document.createElement('style');
-          style.textContent = `@font-face { font-family: "${familyName}"; src: url("${assetUrl}"); }`;
-          document.head.appendChild(style);
-        }
+        // Store for cache (use convertFileSrc via service would be needed for URL)
+        fontCache[familyName] = path;
 
         this.availableFonts.push({
           name: name,
@@ -1687,7 +1475,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   async deleteCustomFont(fontName: string, event: MouseEvent) {
     event.stopPropagation();
     try {
-      await invoke('delete_custom_font', { name: fontName });
+      await this.fontService.deleteCustomFont(fontName);
 
       // If the deleted font was selected, switch to default
       if (this.selectedFont === fontName) {
@@ -1702,6 +1490,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   toggleSpellCheck() {
     this.spellCheckEnabled = !this.spellCheckEnabled;
-    localStorage.setItem('spellcheck', String(this.spellCheckEnabled));
+    this.settingsService.setSpellCheck(this.spellCheckEnabled);
   }
 }

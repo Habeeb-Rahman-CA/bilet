@@ -1,0 +1,133 @@
+.help-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(var(--bg-rgb), 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.help-content {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 40px;
+  width: 90%;
+  max-width: 440px;
+  max-height: 85vh;
+  overflow-y: auto;
+  text-align: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.help-content::-webkit-scrollbar {
+  display: none;
+}
+
+.help-content h2 {
+  margin-bottom: 24px;
+  font-size: 20px;
+  margin-top: 0;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 32px;
+  text-align: left;
+  flex-grow: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.shortcut-list::-webkit-scrollbar {
+  display: none;
+}
+
+.shortcut-group {
+  margin-bottom: 24px;
+}
+
+.shortcut-group:last-child {
+  margin-bottom: 0;
+}
+
+.shortcut-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  opacity: 0.4;
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.shortcut-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  opacity: 0.8;
+  margin-bottom: 8px;
+}
+
+.shortcut-item:last-child {
+  margin-bottom: 0;
+}
+
+.shortcut-item span {
+  background: var(--hover-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.modal-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.version-text {
+  font-size: 10px;
+  opacity: 0.3;
+  margin-top: 0;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+button.primary {
+  width: 100%;
+  color: var(--text-color);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+button.primary:hover {
+  background: var(--hover-color);
+}

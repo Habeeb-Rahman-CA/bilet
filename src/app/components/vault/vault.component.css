@@ -1,0 +1,113 @@
+.vault-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 54px);
+  background: var(--bg-color);
+  overflow: hidden;
+}
+
+.vault-card {
+  width: 100%;
+  max-width: 320px;
+  padding: 40px 20px;
+  text-align: center;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vault-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 24px;
+  background: var(--hover-color);
+  border-radius: 50%;
+  padding: 16px;
+  color: var(--accent-color);
+}
+
+.vault-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.vault-subtitle {
+  font-size: 13px;
+  opacity: 0.6;
+  margin-bottom: 32px;
+}
+
+.vault-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vault-input-group input {
+  text-align: center;
+  font-size: 16px;
+  letter-spacing: 2px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+  color: var(--text-color);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.vault-input-group input:focus::-webkit-input-placeholder,
+.vault-input-group input:focus:-moz-placeholder,
+.vault-input-group input:focus::-moz-placeholder,
+.vault-input-group input:focus:-ms-input-placeholder,
+.vault-input-group input:focus::placeholder {
+  color: transparent;
+}
+
+button.primary {
+  color: var(--text-color);
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+button.primary:hover {
+  opacity: 0.9;
+}
+
+.error-text {
+  color: var(--mac-close);
+  font-size: 12px;
+  margin-top: 16px;
+  font-weight: 500;
+}
+
+.vault-footer {
+  font-size: 11px;
+  opacity: 0.4;
+  margin-top: 32px;
+}
+
+.version-text {
+  font-size: 10px;
+  opacity: 0.3;
+  margin-top: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}

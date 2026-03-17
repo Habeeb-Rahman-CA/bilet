@@ -1,0 +1,27 @@
+<div class="help-overlay" *ngIf="show" (click)="close.emit()">
+  <div class="help-content settings-content" (click)="$event.stopPropagation()">
+    <div class="settings-header">
+      <h2>Change Font Style</h2>
+    </div>
+
+    <div class="font-list">
+      <div class="font-item" *ngFor="let font of availableFonts; let i = index"
+        (click)="selectFont.emit(font.name)" 
+        [class.selected]="selectedFont === font.name"
+        [class.focused]="focusedFontIndex === i">
+        <span [style.font-family]="font.family">{{ font.name }}</span>
+        <button class="font-delete-btn" *ngIf="font.isCustom" (click)="deleteFont.emit({ name: font.name, event: $event })"
+          title="Remove font">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="font-item upload-font" (click)="uploadFont.emit()">
+        <span>Upload Custom Font (.ttf/.otf)</span>
+      </div>
+    </div>
+  </div>
+</div>

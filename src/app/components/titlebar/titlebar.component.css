@@ -1,0 +1,114 @@
+.titlebar {
+  display: flex;
+  height: 42px;
+  background: var(--titlebar-bg);
+  align-items: center;
+  padding: 0 16px;
+  -webkit-app-region: drag;
+  user-select: none;
+  z-index: 1000;
+}
+
+body.maximized .titlebar {
+  border-bottom: none;
+}
+
+.window-controls {
+  display: flex;
+  gap: 8px;
+  width: 100px;
+  -webkit-app-region: no-drag;
+}
+
+.control {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.control:hover {
+  opacity: 0.8;
+}
+
+.close {
+  background-color: var(--text-color);
+  opacity: 0.2;
+}
+
+.minimize {
+  background-color: var(--text-color);
+  opacity: 0.15;
+}
+
+.maximize {
+  background-color: var(--text-color);
+  opacity: 0.1;
+}
+
+.title-text {
+  flex-grow: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-color);
+  opacity: 0.8;
+  letter-spacing: 0.5px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 120px;
+  -webkit-app-region: no-drag;
+}
+
+.startup-toggle,
+.help-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
+  opacity: 0.3;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  position: relative;
+}
+
+.startup-toggle svg,
+.help-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.help-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.startup-toggle:hover,
+.help-btn:hover {
+  opacity: 1;
+  background: var(--hover-color);
+}
+
+.startup-toggle.enabled {
+  opacity: 1;
+  color: var(--accent-color);
+}
+
+.startup-toggle.enabled:hover {
+  background: rgba(39, 201, 63, 0.1);
+}

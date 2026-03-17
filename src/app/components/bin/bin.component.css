@@ -1,0 +1,132 @@
+.help-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(var(--bg-rgb), 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.help-content {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 40px;
+  width: 90%;
+  max-width: 440px;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: none;
+}
+
+.help-content::-webkit-scrollbar {
+  display: none;
+}
+
+.bin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.bin-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.search-results {
+  margin-bottom: 0;
+  text-align: left;
+  border-radius: 8px;
+  flex-grow: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.search-results::-webkit-scrollbar {
+  display: none;
+}
+
+.bin-item {
+  padding: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.bin-item:hover {
+  background: var(--hover-color);
+}
+
+.bin-item.selected {
+  background: var(--hover-color);
+}
+
+.bin-item-content {
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.bin-text {
+  margin: 0;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.8;
+}
+
+.bin-date {
+  font-size: 10px;
+  opacity: 0.4;
+}
+
+.delete-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--text-color);
+  color: var(--bg-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 5;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.bulk-clear-overlay {
+  z-index: 10;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  opacity: 0.4;
+  font-size: 14px;
+}
