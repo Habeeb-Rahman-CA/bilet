@@ -1191,7 +1191,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   updateLineNumbers() {
     if (!this.padEditor) return;
     const text = this.padEditor.nativeElement.innerText;
-    const count = text ? text.split("\n").length : 1;
+    // contenteditable appends trailing \n characters — strip them before counting
+    const trimmed = text ? text.replace(/\n$/, '') : '';
+    const count = trimmed ? trimmed.split('\n').length : 1;
     this.lineNumbers = Array.from({ length: count }, (_, i) => i + 1);
   }
 
