@@ -33,6 +33,8 @@ interface Pad {
   is_open: boolean;
   is_active: boolean;
   tab_index: number;
+  file_path: string | null;
+  isDirty?: boolean;
 }
 
 type AuthStatus = "SetupRequired" | "Locked" | "Unlocked" | "Checking";
@@ -433,7 +435,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
       if (event.ctrlKey && event.key.toLowerCase() === "d") {
         event.preventDefault();
-        this.handlePadCloseModalAction('delete');
+        this.handlePadCloseModalAction('saveAndClose');
         return;
       }
       if (event.key === "Escape") {
@@ -983,7 +985,15 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async loadPads() {
     try {
-      this.pads = await invoke<Pad[]>("get_pads");
+      const dbPads = await invoke<Pad[]>("get_pads");
+      // Preserve isDirty state for existing pads
+      this.pads = dbPads.map(dbPad => {
+        const existing = this.pads.find(p => p.id === dbPad.id);
+        return {
+          ...dbPad,
+          isDirty: existing ? existing.isDirty : false
+        };
+      });
     } catch (err) {
       console.error(err);
     }
@@ -1037,17 +1047,14 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (!pad) return;
 
     if (!skipMetadata) {
-      await invoke("update_pad_metadata", {
-        id: padId,
-        is_open: true,
-        is_active: true,
-      });
+      await invoke("open_pad_tab", { id: padId });
       await this.loadPads();
     }
 
     this.activeTabId = padId;
     this.activePad = { ...pad };
     this.padContent = pad.content;
+    this.activePad.isDirty = pad.isDirty || false;
 
     setTimeout(() => {
       if (this.padEditor) {
@@ -1067,10 +1074,16 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   closeTab(padId: number, event?: MouseEvent) {
     if (event) event.stopPropagation();
-    this.isConfirmingPadCloseId = padId;
+
+    const pad = this.pads.find(p => p.id === padId);
+    if (pad && pad.isDirty) {
+      this.isConfirmingPadCloseId = padId;
+    } else {
+      this._closeTabInternal(padId);
+    }
   }
 
-  async handlePadCloseModalAction(action: 'save' | 'delete' | 'cancel') {
+  async handlePadCloseModalAction(action: 'save' | 'saveAndClose' | 'cancel') {
     if (!this.isConfirmingPadCloseId) return;
     const padId = this.isConfirmingPadCloseId;
 
@@ -1080,50 +1093,57 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     if (action === 'save') {
-      this.isConfirmingPadCloseId = null;
-      await this.downloadPadToLocal(padId, true);
-    } else if (action === 'delete') {
-      this.isConfirmingPadCloseId = null;
-      await this.deletePad(padId);
-      await this._closeTabInternal(padId);
+      const success = await this.savePadToFile(padId);
+      if (success) {
+        this.isConfirmingPadCloseId = null;
+      }
+    } else if (action === 'saveAndClose') {
+      const success = await this.savePadToFile(padId);
+      if (success) {
+        this.isConfirmingPadCloseId = null;
+        await this._closeTabInternal(padId);
+      }
     }
   }
 
   private async _closeTabInternal(padId: number) {
-    if (this.activeTabId === padId) {
-      const tabs = this.openOrderedTabs;
-      const currentIndex = tabs.findIndex((t) => t.id === padId);
-      let nextId: number | null = null;
-
-      if (tabs.length > 1) {
-        if (currentIndex < tabs.length - 1) {
-          nextId = tabs[currentIndex + 1].id;
-        } else {
-          nextId = tabs[currentIndex - 1].id;
-        }
+    // 1. Snapshot current open tabs for next-tab calculation
+    const tabs = this.openOrderedTabs;
+    const closedTabIdx = tabs.findIndex(t => t.id === padId);
+    let nextTabId: number | null = null;
+    
+    if (this.activeTabId === padId && tabs.length > 1) {
+      if (closedTabIdx < tabs.length - 1) {
+        nextTabId = tabs[closedTabIdx + 1].id;
+      } else {
+        nextTabId = tabs[closedTabIdx - 1].id;
       }
+    }
 
-      await invoke("update_pad_metadata", { id: padId, is_open: false, is_active: false });
-      if (nextId) {
-        await this.openTab(nextId);
+    // 2. Use dedicated command — no Options, guaranteed to execute
+    await invoke("close_pad_tab", { id: padId });
+
+    // 3. Reload from DB
+    await this.loadPads();
+
+    // 4. Handle UI redirection
+    if (this.activeTabId === padId) {
+      if (nextTabId) {
+        await this.openTab(nextTabId);
       } else {
         this.activeTabId = null;
         this.activePad = null;
         this.padContent = "";
-        await this.loadPads();
         if (this.openOrderedTabs.length === 0) {
           await this.createPad();
         }
       }
-    } else {
-      await invoke("update_pad_metadata", { id: padId, is_open: false });
-      await this.loadPads();
     }
   }
 
-  async downloadPadToLocal(padId: number, closeTabAfter: boolean) {
+  async savePadToFile(padId: number): Promise<boolean> {
     const pad = this.pads.find((p) => p.id === padId);
-    if (!pad) return;
+    if (!pad) return false;
 
     let contentToSave = pad.content;
     let titleToSave = this.getPadTabTitle(pad);
@@ -1132,23 +1152,49 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     try {
-      const filePath = await save({
-        filters: [{ name: "Text Document", extensions: ["txt", "md"] }],
-        defaultPath: `${titleToSave}.txt`,
-        title: "Download Pad to Local Computer",
-      });
+      let filePath = pad.file_path;
+
+      if (!filePath) {
+        filePath = await save({
+          filters: [{ name: "Text Document", extensions: ["txt", "md"] }],
+          defaultPath: `${titleToSave}.txt`,
+          title: "Save Pad to Local Computer",
+        });
+      }
 
       if (filePath) {
         await invoke("save_file_to_local", {
           path: filePath,
           content: contentToSave,
         });
-        if (closeTabAfter) {
-          this._closeTabInternal(padId);
+
+        // Update pad state
+        pad.file_path = filePath;
+        pad.isDirty = false;
+        if (this.activePad && this.activePad.id === padId) {
+          this.activePad.file_path = filePath;
+          this.activePad.isDirty = false;
         }
+
+        // Persist filePath to database with dedicated command
+        await invoke("update_pad_file_path", {
+          id: padId,
+          file_path: filePath
+        });
+
+        return true;
       }
     } catch (err) {
       console.error(err);
+    }
+    return false;
+  }
+
+  async downloadPadToLocal(padId: number, closeTabAfter: boolean) {
+    // Re-use savePadToFile
+    const success = await this.savePadToFile(padId);
+    if (success && closeTabAfter) {
+      this._closeTabInternal(padId);
     }
   }
 
@@ -1187,6 +1233,15 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.padEditor) {
       this.padContent = this.padEditor.nativeElement.innerHTML;
       this.padText = this.padEditor.nativeElement.innerText || '';
+
+      const pad = this.pads.find(p => p.id === this.activeTabId);
+      if (pad) {
+        pad.isDirty = true;
+      }
+      if (this.activePad) {
+        this.activePad.isDirty = true;
+      }
+
       this.onPadContentChange();
     }
   }

@@ -677,24 +677,31 @@ button.primary:hover {
 }
 
 .action-btn {
-  padding: 12px;
+  padding: 10px 20px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   background: var(--bg-color);
   color: var(--text-color);
   transition: all 0.2s ease;
+  min-width: 100px;
 }
 
 .action-btn:hover {
   background: var(--hover-color);
 }
 
-.save-btn:hover {
+.action-btn.primary-btn {
   background: var(--text-color);
   color: var(--bg-color);
+  border-color: var(--text-color);
+}
+
+.save-btn:hover {
+  background: var(--hover-color);
+  border-color: var(--text-color);
 }
 
 .delete-btn {
@@ -997,8 +1004,9 @@ button.primary:hover {
   cursor: pointer;
   transition: background 0.15s;
   white-space: nowrap;
+  flex: 1;
   max-width: 160px;
-  min-width: 80px;
+  min-width: 120px;
 }
 
 .tab:hover {
@@ -1019,6 +1027,29 @@ button.primary:hover {
 
 .tab.active .tab-title {
   opacity: 1;
+}
+
+.tab-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.dirty-indicator {
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-color, #27c93f);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
 }
 
 .tab-close {

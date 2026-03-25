@@ -40,6 +40,7 @@ struct Pad {
     is_open: bool,
     is_active: bool,
     tab_index: i32,
+    file_path: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -81,7 +82,10 @@ async fn check_auth_status(
         // Try auto-unlock if persistent password exists
         if persistent_path.exists() {
             if let Ok(password) = fs::read_to_string(&persistent_path) {
-                if unlock_db_internal(password, state, app_handle).await.is_ok() {
+                if unlock_db_internal(password, state, app_handle)
+                    .await
+                    .is_ok()
+                {
                     return Ok(AuthStatus::Unlocked);
                 }
             }
@@ -159,7 +163,8 @@ async fn unlock_db_internal(
             is_deleted BOOLEAN DEFAULT 0,
             is_open BOOLEAN DEFAULT 0,
             is_active BOOLEAN DEFAULT 0,
-            tab_index INTEGER DEFAULT 0
+            tab_index INTEGER DEFAULT 0,
+            file_path TEXT
         )",
         [],
     )
@@ -192,14 +197,26 @@ async fn unlock_db_internal(
             }
         }
         if !has_created_at {
-            let _ = conn.execute("ALTER TABLE secure_notes ADD COLUMN created_at DATETIME", []);
-            let _ = conn.execute("UPDATE secure_notes SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL", []);
+            let _ = conn.execute(
+                "ALTER TABLE secure_notes ADD COLUMN created_at DATETIME",
+                [],
+            );
+            let _ = conn.execute(
+                "UPDATE secure_notes SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL",
+                [],
+            );
         }
         if !has_is_pinned {
-            let _ = conn.execute("ALTER TABLE secure_notes ADD COLUMN is_pinned BOOLEAN DEFAULT 0", []);
+            let _ = conn.execute(
+                "ALTER TABLE secure_notes ADD COLUMN is_pinned BOOLEAN DEFAULT 0",
+                [],
+            );
         }
         if !has_is_deleted {
-            let _ = conn.execute("ALTER TABLE secure_notes ADD COLUMN is_deleted BOOLEAN DEFAULT 0", []);
+            let _ = conn.execute(
+                "ALTER TABLE secure_notes ADD COLUMN is_deleted BOOLEAN DEFAULT 0",
+                [],
+            );
         }
 
         let mut has_is_open = false;
@@ -224,13 +241,39 @@ async fn unlock_db_internal(
             }
         }
         if !has_is_open {
-            let _ = conn.execute("ALTER TABLE secure_pads ADD COLUMN is_open BOOLEAN DEFAULT 0", []);
+            let _ = conn.execute(
+                "ALTER TABLE secure_pads ADD COLUMN is_open BOOLEAN DEFAULT 0",
+                [],
+            );
         }
         if !has_is_active {
-            let _ = conn.execute("ALTER TABLE secure_pads ADD COLUMN is_active BOOLEAN DEFAULT 0", []);
+            let _ = conn.execute(
+                "ALTER TABLE secure_pads ADD COLUMN is_active BOOLEAN DEFAULT 0",
+                [],
+            );
         }
         if !has_tab_index {
-            let _ = conn.execute("ALTER TABLE secure_pads ADD COLUMN tab_index INTEGER DEFAULT 0", []);
+            let _ = conn.execute(
+                "ALTER TABLE secure_pads ADD COLUMN tab_index INTEGER DEFAULT 0",
+                [],
+            );
+        }
+
+        let mut has_file_path = false;
+        {
+            let mut stmt = conn
+                .prepare("PRAGMA table_info(secure_pads)")
+                .map_err(|e| e.to_string())?;
+            let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+            while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+                let name: String = row.get(1).map_err(|e| e.to_string())?;
+                if name == "file_path" {
+                    has_file_path = true;
+                }
+            }
+        }
+        if !has_file_path {
+            let _ = conn.execute("ALTER TABLE secure_pads ADD COLUMN file_path TEXT", []);
         }
     }
 
@@ -462,7 +505,7 @@ fn get_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
     let cipher = Aes256Gcm::new(key.into());
 
     let mut stmt = conn
-        .prepare("SELECT id, title_nonce, title_ciphertext, content_nonce, content_ciphertext, created_at, updated_at, is_deleted, is_open, is_active, tab_index FROM secure_pads WHERE is_deleted = 0 ORDER BY tab_index ASC")
+        .prepare("SELECT id, title_nonce, title_ciphertext, content_nonce, content_ciphertext, created_at, updated_at, is_deleted, is_open, is_active, tab_index, file_path FROM secure_pads WHERE is_deleted = 0 ORDER BY tab_index ASC")
         .map_err(|e| e.to_string())?;
 
     let pad_iter = stmt
@@ -478,6 +521,7 @@ fn get_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
             let is_open: bool = row.get(8).unwrap_or(false);
             let is_active: bool = row.get(9).unwrap_or(false);
             let tab_index: i32 = row.get(10).unwrap_or(0);
+            let file_path: Option<String> = row.get(11).unwrap_or(None);
 
             let title_nonce = Nonce::from_slice(&title_nonce_bytes);
             let title_dec = cipher
@@ -502,6 +546,7 @@ fn get_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
                 is_open,
                 is_active,
                 tab_index,
+                file_path,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -594,7 +639,7 @@ fn get_bin_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
     let cipher = Aes256Gcm::new(key.into());
 
     let mut stmt = conn
-        .prepare("SELECT id, title_nonce, title_ciphertext, content_nonce, content_ciphertext, created_at, updated_at, is_deleted, is_open, is_active, tab_index FROM secure_pads WHERE is_deleted = 1 ORDER BY updated_at DESC")
+        .prepare("SELECT id, title_nonce, title_ciphertext, content_nonce, content_ciphertext, created_at, updated_at, is_deleted, is_open, is_active, tab_index, file_path FROM secure_pads WHERE is_deleted = 1 ORDER BY updated_at DESC")
         .map_err(|e| e.to_string())?;
 
     let pad_iter = stmt
@@ -610,6 +655,7 @@ fn get_bin_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
             let is_open: bool = row.get(8).unwrap_or(false);
             let is_active: bool = row.get(9).unwrap_or(false);
             let tab_index: i32 = row.get(10).unwrap_or(0);
+            let file_path: Option<String> = row.get(11).unwrap_or(None);
 
             let title_nonce = Nonce::from_slice(&title_nonce_bytes);
             let title_dec = cipher
@@ -634,6 +680,7 @@ fn get_bin_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
                 is_open,
                 is_active,
                 tab_index,
+                file_path,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -753,13 +800,61 @@ fn update_pad_metadata(
     query.push_str(" WHERE id = ?");
     params_vec.push(Box::new(id));
 
-    // Convert Vec<Box<dyn ToSql>> to something rusqlite accepts
     let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
 
     conn.execute(&query, rusqlite::params_from_iter(params_refs))
         .map_err(|e| e.to_string())?;
 
     Ok("Metadata Updated".to_string())
+}
+
+#[tauri::command]
+fn update_pad_file_path(
+    id: i64,
+    file_path: String,
+    state: State<'_, DbState>,
+) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+
+    conn.execute(
+        "UPDATE secure_pads SET file_path = ?1 WHERE id = ?2",
+        rusqlite::params![file_path, id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok("File path updated".to_string())
+}
+
+#[tauri::command]
+fn close_pad_tab(id: i64, state: State<'_, DbState>) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+
+    conn.execute(
+        "UPDATE secure_pads SET is_open = 0, is_active = 0 WHERE id = ?1",
+        rusqlite::params![id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok("Tab closed".to_string())
+}
+
+#[tauri::command]
+fn open_pad_tab(id: i64, state: State<'_, DbState>) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+
+    // Unset current active
+    let _ = conn.execute("UPDATE secure_pads SET is_active = 0", []);
+
+    conn.execute(
+        "UPDATE secure_pads SET is_open = 1, is_active = 1 WHERE id = ?1",
+        rusqlite::params![id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok("Tab opened".to_string())
 }
 
 #[tauri::command]
@@ -775,7 +870,11 @@ fn get_session(_state: State<'_, DbState>) -> Result<Option<Session>, String> {
 }
 
 #[tauri::command]
-fn upload_custom_font(app_handle: tauri::AppHandle, name: String, src_path: String) -> Result<String, String> {
+fn upload_custom_font(
+    app_handle: tauri::AppHandle,
+    name: String,
+    src_path: String,
+) -> Result<String, String> {
     let app_dir = app_handle.path().app_data_dir().unwrap();
     let fonts_dir = app_dir.join("custom_fonts");
     fs::create_dir_all(&fonts_dir).map_err(|e| e.to_string())?;
@@ -790,7 +889,7 @@ fn upload_custom_font(app_handle: tauri::AppHandle, name: String, src_path: Stri
 fn get_custom_fonts(app_handle: tauri::AppHandle) -> Result<Vec<(String, String)>, String> {
     let app_dir = app_handle.path().app_data_dir().unwrap();
     let fonts_dir = app_dir.join("custom_fonts");
-    
+
     if !fonts_dir.exists() {
         return Ok(vec![]);
     }
@@ -799,7 +898,12 @@ fn get_custom_fonts(app_handle: tauri::AppHandle) -> Result<Vec<(String, String)
     for entry in fs::read_dir(fonts_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()).map(|e| e == "ttf" || e == "otf").unwrap_or(false) {
+        if path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|e| e == "ttf" || e == "otf")
+            .unwrap_or(false)
+        {
             let name = path.file_stem().unwrap().to_string_lossy().to_string();
             fonts.push((name, path.to_string_lossy().to_string()));
         }
@@ -863,6 +967,9 @@ fn main() {
             save_session,
             get_session,
             update_pad_metadata,
+            update_pad_file_path,
+            close_pad_tab,
+            open_pad_tab,
             upload_custom_font,
             get_custom_fonts,
             delete_custom_font
@@ -870,14 +977,16 @@ fn main() {
         .setup(|app| {
             let ctrl_shift_n =
                 Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyN);
-            let _ = app.global_shortcut().on_shortcut(ctrl_shift_n, move |app, _shortcut, event| {
-                if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
-                }
-            });
+            let _ =
+                app.global_shortcut()
+                    .on_shortcut(ctrl_shift_n, move |app, _shortcut, event| {
+                        if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    });
 
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show App", true, None::<&str>)?;

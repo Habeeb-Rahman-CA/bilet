@@ -155,7 +155,10 @@
   <div class="tab-bar">
     <div class="tab" *ngFor="let pad of openOrderedTabs" (click)="switchTab(pad.id)"
       [class.active]="activeTabId === pad.id">
-      <span class="tab-title" [innerHTML]="formatContent(pad.title || 'Untitled')"></span>
+      <div class="tab-title-wrapper">
+        <span class="tab-title" [innerHTML]="formatContent(pad.title || 'Untitled')"></span>
+        <span class="dirty-indicator" *ngIf="pad.isDirty"></span>
+      </div>
       <button class="tab-close" (click)="closeTab(pad.id, $event)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18" />
@@ -206,12 +209,12 @@
 <div class="help-overlay save-prompt-overlay" *ngIf="isConfirmingPadCloseId"
   (click)="handlePadCloseModalAction('cancel')">
   <div class="help-content prompt-content" (click)="$event.stopPropagation()" style="text-align: center;">
-    <h2 style="margin-top: 0; margin-bottom: 24px;">Close Pad?</h2>
-    <p style="margin-bottom: 24px; opacity: 0.8;">What would you like to do with this tab? Saving will download to your
-      files. Deleting moves it to history.</p>
+    <h2 style="margin-top: 0; margin-bottom: 24px;">Unsaved Changes</h2>
+    <p style="margin-bottom: 24px; opacity: 0.8;">You have changes in this tab that haven't been saved to your local
+      computer yet.</p>
     <div class="prompt-shortcuts">
-      <div class="prompt-shortcut-item"><span>Ctrl + D</span> Delete</div>
       <div class="prompt-shortcut-item"><span>Ctrl + S</span> Save</div>
+      <div class="prompt-shortcut-item"><span>Ctrl + D</span> Save & Close</div>
       <div class="prompt-shortcut-item"><span>Esc</span> Cancel</div>
     </div>
   </div>
