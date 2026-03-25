@@ -1072,14 +1072,16 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       .sort((a, b) => a.tab_index - b.tab_index);
   }
 
-  closeTab(padId: number, event?: MouseEvent) {
+  async closeTab(padId: number, event?: MouseEvent) {
     if (event) event.stopPropagation();
 
     const pad = this.pads.find(p => p.id === padId);
     if (pad && pad.isDirty) {
+      // Has unsaved changes — ask if they want to save to file first
       this.isConfirmingPadCloseId = padId;
     } else {
-      this._closeTabInternal(padId);
+      // Clean — move directly to bin (same as old behavior)
+      await this.deletePad(padId);
     }
   }
 
@@ -1093,15 +1095,17 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     if (action === 'save') {
+      // Save to file only — keep tab open, clear dirty flag
       const success = await this.savePadToFile(padId);
       if (success) {
         this.isConfirmingPadCloseId = null;
       }
     } else if (action === 'saveAndClose') {
+      // Save to file, then move to bin
       const success = await this.savePadToFile(padId);
       if (success) {
         this.isConfirmingPadCloseId = null;
-        await this._closeTabInternal(padId);
+        await this.deletePad(padId);
       }
     }
   }
