@@ -93,6 +93,16 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   selectedPadText = ""; // currently selected text in the pad editor
   private autoSaveTimer: any = null;
 
+  // Find & Replace
+  showFindReplace = false;
+  searchTerm = '';
+  replaceTerm = '';
+  matchCase = false;
+  matchWholeWord = false;
+  findMatches: { start: number; end: number; range: Range }[] = [];
+  currentFindIndex = 0;
+  @ViewChild('findInputRef') findInputRef?: ElementRef<HTMLInputElement>;
+
   // Bookmarking/Marking lines
   padLineMarks: { [padId: number]: Set<number> } = {};
 
@@ -417,15 +427,18 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     // Toggle Search (Ctrl + F)
     if (event.ctrlKey && event.key.toLowerCase() === "f") {
+      event.preventDefault();
       if (this.activeSection === "tasks") {
-        event.preventDefault();
         this.showSearch = !this.showSearch;
         if (this.showSearch) {
           this.showHelp = false;
           this.searchQuery = "";
           this.triggerSearchFocus();
         }
+      } else if (this.activeSection === "notepad") {
+        this.toggleFindReplace();
       }
+      return;
     }
 
     // Pad Close Confirmation Handler
@@ -759,6 +772,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.showBin = false;
     this.showFontSettings = false;
     this.selectedPadText = "";
+    this.closeFindReplace();
 
     if (section === "tasks") {
       this.triggerFocus();
@@ -1247,6 +1261,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
 
       this.onPadContentChange();
+
+      if (this.showFindReplace && this.searchTerm) {
+        this.updateFindMatches();
+      }
     }
   }
 
@@ -1763,4 +1781,225 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.spellCheckEnabled = !this.spellCheckEnabled;
     localStorage.setItem('spellcheck', String(this.spellCheckEnabled));
   }
+
+  // ================= FIND & REPLACE LOGIC =================
+  
+  toggleFindReplace() {
+    this.showFindReplace = !this.showFindReplace;
+    if (this.showFindReplace) {
+      setTimeout(() => {
+        this.findInputRef?.nativeElement.focus();
+        if (this.selectedPadText) {
+          this.searchTerm = this.selectedPadText;
+        }
+        this.updateFindMatches();
+      });
+    } else {
+      this.closeFindReplace();
+    }
+  }
+
+  closeFindReplace() {
+    this.showFindReplace = false;
+    this.clearHighlights();
+    this.triggerPadEditorFocus();
+  }
+
+  onSearchInput() {
+    this.updateFindMatches();
+  }
+
+  toggleMatchCase() {
+    this.matchCase = !this.matchCase;
+    this.updateFindMatches();
+    setTimeout(() => this.findInputRef?.nativeElement.focus());
+  }
+
+  toggleWholeWord() {
+    this.matchWholeWord = !this.matchWholeWord;
+    this.updateFindMatches();
+    setTimeout(() => this.findInputRef?.nativeElement.focus());
+  }
+
+  updateFindMatches() {
+    this.clearHighlights();
+    if (!this.searchTerm || !this.padEditor || !this.padEditor.nativeElement) {
+      this.findMatches = [];
+      this.currentFindIndex = 0;
+      return;
+    }
+
+    let textContent = '';
+    const textNodes: { node: Node; start: number; end: number }[] = [];
+    
+    // Walk DOM to build clean view-model text representations and track physical nodes
+    const walk = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE && node.nodeValue) {
+        const start = textContent.length;
+        textContent += node.nodeValue;
+        textNodes.push({ node, start, end: textContent.length });
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = (node as Element).tagName.toLowerCase();
+        // Assume block breaks on structural elements to prevent word merging (e.g., hello</div><div>world)
+        if (tag === 'div' || tag === 'br' || tag === 'p') {
+          textContent += '\n';
+        }
+        for (let i = 0; i < node.childNodes.length; i++) {
+          walk(node.childNodes[i]);
+        }
+      }
+    };
+    walk(this.padEditor.nativeElement);
+
+    let escapedSearch = this.searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let pattern = this.matchWholeWord ? `\\b${escapedSearch}\\b` : escapedSearch;
+    const regex = new RegExp(pattern, this.matchCase ? 'g' : 'gi');
+
+    this.findMatches = [];
+    let match;
+    
+    while ((match = regex.exec(textContent)) !== null) {
+      const matchStart = match.index;
+      const matchEnd = match.index + match[0].length;
+      
+      let startNode: Node | null = null, startOff = 0;
+      let endNode: Node | null = null, endOff = 0;
+
+      for (const info of textNodes) {
+        if (!startNode && matchStart >= info.start && matchStart < info.end) {
+          startNode = info.node;
+          startOff = matchStart - info.start;
+        }
+        if (matchEnd > info.start && matchEnd <= info.end) {
+          endNode = info.node;
+          endOff = matchEnd - info.start;
+        }
+      }
+
+      if (startNode && endNode) {
+        const range = document.createRange();
+        range.setStart(startNode, startOff);
+        range.setEnd(endNode, endOff);
+        this.findMatches.push({ start: matchStart, end: matchEnd, range });
+      }
+    }
+
+    if (this.findMatches.length > 0) {
+      if (this.currentFindIndex >= this.findMatches.length) {
+        this.currentFindIndex = 0;
+      }
+      this.applyHighlights();
+      this.scrollToMatch();
+    } else {
+      this.currentFindIndex = 0;
+    }
+  }
+
+  clearHighlights() {
+    try {
+      const win = window as any;
+      if (win.CSS && win.CSS.highlights) {
+        win.CSS.highlights.delete("search-results");
+        win.CSS.highlights.delete("search-active");
+      }
+    } catch (e) {}
+  }
+
+  applyHighlights() {
+    try {
+      const win = window as any;
+      if (win.CSS && win.CSS.highlights && win.Highlight) {
+        const allRanges = this.findMatches.map(m => m.range);
+        win.CSS.highlights.set("search-results", new win.Highlight(...allRanges));
+
+        const activeRange = this.findMatches[this.currentFindIndex]?.range;
+        if (activeRange) {
+          win.CSS.highlights.set("search-active", new win.Highlight(activeRange));
+        }
+      }
+    } catch (e) {
+      console.warn("Highlights API error", e);
+    }
+  }
+
+  nextMatch() {
+    if (this.findMatches.length > 0) {
+      this.currentFindIndex = (this.currentFindIndex + 1) % this.findMatches.length;
+      this.applyHighlights();
+      this.scrollToMatch();
+      this.findInputRef?.nativeElement.focus();
+    }
+  }
+
+  prevMatch() {
+    if (this.findMatches.length > 0) {
+      this.currentFindIndex = (this.currentFindIndex - 1 + this.findMatches.length) % this.findMatches.length;
+      this.applyHighlights();
+      this.scrollToMatch();
+      this.findInputRef?.nativeElement.focus();
+    }
+  }
+
+  scrollToMatch() {
+    const activeRange = this.findMatches[this.currentFindIndex]?.range;
+    if (activeRange && this.padEditor) {
+      const rect = activeRange.getBoundingClientRect();
+      const editor = this.padEditor.nativeElement;
+      const editorRect = editor.getBoundingClientRect();
+      
+      // Calculate active scroll constraints dynamically
+      if (rect.top < editorRect.top || rect.bottom > editorRect.bottom) {
+        editor.scrollTop += rect.top - editorRect.top - (editorRect.height / 2);
+      }
+    }
+  }
+
+  replaceMatch() {
+    if (this.findMatches.length === 0) return;
+    const match = this.findMatches[this.currentFindIndex];
+    if (match && match.range) {
+      match.range.deleteContents();
+      match.range.insertNode(document.createTextNode(this.replaceTerm));
+      
+      this.syncEditorContent();
+      
+      // Preserve current index to replace next match falling into place
+      const oldIndex = this.currentFindIndex;
+      this.updateFindMatches(); 
+      if (this.findMatches.length > 0) {
+         this.currentFindIndex = Math.min(oldIndex, this.findMatches.length - 1);
+         this.applyHighlights();
+         this.scrollToMatch();
+      }
+    }
+  }
+
+  replaceAllMatches() {
+    if (this.findMatches.length === 0) return;
+    
+    // Replace heavily from the back to preserve the DOM structure of earlier nodes
+    for (let i = this.findMatches.length - 1; i >= 0; i--) {
+      const match = this.findMatches[i];
+      match.range.deleteContents();
+      match.range.insertNode(document.createTextNode(this.replaceTerm));
+    }
+    
+    this.syncEditorContent();
+    this.updateFindMatches();
+  }
+
+  syncEditorContent() {
+    if (this.padEditor) {
+      this.padContent = this.padEditor.nativeElement.innerHTML;
+      this.padText = this.padEditor.nativeElement.innerText || '';
+      
+      // Mark as un-saved
+      const pad = this.pads.find(p => p.id === this.activeTabId);
+      if (pad) pad.isDirty = true;
+      if (this.activePad) this.activePad.isDirty = true;
+      
+      this.onPadContentChange();
+    }
+  }
 }
+

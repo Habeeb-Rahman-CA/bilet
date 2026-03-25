@@ -1247,3 +1247,119 @@ button.primary:hover {
   opacity: 0.3;
   letter-spacing: 0.5px;
 }
+
+/* ========================================================
+   FIND AND REPLACE WIDGET (VSCode style)
+   ======================================================== */
+.find-replace-widget {
+  position: absolute;
+  top: 12px;
+  right: 24px;
+  width: 380px;
+  background: var(--bg-color, #1e1e1e);
+  border: 1px solid var(--border-color, #333);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.find-row, .replace-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fr-input-wrapper {
+  position: relative;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+}
+
+.fr-input {
+  width: 100%;
+  background: var(--hover-color, rgba(255,255,255,0.05));
+  border: 1px solid var(--border-color, #444);
+  padding: 6px 8px;
+  padding-right: 60px; /* space for match count */
+  border-radius: 4px;
+  color: var(--text-color, #fff);
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+}
+
+.fr-input:focus {
+  border-color: var(--accent-color, #27c93f);
+}
+
+.match-count {
+  position: absolute;
+  right: 8px;
+  font-size: 11px;
+  opacity: 0.6;
+  pointer-events: none;
+  color: var(--text-color, #fff);
+}
+
+.fr-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-color, #fff);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: all 0.2s;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.fr-btn:hover:not(:disabled) {
+  background: var(--hover-color, rgba(255,255,255,0.1));
+  opacity: 1;
+}
+
+.fr-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fr-btn.active {
+  background: rgba(39, 201, 63, 0.2);
+  border-color: rgba(39, 201, 63, 0.5);
+  color: var(--accent-color, #27c93f);
+  opacity: 1;
+}
+
+.fr-btn.close-btn {
+  margin-left: 2px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.replace-btn {
+  width: auto;
+  padding: 0 10px;
+}
+
+/* Custom Highlight API Styling */
+::highlight(search-results) {
+  background-color: rgba(255, 255, 0, 0.4);
+  color: inherit;
+}
+
+::highlight(search-active) {
+  background-color: var(--accent-color, #27c93f);
+  color: #fff; /* High contrast text for the active match */
+}

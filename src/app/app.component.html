@@ -169,6 +169,33 @@
     <button class="tab-add" (click)="createPad()" title="New tab">+</button>
   </div>
 
+  <!-- Find & Replace Widget -->
+  <div class="find-replace-widget" *ngIf="showFindReplace">
+    <div class="find-row">
+      <div class="fr-input-wrapper">
+        <input #findInputRef class="fr-input" [(ngModel)]="searchTerm" (input)="onSearchInput()" placeholder="Find"
+          (keydown.enter)="nextMatch()" (keydown.escape)="closeFindReplace()">
+        <span class="match-count" *ngIf="searchTerm">{{ findMatches.length > 0 ? currentFindIndex + 1 : 0 }} of {{
+          findMatches.length }}</span>
+      </div>
+      <button class="fr-btn" [class.active]="matchCase" (click)="toggleMatchCase()" title="Match Case">Aa</button>
+      <button class="fr-btn" [class.active]="matchWholeWord" (click)="toggleWholeWord()" title="Whole Word">ab</button>
+      <button class="fr-btn" (click)="prevMatch()" title="Previous Match" [disabled]="findMatches.length === 0">↑</button>
+      <button class="fr-btn" (click)="nextMatch()" title="Next Match" [disabled]="findMatches.length === 0">↓</button>
+      <button class="fr-btn close-btn" (click)="closeFindReplace()" title="Close">×</button>
+    </div>
+    <div class="replace-row">
+      <div class="fr-input-wrapper">
+        <input class="fr-input" [(ngModel)]="replaceTerm" placeholder="Replace" (keydown.enter)="replaceMatch()"
+          (keydown.escape)="closeFindReplace()">
+      </div>
+      <button class="fr-btn replace-btn" (click)="replaceMatch()" title="Replace"
+        [disabled]="findMatches.length === 0">Replace</button>
+      <button class="fr-btn replace-btn" (click)="replaceAllMatches()" title="Replace All"
+        [disabled]="findMatches.length === 0">All</button>
+    </div>
+  </div>
+
   <!-- Editor with Line Numbers -->
   <div class="editor-area" *ngIf="activePad">
     <div class="line-gutter">
