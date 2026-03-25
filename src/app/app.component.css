@@ -1047,9 +1047,20 @@ button.primary:hover {
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.8; }
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
 }
 
 .tab-close {
@@ -1253,13 +1264,13 @@ button.primary:hover {
    ======================================================== */
 .find-replace-widget {
   position: absolute;
-  top: 12px;
-  right: 24px;
-  width: 380px;
+  bottom: 40px;
+  right: 20px;
+  width: 330px;
   background: var(--bg-color, #1e1e1e);
   border: 1px solid var(--border-color, #333);
   border-radius: 6px;
-  padding: 8px;
+  padding: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   z-index: 1000;
   display: flex;
@@ -1269,10 +1280,11 @@ button.primary:hover {
   font-size: 13px;
 }
 
-.find-row, .replace-row {
+.find-row,
+.replace-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .fr-input-wrapper {
@@ -1284,13 +1296,14 @@ button.primary:hover {
 
 .fr-input {
   width: 100%;
-  background: var(--hover-color, rgba(255,255,255,0.05));
+  background: var(--hover-color, rgba(255, 255, 255, 0.05));
   border: 1px solid var(--border-color, #444);
   padding: 6px 8px;
-  padding-right: 60px; /* space for match count */
+  padding-right: 50px;
+  /* space for match count */
   border-radius: 4px;
   color: var(--text-color, #fff);
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
   font-family: inherit;
 }
@@ -1321,12 +1334,12 @@ button.primary:hover {
   justify-content: center;
   opacity: 0.7;
   transition: all 0.2s;
-  font-size: 13px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 
 .fr-btn:hover:not(:disabled) {
-  background: var(--hover-color, rgba(255,255,255,0.1));
+  background: var(--hover-color, rgba(255, 255, 255, 0.1));
   opacity: 1;
 }
 
@@ -1361,5 +1374,6 @@ button.primary:hover {
 
 ::highlight(search-active) {
   background-color: var(--accent-color, #27c93f);
-  color: #fff; /* High contrast text for the active match */
+  color: #fff;
+  /* High contrast text for the active match */
 }
