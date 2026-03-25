@@ -430,12 +430,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.isConfirmingPadCloseId !== null) {
       if (event.ctrlKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        this.handlePadCloseModalAction('save');
+        this.handlePadCloseModalAction('saveAndDelete');
         return;
       }
       if (event.ctrlKey && event.key.toLowerCase() === "d") {
         event.preventDefault();
-        this.handlePadCloseModalAction('saveAndClose');
+        this.handlePadCloseModalAction('delete');
         return;
       }
       if (event.key === "Escape") {
@@ -1085,7 +1085,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  async handlePadCloseModalAction(action: 'save' | 'saveAndClose' | 'cancel') {
+  async handlePadCloseModalAction(action: 'delete' | 'saveAndDelete' | 'cancel') {
     if (!this.isConfirmingPadCloseId) return;
     const padId = this.isConfirmingPadCloseId;
 
@@ -1094,14 +1094,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       return;
     }
 
-    if (action === 'save') {
-      // Save to file only — keep tab open, clear dirty flag
-      const success = await this.savePadToFile(padId);
-      if (success) {
-        this.isConfirmingPadCloseId = null;
-      }
-    } else if (action === 'saveAndClose') {
-      // Save to file, then move to bin
+    if (action === 'delete') {
+      // Move to bin without saving to file
+      this.isConfirmingPadCloseId = null;
+      await this.deletePad(padId);
+    } else if (action === 'saveAndDelete') {
+      // Save to file first, then move to bin
       const success = await this.savePadToFile(padId);
       if (success) {
         this.isConfirmingPadCloseId = null;
