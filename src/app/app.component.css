@@ -639,11 +639,35 @@ button.primary:hover {
 }
 
 .prompt-content p {
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-color);
   opacity: 0.8;
   margin-bottom: 24px;
+}
+
+.prompt-shortcuts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.prompt-shortcut-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.prompt-shortcut-item span {
+  font-family: monospace;
+  font-weight: 600;
+  background: var(--bg-color);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 9px;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
 }
 
 .prompt-actions {
@@ -1184,4 +1208,11 @@ button.primary:hover {
   color: var(--text-color);
   opacity: 0.15;
   font-size: 10px;
+}
+
+.status-tip {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.3;
+  letter-spacing: 0.5px;
 }
