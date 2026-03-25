@@ -417,12 +417,14 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     // Toggle Search (Ctrl + F)
     if (event.ctrlKey && event.key.toLowerCase() === "f") {
-      event.preventDefault();
-      this.showSearch = !this.showSearch;
-      if (this.showSearch) {
-        this.showHelp = false;
-        this.searchQuery = "";
-        this.triggerSearchFocus();
+      if (this.activeSection === "tasks") {
+        event.preventDefault();
+        this.showSearch = !this.showSearch;
+        if (this.showSearch) {
+          this.showHelp = false;
+          this.searchQuery = "";
+          this.triggerSearchFocus();
+        }
       }
     }
 
