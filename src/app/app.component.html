@@ -26,7 +26,7 @@
       </svg>
     </button>
 
-    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleFontSettings()">
+    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleFontSettings()" title="Font Style">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path
           d="M13,12H20V13.5H13V12M13,9.5H20V11H13V9.5M13,14.5H20V16H13V14.5M21,4H3A2,2 0 0,0 1,6V18A2,2 0 0,0 3,20H21A2,2 0 0,0 23,18V6A2,2 0 0,0 21,4M21,18H3V6H21V18M8,8H6V16H8V13H11V16H13V8H11V11H8V8Z" />
@@ -41,7 +41,14 @@
       </svg>
     </button>
 
-    <button class="startup-toggle" [class.enabled]="autoStartEnabled" (click)="toggleAutoStart()">
+    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleStickyMode()"
+      [class.enabled]="isSticky" title="Always on Top">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M16 12V4H17V2H7V4H8V12L6 14V16H11V22L12 23L13 22V16H18V14L16 12Z" />
+      </svg>
+    </button>
+
+    <button class="startup-toggle" [class.enabled]="autoStartEnabled" (click)="toggleAutoStart()" title="Auto Start">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
         stroke-linejoin="round">
         <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.71-2.13.09-2.91a2.18 2.18 0 0 0-3.09-.09z" />
@@ -51,14 +58,14 @@
       </svg>
     </button>
 
-    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="showBin = true; loadBinItems()">
+    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="showBin = true; loadBinItems()" title="Bin">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path
           d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
       </svg>
     </button>
 
-    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="showHelp = true">
+    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" title="Help" (click)="showHelp = true">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path
           d="M11.07,12.85C11.17,12.45 11.39,12.11 11.73,11.82C12.07,11.53 12.39,11.23 12.68,10.93C12.97,10.63 13.11,10.3 13.11,9.94C13.11,9.58 12.97,9.27 12.7,9C12.42,8.73 12.07,8.59 11.64,8.59C11.19,8.59 10.84,8.73 10.58,9C10.32,9.27 10.15,9.62 10.08,10.04L8.06,9.22C8.25,8.41 8.65,7.74 9.27,7.21C9.89,6.67 10.68,6.4 11.64,6.4C12.66,6.4 13.5,6.72 14.16,7.35C14.81,7.98 15.14,8.74 15.14,9.65C15.14,10.33 14.96,10.92 14.59,11.4C14.23,11.89 13.78,12.39 13.25,12.91L12.72,13.43C12.56,13.59 12.45,13.75 12.39,13.91C12.33,14.07 12.29,14.34 12.28,14.73H10.19C10.2,14 10.35,13.37 10.61,12.87C10.61,12.87 11.07,12.85 11.07,12.85M12.5,19A1.25,1.25 0 0,1 11.25,17.75A1.25,1.25 0 0,1 12.5,16.5A1.25,1.25 0 0,1 13.75,17.75A1.25,1.25 0 0,1 12.5,19M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
@@ -180,7 +187,8 @@
       </div>
       <button class="fr-btn" [class.active]="matchCase" (click)="toggleMatchCase()" title="Match Case">Aa</button>
       <button class="fr-btn" [class.active]="matchWholeWord" (click)="toggleWholeWord()" title="Whole Word">ab</button>
-      <button class="fr-btn" (click)="prevMatch()" title="Previous Match" [disabled]="findMatches.length === 0">↑</button>
+      <button class="fr-btn" (click)="prevMatch()" title="Previous Match"
+        [disabled]="findMatches.length === 0">↑</button>
       <button class="fr-btn" (click)="nextMatch()" title="Next Match" [disabled]="findMatches.length === 0">↓</button>
       <button class="fr-btn close-btn" (click)="closeFindReplace()" title="Close">×</button>
     </div>

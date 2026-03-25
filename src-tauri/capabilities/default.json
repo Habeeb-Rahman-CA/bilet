@@ -18,6 +18,7 @@
     "global-shortcut:allow-register",
     "dialog:default",
     "fs:default",
-    "fs:allow-read"
+    "fs:allow-read",
+    "core:window:allow-set-always-on-top"
   ]
 }

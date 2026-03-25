@@ -131,6 +131,17 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   errorMessage = "";
   isDarkMode = false;
   appVersion = "1.1.0";
+  isSticky = false;
+
+  async toggleStickyMode() {
+    this.isSticky = !this.isSticky;
+    try {
+      const win = getCurrentWindow();
+      await win.setAlwaysOnTop(this.isSticky);
+    } catch (e) {
+      console.error("Failed to toggle sticky mode:", e);
+    }
+  }
 
   private async saveSession() {
     // Deprecated
