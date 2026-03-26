@@ -509,6 +509,9 @@ button.primary:hover {
   margin-top: auto;
   padding-top: 16px;
   border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 /* Help Modal Styling */
