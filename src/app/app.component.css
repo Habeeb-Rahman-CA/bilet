@@ -1380,3 +1380,470 @@ button.primary:hover {
   color: #fff;
   /* High contrast text for the active match */
 }
+
+/* ========================================================
+   TIME TRAVEL / VERSION HISTORY PANEL
+   ======================================================== */
+
+.editor-wrapper {
+  display: flex;
+  flex-grow: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.editor-wrapper .editor-area {
+  flex-grow: 1;
+  transition: flex-grow 0.3s ease;
+}
+
+.editor-wrapper .editor-empty {
+  flex-grow: 1;
+  transition: flex-grow 0.3s ease;
+}
+
+/* Version Panel */
+.version-panel {
+  width: 260px;
+  min-width: 260px;
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideInRight 0.25s ease-out;
+  flex-shrink: 0;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.version-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  flex-shrink: 0;
+}
+
+.version-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.version-panel-title svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+.version-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  opacity: 0.3;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.version-close-btn:hover {
+  opacity: 1;
+  background: var(--hover-color);
+}
+
+
+
+
+
+
+
+/* Version List */
+.version-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 4px 0;
+}
+
+.version-list::-webkit-scrollbar {
+  display: none;
+}
+
+.version-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  padding: 8px 14px 8px 0;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.version-item:hover {
+  background: var(--hover-color);
+}
+
+.version-item.selected {
+  background: var(--hover-color);
+}
+
+/* Timeline dots */
+.version-timeline-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 12px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.version-timeline-dot .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-color);
+  opacity: 0.2;
+  flex-shrink: 0;
+  margin-top: 4px;
+  transition: all 0.2s;
+  position: relative;
+  z-index: 1;
+}
+
+.version-item:hover .dot,
+.version-item.selected .dot {
+  opacity: 0.6;
+  transform: scale(1.2);
+}
+
+.version-timeline-dot .dot.checkpoint {
+  background: var(--accent-color, #27c93f);
+  opacity: 0.8;
+  width: 10px;
+  height: 10px;
+  margin-top: 3px;
+  box-shadow: 0 0 6px rgba(39, 201, 63, 0.3);
+}
+
+.version-item:hover .dot.checkpoint,
+.version-item.selected .dot.checkpoint {
+  opacity: 1;
+  transform: scale(1.3);
+  box-shadow: 0 0 10px rgba(39, 201, 63, 0.5);
+}
+
+.timeline-line {
+  width: 1px;
+  flex-grow: 1;
+  min-height: 12px;
+  background: var(--text-color);
+  opacity: 0.08;
+  margin-top: 4px;
+}
+
+/* Version info */
+.version-info {
+  flex-grow: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.version-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.version-label span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-color, #27c93f);
+  letter-spacing: 0.3px;
+}
+
+.version-label-edit {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  opacity: 0;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  transition: opacity 0.2s;
+}
+
+.version-item:hover .version-label-edit {
+  opacity: 0.4;
+}
+
+.version-label-edit:hover {
+  opacity: 1 !important;
+}
+
+.version-label-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.version-label-input {
+  flex-grow: 1;
+  background: var(--hover-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-color);
+  outline: none;
+  font-family: inherit;
+}
+
+.version-label-input:focus {
+  border-color: var(--accent-color, #27c93f);
+}
+
+.version-label-save {
+  background: none;
+  border: none;
+  color: var(--accent-color, #27c93f);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  font-weight: 700;
+}
+
+.version-time {
+  font-size: 10px;
+  opacity: 0.4;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.version-preview {
+  font-size: 11px;
+  opacity: 0.3;
+  white-space: pre-wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 38px;
+  line-height: 1.3;
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.version-item.selected .version-preview {
+  opacity: 0.5;
+}
+
+.version-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  opacity: 0;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.version-item:hover .version-delete-btn {
+  opacity: 0.2;
+}
+
+.version-delete-btn:hover {
+  opacity: 0.8 !important;
+  background: var(--hover-color);
+}
+
+/* Version empty state */
+.version-empty {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.3;
+  text-align: center;
+  padding: 20px;
+}
+
+.version-empty p {
+  font-size: 13px;
+  margin: 0 0 4px 0;
+  font-weight: 600;
+}
+
+.version-empty span {
+  font-size: 10px;
+}
+
+/* Version action bar */
+.version-actions {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  flex-shrink: 0;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.version-action-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-color);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.version-action-btn:hover {
+  background: var(--hover-color);
+}
+
+/* ===== Diff View ===== */
+.diff-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(var(--bg-rgb), 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.diff-content {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.diff-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.diff-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.diff-close {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: 20px;
+  cursor: pointer;
+  opacity: 0.4;
+  padding: 4px 8px;
+  transition: opacity 0.2s;
+}
+
+.diff-close:hover {
+  opacity: 1;
+}
+
+.diff-body {
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 8px 0;
+  font-family: var(--main-font, monospace);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.diff-body::-webkit-scrollbar {
+  display: none;
+}
+
+.diff-line {
+  display: flex;
+  padding: 0 16px;
+  min-height: 20px;
+}
+
+.diff-indicator {
+  width: 20px;
+  flex-shrink: 0;
+  text-align: center;
+  font-weight: 700;
+  opacity: 0.6;
+  user-select: none;
+}
+
+.diff-text {
+  flex-grow: 1;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diff-same {
+  opacity: 0.4;
+}
+
+.diff-added {
+  background: var(--hover-color);
+  color: var(--text-color);
+}
+
+.diff-added .diff-indicator {
+  color: var(--text-color);
+}
+
+.diff-removed {
+  background: transparent;
+  color: var(--text-color);
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.diff-removed .diff-indicator {
+  color: var(--text-color);
+}
+
+.diff-empty {
+  text-align: center;
+  padding: 30px;
+  opacity: 0.4;
+  font-size: 13px;
+}

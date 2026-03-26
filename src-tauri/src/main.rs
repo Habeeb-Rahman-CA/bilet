@@ -44,6 +44,15 @@ struct Pad {
 }
 
 #[derive(Serialize, Deserialize)]
+struct PadVersion {
+    id: i64,
+    pad_id: i64,
+    content: String,
+    timestamp: String,
+    label: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
 struct Session {
     active_tab_id: Option<i64>,
     open_tabs: String, // JSON string of OpenTab objects
@@ -165,6 +174,21 @@ async fn unlock_db_internal(
             is_active BOOLEAN DEFAULT 0,
             tab_index INTEGER DEFAULT 0,
             file_path TEXT
+        )",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+
+    // Create pad_versions table for version history
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS pad_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pad_id INTEGER NOT NULL,
+            content_nonce BLOB NOT NULL,
+            content_ciphertext BLOB NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            label TEXT,
+            FOREIGN KEY (pad_id) REFERENCES secure_pads(id) ON DELETE CASCADE
         )",
         [],
     )
@@ -930,6 +954,134 @@ fn delete_custom_font(app_handle: tauri::AppHandle, name: String) -> Result<Stri
     Ok("Deleted".to_string())
 }
 
+// ===== Version History Commands =====
+
+#[tauri::command]
+fn save_pad_version(
+    pad_id: i64,
+    content: String,
+    label: Option<String>,
+    state: State<'_, DbState>,
+) -> Result<i64, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, key) = db_lock.as_ref().ok_or("Vault is locked")?;
+    let cipher = Aes256Gcm::new(key.into());
+
+    // Check if the latest version has the same content (deduplication)
+    {
+        let mut stmt = conn
+            .prepare("SELECT content_nonce, content_ciphertext FROM pad_versions WHERE pad_id = ?1 ORDER BY created_at DESC LIMIT 1")
+            .map_err(|e| e.to_string())?;
+
+        let latest: Option<(Vec<u8>, Vec<u8>)> = stmt
+            .query_row(params![pad_id], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .ok();
+
+        if let Some((nonce_bytes, ciphertext)) = latest {
+            let nonce = Nonce::from_slice(&nonce_bytes);
+            if let Ok(decrypted) = cipher.decrypt(nonce, ciphertext.as_ref()) {
+                if let Ok(prev_content) = String::from_utf8(decrypted) {
+                    if prev_content == content {
+                        return Ok(-1); // No change, skip
+                    }
+                }
+            }
+        }
+    }
+
+    // Encrypt the content
+    let mut cn = [0u8; 12];
+    OsRng.fill_bytes(&mut cn);
+    let content_ct = cipher
+        .encrypt(Nonce::from_slice(&cn), content.as_bytes())
+        .map_err(|e| format!("Encryption failed: {}", e))?;
+
+    conn.execute(
+        "INSERT INTO pad_versions (pad_id, content_nonce, content_ciphertext, created_at, label) VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP, ?4)",
+        params![pad_id, cn.to_vec(), content_ct, label],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let version_id = conn.last_insert_rowid();
+
+    // Cleanup: keep only the latest 50 versions per pad
+    conn.execute(
+        "DELETE FROM pad_versions WHERE pad_id = ?1 AND id NOT IN (SELECT id FROM pad_versions WHERE pad_id = ?1 ORDER BY created_at DESC LIMIT 50)",
+        params![pad_id],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(version_id)
+}
+
+#[tauri::command]
+fn get_pad_versions(pad_id: i64, state: State<'_, DbState>) -> Result<Vec<PadVersion>, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, key) = db_lock.as_ref().ok_or("Vault is locked")?;
+    let cipher = Aes256Gcm::new(key.into());
+
+    let mut stmt = conn
+        .prepare("SELECT id, pad_id, content_nonce, content_ciphertext, created_at, label FROM pad_versions WHERE pad_id = ?1 ORDER BY created_at DESC")
+        .map_err(|e| e.to_string())?;
+
+    let version_iter = stmt
+        .query_map(params![pad_id], |row| {
+            let id: i64 = row.get(0)?;
+            let pad_id: i64 = row.get(1)?;
+            let content_nonce_bytes: Vec<u8> = row.get(2)?;
+            let content_ciphertext: Vec<u8> = row.get(3)?;
+            let timestamp: String = row.get(4).unwrap_or_default();
+            let label: Option<String> = row.get(5).unwrap_or(None);
+
+            let content_nonce = Nonce::from_slice(&content_nonce_bytes);
+            let content_dec = cipher
+                .decrypt(content_nonce, content_ciphertext.as_ref())
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+            let content =
+                String::from_utf8(content_dec).map_err(|_| rusqlite::Error::InvalidQuery)?;
+
+            Ok(PadVersion {
+                id,
+                pad_id,
+                content,
+                timestamp,
+                label,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut versions = Vec::new();
+    for version in version_iter {
+        versions.push(version.map_err(|e| format!("Decryption error: {}", e))?);
+    }
+    Ok(versions)
+}
+
+#[tauri::command]
+fn delete_pad_version(id: i64, state: State<'_, DbState>) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+
+    conn.execute("DELETE FROM pad_versions WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok("Deleted".to_string())
+}
+
+#[tauri::command]
+fn update_version_label(id: i64, label: Option<String>, state: State<'_, DbState>) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+
+    conn.execute(
+        "UPDATE pad_versions SET label = ?1 WHERE id = ?2",
+        params![label, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok("Updated".to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(DbState(Mutex::new(None)))
@@ -972,7 +1124,11 @@ fn main() {
             open_pad_tab,
             upload_custom_font,
             get_custom_fonts,
-            delete_custom_font
+            delete_custom_font,
+            save_pad_version,
+            get_pad_versions,
+            delete_pad_version,
+            update_version_label
         ])
         .setup(|app| {
             let ctrl_shift_n =

@@ -205,23 +205,117 @@
   </div>
 
   <!-- Editor with Line Numbers -->
-  <div class="editor-area" *ngIf="activePad">
-    <div class="line-gutter">
-      <span *ngFor="let num of lineNumbers" class="gutter-line" [class.marked]="isLineMarked(num)"
-        (click)="toggleLineMark(num)">
-        {{ num }}
-      </span>
+  <div class="editor-wrapper" [class.history-open]="showVersionHistory">
+    <div class="editor-area" *ngIf="activePad">
+      <div class="line-gutter">
+        <span *ngFor="let num of lineNumbers" class="gutter-line" [class.marked]="isLineMarked(num)"
+          (click)="toggleLineMark(num)">
+          {{ num }}
+        </span>
+      </div>
+      <div #padEditor class="pad-content-editor" contenteditable="true" (input)="onPadInput()"
+        (keydown)="handlePadKeyDown($event, padEditor)" (scroll)="onEditorScroll($event)" (mouseup)="onPadSelect()"
+        (keyup)="onPadSelect()" (paste)="handlePadPaste($event)" placeholder="Start writing..."
+        [attr.spellcheck]="spellCheckEnabled"></div>
     </div>
-    <div #padEditor class="pad-content-editor" contenteditable="true" (input)="onPadInput()"
-      (keydown)="handlePadKeyDown($event, padEditor)" (scroll)="onEditorScroll($event)" (mouseup)="onPadSelect()"
-      (keyup)="onPadSelect()" (paste)="handlePadPaste($event)" placeholder="Start writing..."
-      [attr.spellcheck]="spellCheckEnabled"></div>
-  </div>
 
-  <!-- Empty state -->
-  <div class="editor-empty" *ngIf="!activePad">
-    <p>Create a new note</p>
-  </div>
+    <!-- Empty state -->
+    <div class="editor-empty" *ngIf="!activePad">
+      <p>Create a new note</p>
+    </div>
+
+    <!-- Version History Panel -->
+    <div class="version-panel" *ngIf="showVersionHistory">
+      <div class="version-panel-header">
+        <div class="version-panel-title">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path
+              d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
+          </svg>
+          <span>Version History</span>
+        </div>
+        <button class="version-close-btn" (click)="closeVersionHistory()" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+
+
+      <!-- Version Timeline -->
+      <div class="version-list" *ngIf="padVersions.length > 0">
+        <div class="version-item" *ngFor="let ver of padVersions; let i = index" (click)="selectVersion(ver)"
+          [class.selected]="selectedVersionId === ver.id" [class.has-label]="ver.label">
+          <div class="version-timeline-dot">
+            <div class="dot" [class.checkpoint]="ver.label"></div>
+            <div class="timeline-line" *ngIf="i < padVersions.length - 1"></div>
+          </div>
+          <div class="version-info">
+            <!-- Label display / edit -->
+            <ng-container *ngIf="editingLabelId !== ver.id">
+              <div class="version-label" *ngIf="ver.label">
+                <span>{{ ver.label }}</span>
+                <button class="version-label-edit" (click)="startEditLabel(ver, $event)" title="Edit label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </button>
+              </div>
+            </ng-container>
+            <ng-container *ngIf="editingLabelId === ver.id">
+              <div class="version-label-edit-row">
+                <input class="version-label-input" [(ngModel)]="editingLabelText" placeholder="Label..."
+                  (keyup.enter)="saveLabel(ver)" (keyup.escape)="cancelEditLabel()" autofocus />
+                <button class="version-label-save" (click)="saveLabel(ver)">✓</button>
+              </div>
+            </ng-container>
+            <div class="version-time">{{ timeAgo(ver.timestamp) }}</div>
+            <div class="version-preview">{{ getVersionPreviewLines(ver.content) }}</div>
+          </div>
+          <button class="version-delete-btn" (click)="deleteVersion(ver, $event)" title="Delete version">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="version-empty" *ngIf="padVersions.length === 0">
+        <p>No versions yet</p>
+        <span>Versions are saved automatically as you type</span>
+      </div>
+
+      <!-- Preview / Actions for selected version -->
+      <div class="version-actions" *ngIf="previewingVersion">
+        <button class="version-action-btn restore" (click)="restoreVersion(previewingVersion)">Restore</button>
+        <button class="version-action-btn diff" (click)="showDiff(previewingVersion)">Diff</button>
+
+      </div>
+    </div>
+
+    <!-- Diff View Overlay -->
+    <div class="diff-overlay" *ngIf="showVersionDiff" (click)="closeDiff()">
+      <div class="diff-content" (click)="$event.stopPropagation()">
+        <div class="diff-header">
+          <h3>Changes (version → current)</h3>
+          <button class="diff-close" (click)="closeDiff()">×</button>
+        </div>
+        <div class="diff-body">
+          <div *ngFor="let line of versionDiffLines" class="diff-line" [class.diff-same]="line.type === 'same'"
+            [class.diff-added]="line.type === 'added'" [class.diff-removed]="line.type === 'removed'">
+            <span class="diff-indicator">{{ line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' ' }}</span>
+            <span class="diff-text">{{ line.text || ' ' }}</span>
+          </div>
+          <div class="diff-empty" *ngIf="versionDiffLines.length === 0">No differences found</div>
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- end editor-wrapper -->
 
   <!-- Status Bar -->
   <div class="status-bar" *ngIf="activePad">
@@ -236,6 +330,14 @@
     <span class="status-stat"><span class="status-code">C</span>{{ padStats.c }}</span>
     <span class="status-divider">·</span>
     <span class="status-stat"><span class="status-code">L</span>{{ padStats.l }}</span>
+    <span class="status-divider">·</span>
+    <button class="status-action" (click)="toggleVersionHistory()" title="Time Travel (Ctrl+T)">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"
+        style="vertical-align: -1px; margin-right: 2px;">
+        <path
+          d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
+      </svg>History
+    </button>
   </div>
 
 </div>
@@ -282,6 +384,7 @@
         <div class="shortcut-item"><span>Ctrl + U</span> Underline</div>
         <div class="shortcut-item"><span>Alt + Shift + ↑/↓</span> Duplicate Line</div>
         <div class="shortcut-item"><span>Alt + ↑/↓</span> Move Line</div>
+        <div class="shortcut-item"><span>Ctrl + T</span> Time Travel (History)</div>
       </div>
 
       <!-- Tasks -->

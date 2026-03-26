@@ -37,6 +37,14 @@ interface Pad {
   isDirty?: boolean;
 }
 
+interface PadVersion {
+  id: number;
+  pad_id: number;
+  content: string;
+  timestamp: string;
+  label: string | null;
+}
+
 type AuthStatus = "SetupRequired" | "Locked" | "Unlocked" | "Checking";
 
 @Component({
@@ -92,6 +100,18 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   lineNumbers: number[] = [1];
   selectedPadText = ""; // currently selected text in the pad editor
   private autoSaveTimer: any = null;
+
+  // Version History (Time Travel Notebook)
+  showVersionHistory = false;
+  padVersions: PadVersion[] = [];
+  selectedVersionId: number | null = null;
+  previewingVersion: PadVersion | null = null;
+  showVersionDiff = false;
+  versionDiffLines: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
+  editingLabelId: number | null = null;
+  editingLabelText = '';
+  private versionSaveTimer: any = null;
+  private lastVersionContent = '';
 
   // Find & Replace
   showFindReplace = false;
@@ -367,6 +387,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         return;
       }
 
+      // Ctrl + T: Toggle Time Travel / Version History
+      if (event.ctrlKey && event.key.toLowerCase() === "t") {
+        event.preventDefault();
+        this.toggleVersionHistory();
+        return;
+      }
+
       // Ctrl + Space: Cycle tabs
       if (event.ctrlKey && !event.shiftKey && event.code === "Space") {
         event.preventDefault();
@@ -476,6 +503,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     // Escape Handler
     if (event.key === "Escape") {
+      if (this.showVersionHistory) {
+        this.closeVersionHistory();
+        event.preventDefault();
+        return;
+      }
       if (
         this.showBin &&
         (this.isConfirmingBinDeleteId ||
@@ -784,6 +816,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.showFontSettings = false;
     this.selectedPadText = "";
     this.closeFindReplace();
+    this.showVersionHistory = false;
+    this.previewingVersion = null;
+    this.selectedVersionId = null;
 
     if (section === "tasks") {
       this.triggerFocus();
@@ -1243,6 +1278,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   async switchTab(padId: number) {
     if (this.activeTabId === padId) return;
     this.selectedPadText = "";
+    this.showVersionHistory = false;
+    this.previewingVersion = null;
+    this.selectedVersionId = null;
     if (this.activePad) {
       this.savePadNow();
     }
@@ -1272,6 +1310,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
 
       this.onPadContentChange();
+      this.scheduleVersionSave();
 
       if (this.showFindReplace && this.searchTerm) {
         this.updateFindMatches();
@@ -2011,6 +2050,244 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       
       this.onPadContentChange();
     }
+  }
+
+  // ================= TIME TRAVEL / VERSION HISTORY =================
+
+  toggleVersionHistory() {
+    this.showVersionHistory = !this.showVersionHistory;
+    if (this.showVersionHistory) {
+      this.previewingVersion = null;
+      this.selectedVersionId = null;
+      this.showVersionDiff = false;
+      this.editingLabelId = null;
+      if (this.activeTabId) {
+        this.loadVersions(this.activeTabId);
+      }
+    }
+  }
+
+  closeVersionHistory() {
+    this.showVersionHistory = false;
+    this.previewingVersion = null;
+    this.selectedVersionId = null;
+    this.showVersionDiff = false;
+    this.editingLabelId = null;
+    this.triggerPadEditorFocus();
+  }
+
+  async loadVersions(padId: number) {
+    try {
+      this.padVersions = await invoke<PadVersion[]>('get_pad_versions', { padId });
+    } catch (err) {
+      console.error('Failed to load versions:', err);
+      this.padVersions = [];
+    }
+  }
+
+  private scheduleVersionSave() {
+    if (this.versionSaveTimer) clearTimeout(this.versionSaveTimer);
+    this.versionSaveTimer = setTimeout(() => {
+      this.autoSaveVersion();
+    }, 1000);
+  }
+
+  private async autoSaveVersion() {
+    if (!this.activePad || !this.padEditor) return;
+    const plainText = this.padEditor.nativeElement.innerText || '';
+    if (!plainText.trim()) return;
+    // Skip if content hasn't changed from last version save
+    if (plainText === this.lastVersionContent) return;
+
+    try {
+      const result = await invoke<number>('save_pad_version', {
+        padId: this.activePad.id,
+        content: plainText,
+        label: null,
+      });
+      if (result !== -1) {
+        this.lastVersionContent = plainText;
+        // Refresh if panel is open
+        if (this.showVersionHistory && this.activeTabId) {
+          this.loadVersions(this.activeTabId);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to save version:', err);
+    }
+  }
+
+  async createCheckpoint() {
+    if (!this.activePad || !this.padEditor) return;
+    const plainText = this.padEditor.nativeElement.innerText || '';
+    if (!plainText.trim()) return;
+
+    const label = prompt('Checkpoint name (optional):') || 'Checkpoint';
+    try {
+      await invoke<number>('save_pad_version', {
+        padId: this.activePad.id,
+        content: plainText,
+        label,
+      });
+      this.lastVersionContent = plainText;
+      if (this.activeTabId) {
+        await this.loadVersions(this.activeTabId);
+      }
+    } catch (err) {
+      console.error('Failed to create checkpoint:', err);
+    }
+  }
+
+  selectVersion(version: PadVersion) {
+    this.selectedVersionId = version.id;
+    this.previewingVersion = version;
+    this.showVersionDiff = false;
+  }
+
+  async restoreVersion(version: PadVersion) {
+    if (!this.padEditor || !this.activePad) return;
+    const el = this.padEditor.nativeElement;
+
+    // Rebuild innerHTML with one <div> per line
+    const lines = version.content.split('\n');
+    el.innerHTML = lines
+      .map((line: string) => `<div>${this.htmlEscape(line) || '<br>'}</div>`)
+      .join('');
+
+    this.padContent = el.innerHTML;
+    this.padText = el.innerText || '';
+    this.lastVersionContent = this.padText;
+    this.updateLineNumbers();
+    this.onPadContentChange();
+
+    // Mark as dirty
+    const pad = this.pads.find(p => p.id === this.activeTabId);
+    if (pad) pad.isDirty = true;
+    if (this.activePad) this.activePad.isDirty = true;
+
+    this.previewingVersion = null;
+    this.selectedVersionId = null;
+    this.closeVersionHistory();
+  }
+
+  showDiff(version: PadVersion) {
+    if (!this.padEditor) return;
+    const currentText = this.padEditor.nativeElement.innerText || '';
+    this.versionDiffLines = this.computeDiff(version.content, currentText);
+    this.showVersionDiff = true;
+  }
+
+  closeDiff() {
+    this.showVersionDiff = false;
+    this.versionDiffLines = [];
+  }
+
+  private computeDiff(
+    oldText: string,
+    newText: string
+  ): { type: 'same' | 'added' | 'removed'; text: string }[] {
+    const oldLines = oldText.split('\n');
+    const newLines = newText.replace(/\n$/, '').split('\n');
+    const result: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
+
+    // Simple LCS-based diff
+    const m = oldLines.length;
+    const n = newLines.length;
+    const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (oldLines[i - 1] === newLines[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1;
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        }
+      }
+    }
+
+    // Backtrack
+    let i = m, j = n;
+    const stack: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+        stack.push({ type: 'same', text: oldLines[i - 1] });
+        i--; j--;
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        stack.push({ type: 'added', text: newLines[j - 1] });
+        j--;
+      } else {
+        stack.push({ type: 'removed', text: oldLines[i - 1] });
+        i--;
+      }
+    }
+    stack.reverse();
+    return stack;
+  }
+
+  async deleteVersion(version: PadVersion, event: MouseEvent) {
+    event.stopPropagation();
+    try {
+      await invoke('delete_pad_version', { id: version.id });
+      if (this.selectedVersionId === version.id) {
+        this.selectedVersionId = null;
+        this.previewingVersion = null;
+      }
+      if (this.activeTabId) {
+        await this.loadVersions(this.activeTabId);
+      }
+    } catch (err) {
+      console.error('Failed to delete version:', err);
+    }
+  }
+
+  startEditLabel(version: PadVersion, event: MouseEvent) {
+    event.stopPropagation();
+    this.editingLabelId = version.id;
+    this.editingLabelText = version.label || '';
+  }
+
+  async saveLabel(version: PadVersion) {
+    try {
+      const label = this.editingLabelText.trim() || null;
+      await invoke('update_version_label', { id: version.id, label });
+      version.label = label;
+      this.editingLabelId = null;
+    } catch (err) {
+      console.error('Failed to update label:', err);
+    }
+  }
+
+  cancelEditLabel() {
+    this.editingLabelId = null;
+    this.editingLabelText = '';
+  }
+
+  timeAgo(dateStr: string): string {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr.replace(' ', 'T') + 'Z');
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHr = Math.floor(diffMin / 60);
+      const diffDay = Math.floor(diffHr / 24);
+
+      if (diffSec < 10) return 'just now';
+      if (diffSec < 60) return `${diffSec}s ago`;
+      if (diffMin < 60) return `${diffMin}m ago`;
+      if (diffHr < 24) return `${diffHr}h ago`;
+      if (diffDay < 7) return `${diffDay}d ago`;
+      return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    } catch {
+      return dateStr;
+    }
+  }
+
+  getVersionPreviewLines(content: string): string {
+    const lines = content.split('\n');
+    const preview = lines.slice(0, 3).join('\n');
+    return preview + (lines.length > 3 ? '...' : '');
   }
 }
 
