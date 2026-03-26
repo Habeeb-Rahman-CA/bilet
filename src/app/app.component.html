@@ -14,8 +14,7 @@
   </div>
   <div class="title-text">bilet</div>
   <div class="header-actions">
-    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleDarkMode()"
-      title="Toggle Dark Mode">
+    <button class="startup-toggle" *ngIf="authStatus === 'Unlocked'" (click)="toggleDarkMode()" title="Dark Mode">
       <svg *ngIf="!isDarkMode" viewBox="0 0 24 24" fill="currentColor">
         <path
           d="M12 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM11 1h2v4h-2V1zm0 18h2v4h-2v-4zM1 11h4v2H1v-2zm18 0h4v2h-4v-2z" />
@@ -384,7 +383,15 @@
         <div class="shortcut-item"><span>Ctrl + U</span> Underline</div>
         <div class="shortcut-item"><span>Alt + Shift + ↑/↓</span> Duplicate Line</div>
         <div class="shortcut-item"><span>Alt + ↑/↓</span> Move Line</div>
-        <div class="shortcut-item"><span>Ctrl + T</span> Time Travel (History)</div>
+      </div>
+
+      <!-- Time Travel -->
+      <div class="shortcut-group">
+        <div class="shortcut-group-title">Version History</div>
+        <div class="shortcut-item"><span>Ctrl + T</span> Open Version History</div>
+        <div class="shortcut-item"><span> ↑ / ↓ </span> Navigate Versions</div>
+        <div class="shortcut-item"><span>D</span> View Diff</div>
+        <div class="shortcut-item"><span>R / Enter</span> Restore Version</div>
       </div>
 
       <!-- Tasks -->

@@ -442,6 +442,47 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       return;
     }
 
+    if (this.showVersionHistory) {
+      const activeTagName = document.activeElement?.tagName.toLowerCase();
+      const isInputOrEditor = activeTagName === 'input' || activeTagName === 'textarea' || document.activeElement?.classList.contains('pad-content-editor');
+
+      if (!isInputOrEditor && this.padVersions.length > 0) {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          const currentIndex = this.padVersions.findIndex(v => v.id === this.selectedVersionId);
+          const nextIndex = currentIndex < this.padVersions.length - 1 ? currentIndex + 1 : this.padVersions.length - 1;
+          this.selectVersion(this.padVersions[nextIndex]);
+          setTimeout(() => {
+            document.querySelector('.version-item.selected')?.scrollIntoView({ block: 'nearest' });
+          }, 0);
+          return;
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          const currentIndex = this.padVersions.findIndex(v => v.id === this.selectedVersionId);
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+          this.selectVersion(this.padVersions[prevIndex]);
+          setTimeout(() => {
+            document.querySelector('.version-item.selected')?.scrollIntoView({ block: 'nearest' });
+          }, 0);
+          return;
+        } else if (event.key.toLowerCase() === "d" && this.selectedVersionId) {
+          event.preventDefault();
+          if (this.previewingVersion && !this.showVersionDiff) {
+            this.showDiff(this.previewingVersion);
+          } else if (this.showVersionDiff) {
+            this.closeDiff();
+          }
+          return;
+        } else if (event.key.toLowerCase() === "r" && this.selectedVersionId) {
+          event.preventDefault();
+          if (this.previewingVersion) {
+            this.restoreVersion(this.previewingVersion);
+          }
+          return;
+        }
+      }
+    }
+
     // Toggle Help (Ctrl + H)
     if (event.ctrlKey && event.key.toLowerCase() === "h") {
       event.preventDefault();
@@ -2057,13 +2098,22 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   toggleVersionHistory() {
     this.showVersionHistory = !this.showVersionHistory;
     if (this.showVersionHistory) {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       this.previewingVersion = null;
       this.selectedVersionId = null;
       this.showVersionDiff = false;
       this.editingLabelId = null;
       if (this.activeTabId) {
-        this.loadVersions(this.activeTabId);
+        this.loadVersions(this.activeTabId).then(() => {
+          if (this.padVersions.length > 0 && !this.selectedVersionId) {
+            this.selectVersion(this.padVersions[0]);
+          }
+        });
       }
+    } else {
+      this.triggerPadEditorFocus();
     }
   }
 
