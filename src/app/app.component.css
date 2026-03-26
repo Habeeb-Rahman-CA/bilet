@@ -507,7 +507,6 @@ button.primary:hover {
 
 .modal-footer {
   margin-top: auto;
-  padding-top: 16px;
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
@@ -1407,6 +1406,7 @@ button.primary:hover {
   width: 260px;
   min-width: 260px;
   border-left: 1px solid var(--border-color);
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1846,4 +1846,42 @@ button.primary:hover {
   padding: 30px;
   opacity: 0.4;
   font-size: 13px;
+}
+
+/* Custom Editable Shortcuts Styles */
+.editable-shortcut {
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  padding: 6px 8px !important;
+  margin: 0;
+}
+
+.editable-shortcut:hover,
+.editable-shortcut.editing {
+  background: var(--hover-color);
+}
+
+.keys-display:hover {
+  opacity: 0.8;
+}
+
+.shortcut-editor input:focus {
+  border-color: var(--accent-color) !important;
+}
+
+.shortcut-search-input {
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.shortcut-search-input:focus {
+  border-color: var(--accent-color) !important;
+}
+
+.shortcuts-modal {
+  max-width: 500px !important;
+}
+
+.shortcuts-header button:hover {
+  opacity: 0.8;
 }

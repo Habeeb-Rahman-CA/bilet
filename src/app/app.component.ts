@@ -47,6 +47,14 @@ interface PadVersion {
 
 type AuthStatus = "SetupRequired" | "Locked" | "Unlocked" | "Checking";
 
+export interface AppShortcut {
+  id: string;
+  label: string;
+  category: string;
+  defaultKeyStr: string;
+  currentKeyStr: string;
+}
+
 @Component({
   selector: "app-root",
   standalone: true,
@@ -201,8 +209,40 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   private lastActivity = Date.now();
   private idleCheckInterval: any;
 
+  // Customizable Keyboard Shortcuts
+  shortcuts: AppShortcut[] = [
+    { id: 'app.switch_section', label: 'Switch Section', category: 'Global Navigation', defaultKeyStr: 'Ctrl + Shift + Space', currentKeyStr: 'Ctrl + Shift + Space' },
+    { id: 'app.search', label: 'Global Search', category: 'Global Navigation', defaultKeyStr: 'Ctrl + F', currentKeyStr: 'Ctrl + F' },
+    { id: 'app.history', label: 'History / Bin', category: 'Global Navigation', defaultKeyStr: 'Ctrl + Shift + B', currentKeyStr: 'Ctrl + Shift + B' },
+    { id: 'app.help', label: 'Keyboard Shortcuts', category: 'Global Navigation', defaultKeyStr: 'Ctrl + H', currentKeyStr: 'Ctrl + H' },
+
+    { id: 'notepad.new_tab', label: 'New Tab', category: 'Notepad', defaultKeyStr: 'Ctrl + N', currentKeyStr: 'Ctrl + N' },
+    { id: 'notepad.save', label: 'Save Tab', category: 'Notepad', defaultKeyStr: 'Ctrl + S', currentKeyStr: 'Ctrl + S' },
+    { id: 'notepad.cycle_tabs', label: 'Cycle Tabs', category: 'Notepad', defaultKeyStr: 'Ctrl + Space', currentKeyStr: 'Ctrl + Space' },
+    { id: 'notepad.delete_tab', label: 'Delete Tab', category: 'Notepad', defaultKeyStr: 'Ctrl + Shift + D', currentKeyStr: 'Ctrl + Shift + D' },
+    { id: 'notepad.time_travel', label: 'Version History', category: 'Notepad', defaultKeyStr: 'Ctrl + T', currentKeyStr: 'Ctrl + T' },
+    { id: 'notepad.bold', label: 'Bold', category: 'Notepad', defaultKeyStr: 'Ctrl + B', currentKeyStr: 'Ctrl + B' },
+    { id: 'notepad.italic', label: 'Italic', category: 'Notepad', defaultKeyStr: 'Ctrl + I', currentKeyStr: 'Ctrl + I' },
+    { id: 'notepad.underline', label: 'Underline', category: 'Notepad', defaultKeyStr: 'Ctrl + U', currentKeyStr: 'Ctrl + U' },
+    { id: 'notepad.dup_line', label: 'Duplicate Line', category: 'Notepad', defaultKeyStr: 'Alt + Shift + Up', currentKeyStr: 'Alt + Shift + Up' },
+    { id: 'notepad.move_line', label: 'Move Line', category: 'Notepad', defaultKeyStr: 'Alt + Up', currentKeyStr: 'Alt + Up' },
+
+    { id: 'tasks.focus_input', label: 'Focus Input', category: 'Tasks', defaultKeyStr: 'Ctrl + A', currentKeyStr: 'Ctrl + A' },
+    { id: 'tasks.focus_list', label: 'Focus List', category: 'Tasks', defaultKeyStr: 'Ctrl + L', currentKeyStr: 'Ctrl + L' },
+    { id: 'tasks.save', label: 'Save Selection', category: 'Tasks', defaultKeyStr: 'Ctrl + S', currentKeyStr: 'Ctrl + S' },
+    { id: 'tasks.delete', label: 'Delete Selection', category: 'Tasks', defaultKeyStr: 'Ctrl + D', currentKeyStr: 'Ctrl + D' },
+    { id: 'tasks.edit', label: 'Edit Selection', category: 'Tasks', defaultKeyStr: 'Ctrl + E', currentKeyStr: 'Ctrl + E' },
+    { id: 'tasks.pin', label: 'Pin / Unpin', category: 'Tasks', defaultKeyStr: 'Ctrl + P', currentKeyStr: 'Ctrl + P' }
+  ];
+  editingShortcutId: string | null = null;
+  capturedKeyString: string = '';
+  shortcutSearchTerm = '';
+  isConfirmingResetShortcuts = false;
+  shortcutConflictMessage: string | null = null;
+
   async ngOnInit() {
     await this.loadCustomFonts();
+    this.loadShortcuts();
     try {
       this.autoStartEnabled = await isEnabled();
     } catch (err) {
@@ -369,17 +409,15 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.authStatus !== "Unlocked") return;
 
     // Ctrl + Shift + Space: Switch sections
-    if (event.ctrlKey && event.shiftKey && event.code === "Space") {
+    if (this.matchShortcut(event, 'app.switch_section')) {
       event.preventDefault();
       this.switchSection(this.activeSection === "tasks" ? "notepad" : "tasks");
       return;
     }
 
-    // If in notepad section, handle notepad shortcuts then skip task shortcuts
     // If in notepad section, handle notepad specific keys completely here
     if (this.activeSection === "notepad") {
-      // Ctrl + S: Save Notepad to local
-      if (event.ctrlKey && event.key.toLowerCase() === "s") {
+      if (this.matchShortcut(event, 'notepad.save')) {
         event.preventDefault();
         if (this.activeTabId) {
           this.downloadPadToLocal(this.activeTabId, false);
@@ -387,29 +425,25 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         return;
       }
 
-      // Ctrl + T: Toggle Time Travel / Version History
-      if (event.ctrlKey && event.key.toLowerCase() === "t") {
+      if (this.matchShortcut(event, 'notepad.time_travel')) {
         event.preventDefault();
         this.toggleVersionHistory();
         return;
       }
 
-      // Ctrl + Space: Cycle tabs
-      if (event.ctrlKey && !event.shiftKey && event.code === "Space") {
+      if (this.matchShortcut(event, 'notepad.cycle_tabs')) {
         event.preventDefault();
         this.cycleTab();
         return;
       }
 
-      // Ctrl + N: New tab
-      if (event.ctrlKey && event.key.toLowerCase() === "n") {
+      if (this.matchShortcut(event, 'notepad.new_tab')) {
         event.preventDefault();
         this.createPad();
         return;
       }
 
-      // Ctrl + Shift + D: Remove working tab
-      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "d") {
+      if (this.matchShortcut(event, 'notepad.delete_tab')) {
         event.preventDefault();
         if (this.activeTabId) {
           this.closeTab(this.activeTabId);
@@ -484,13 +518,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     // Toggle Help (Ctrl + H)
-    if (event.ctrlKey && event.key.toLowerCase() === "h") {
+    if (this.matchShortcut(event, 'app.help')) {
       event.preventDefault();
       this.showHelp = !this.showHelp;
     }
 
     // Toggle Bin (Ctrl + Shift + B)
-    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "b") {
+    if (this.matchShortcut(event, 'app.history')) {
       event.preventDefault();
       this.showBin = !this.showBin;
       if (this.showBin) {
@@ -505,7 +539,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     // Toggle Search (Ctrl + F)
-    if (event.ctrlKey && event.key.toLowerCase() === "f") {
+    if (this.matchShortcut(event, 'app.search')) {
       event.preventDefault();
       if (this.activeSection === "tasks") {
         this.showSearch = !this.showSearch;
@@ -517,6 +551,33 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       } else if (this.activeSection === "notepad") {
         this.toggleFindReplace();
       }
+      return;
+    }
+
+    // Reset Shortcuts Confirmation
+    if (this.isConfirmingResetShortcuts) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        this.confirmResetAllShortcuts();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.isConfirmingResetShortcuts = false;
+        return;
+      }
+      event.preventDefault();
+      return;
+    }
+
+    // Shortcut Conflict Dialog
+    if (this.shortcutConflictMessage) {
+      if (event.key === "Enter" || event.key === "Escape") {
+        event.preventDefault();
+        this.shortcutConflictMessage = null;
+        return;
+      }
+      event.preventDefault();
       return;
     }
 
@@ -588,8 +649,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     // --- List Navigation & Focus ---
 
-    // Ctrl + L: Focus List / Select first note
-    if (event.ctrlKey && event.key.toLowerCase() === "l") {
+    // Focus List / Select first note
+    if (this.matchShortcut(event, 'tasks.focus_list')) {
       event.preventDefault();
       this.showHelp = false;
       const list = this.showSearch ? this.getFilteredNotes() : this.notes;
@@ -605,8 +666,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     }
 
-    // Ctrl + A: Focus Input
-    if (event.ctrlKey && event.key.toLowerCase() === "a") {
+    // Focus Input
+    if (this.matchShortcut(event, 'tasks.focus_input')) {
       event.preventDefault();
       this.showHelp = false;
       this.showSearch = false;
@@ -741,14 +802,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     // --- Actions on Selected Note ---
 
     if (this.selectedNoteId !== null && this.editingNoteId === null) {
-      // Ctrl + E: Edit
-      if (event.ctrlKey && event.key.toLowerCase() === "e") {
+      if (this.matchShortcut(event, 'tasks.edit')) {
         event.preventDefault();
         const note = this.notes.find((n) => n.id === this.selectedNoteId);
         if (note) this.startEdit(note);
       }
-      // Ctrl + D: Delete Confirmation
-      if (event.ctrlKey && event.key.toLowerCase() === "d") {
+      if (this.matchShortcut(event, 'tasks.delete')) {
         event.preventDefault();
         this.isConfirmingDeleteId = this.selectedNoteId;
       }
@@ -756,7 +815,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     // While Editing
     if (this.editingNoteId !== null) {
-      if (event.ctrlKey && event.key.toLowerCase() === "s") {
+      if (this.matchShortcut(event, 'tasks.save')) {
         event.preventDefault();
         this.updateNote();
       }
@@ -773,8 +832,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       return;
     }
 
-    // Toggle Pin (Ctrl + P)
-    if (event.ctrlKey && event.key.toLowerCase() === "p") {
+    // Toggle Pin
+    if (this.matchShortcut(event, 'tasks.pin')) {
       event.preventDefault();
       if (this.selectedNoteId !== null) {
         this.togglePin(this.selectedNoteId);
@@ -1490,31 +1549,44 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       event.preventDefault();
       return;
     }
-    if (event.ctrlKey) {
-      const key = event.key.toLowerCase();
-      if (key === 'b' || key === 'i' || key === 'u') {
-        event.preventDefault();
-        const command = key === 'b' ? 'bold' : key === 'i' ? 'italic' : 'underline';
-        document.execCommand(command, false);
-        this.onPadInput();
-        return;
-      }
+
+    if (this.matchShortcut(event, 'notepad.bold')) {
+      event.preventDefault();
+      document.execCommand('bold', false);
+      this.onPadInput();
+      return;
+    }
+    if (this.matchShortcut(event, 'notepad.italic')) {
+      event.preventDefault();
+      document.execCommand('italic', false);
+      this.onPadInput();
+      return;
+    }
+    if (this.matchShortcut(event, 'notepad.underline')) {
+      event.preventDefault();
+      document.execCommand('underline', false);
+      this.onPadInput();
+      return;
     }
 
     if (
-      event.altKey &&
-      event.shiftKey &&
-      (event.key === "ArrowUp" || event.key === "ArrowDown")
+      this.matchShortcut(event, 'notepad.dup_line') || 
+      (event.altKey && event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown'))
     ) {
       event.preventDefault();
-      this.duplicateLine(event.key, editor);
-    } else if (
-      event.altKey &&
-      !event.shiftKey &&
-      (event.key === "ArrowUp" || event.key === "ArrowDown")
+      const dir = (event.key === "ArrowUp" || event.key === "ArrowDown") ? event.key : "ArrowDown";
+      this.duplicateLine(dir, editor);
+      return;
+    }
+
+    if (
+      this.matchShortcut(event, 'notepad.move_line') ||
+      (event.altKey && !event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown'))
     ) {
       event.preventDefault();
-      this.moveLine(event.key, editor);
+      const dir = (event.key === "ArrowUp" || event.key === "ArrowDown") ? event.key : "ArrowDown";
+      this.moveLine(dir, editor);
+      return;
     }
   }
 
@@ -2339,5 +2411,139 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     const preview = lines.slice(0, 3).join('\n');
     return preview + (lines.length > 3 ? '...' : '');
   }
-}
 
+  // ================= KEYBOARD SHORTCUT SYSTEM =================
+
+  loadShortcuts() {
+    const saved = localStorage.getItem('bilet_shortcuts');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        this.shortcuts.forEach(s => {
+          if (parsed[s.id]) {
+            s.currentKeyStr = parsed[s.id];
+          }
+        });
+      } catch (e) {}
+    }
+  }
+
+  saveShortcuts() {
+    const toSave: any = {};
+    this.shortcuts.forEach(s => toSave[s.id] = s.currentKeyStr);
+    localStorage.setItem('bilet_shortcuts', JSON.stringify(toSave));
+  }
+
+  matchShortcut(event: KeyboardEvent, shortcutId: string): boolean {
+    const shortcut = this.shortcuts.find(s => s.id === shortcutId);
+    if (!shortcut) return false;
+    return this.isKeyMatch(event, shortcut.currentKeyStr);
+  }
+
+  private isKeyMatch(event: KeyboardEvent, keyStr: string): boolean {
+    const parts = keyStr.toLowerCase().split('+').map(p => p.trim());
+    const needsCtrl = parts.includes('ctrl') || parts.includes('control');
+    const needsShift = parts.includes('shift');
+    const needsAlt = parts.includes('alt');
+    const needsMeta = parts.includes('meta') || parts.includes('cmd');
+    
+    const keyPart = parts.find(p => !['ctrl', 'shift', 'alt', 'meta', 'control', 'cmd'].includes(p));
+    
+    if (event.ctrlKey !== needsCtrl) return false;
+    if (event.shiftKey !== needsShift) return false;
+    if (event.altKey !== needsAlt) return false;
+    if (event.metaKey !== needsMeta) return false;
+
+    if (!keyPart) return true;
+
+    const eventKey = event.key.toLowerCase();
+    const eventCode = event.code.toLowerCase();
+
+    if (keyPart === 'space' && eventCode === 'space') return true;
+    if (keyPart === 'esc' && eventKey === 'escape') return true;
+    if (keyPart === 'up' && eventKey === 'arrowup') return true;
+    if (keyPart === 'down' && eventKey === 'arrowdown') return true;
+    
+    return eventKey === keyPart;
+  }
+
+  get shortcutCategories(): string[] {
+    const cats = Array.from(new Set(this.shortcuts.map(s => s.category)));
+    return cats.filter(c => this.getShortcutsByCategory(c).length > 0);
+  }
+
+  getShortcutsByCategory(cat: string): AppShortcut[] {
+    const search = this.shortcutSearchTerm.toLowerCase();
+    return this.shortcuts.filter(s => s.category === cat && 
+      (s.label.toLowerCase().includes(search) || s.currentKeyStr.toLowerCase().includes(search)));
+  }
+
+  startEditShortcut(sc: AppShortcut) {
+    this.editingShortcutId = sc.id;
+    this.capturedKeyString = sc.currentKeyStr;
+  }
+
+  cancelEditShortcut() {
+    this.editingShortcutId = null;
+    this.capturedKeyString = '';
+  }
+
+  captureShortcut(event: KeyboardEvent, sc: AppShortcut) {
+    if (this.shortcutConflictMessage) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === "Enter" || event.key === "Escape") {
+        this.shortcutConflictMessage = null;
+      }
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const key = event.key;
+    if (key === 'Escape') {
+      this.cancelEditShortcut();
+      return;
+    }
+    
+    if (['Control', 'Shift', 'Alt', 'Meta'].includes(key)) {
+      return;
+    }
+
+    const parts = [];
+    if (event.ctrlKey) parts.push('Ctrl');
+    if (event.altKey) parts.push('Alt');
+    if (event.shiftKey) parts.push('Shift');
+    if (event.metaKey) parts.push('Meta');
+    
+    let keyName = key.length === 1 ? key.toUpperCase() : key;
+    if (event.code === 'Space') keyName = 'Space';
+    if (keyName === 'ArrowUp') keyName = 'Up';
+    if (keyName === 'ArrowDown') keyName = 'Down';
+    
+    parts.push(keyName);
+    const newKeyStr = parts.join(' + ');
+
+    const conflict = this.shortcuts.find(s => s.id !== sc.id && s.currentKeyStr === newKeyStr);
+    if (conflict) {
+      this.shortcutConflictMessage = `Shortcut "${newKeyStr}" is already assigned to "${conflict.label}".`;
+      return;
+    }
+
+    sc.currentKeyStr = newKeyStr;
+    this.saveShortcuts();
+    this.editingShortcutId = null;
+  }
+
+  resetAllShortcuts() {
+    this.isConfirmingResetShortcuts = true;
+  }
+
+  confirmResetAllShortcuts() {
+    this.shortcuts.forEach(s => s.currentKeyStr = s.defaultKeyStr);
+    this.saveShortcuts();
+    this.isConfirmingResetShortcuts = false;
+  }
+
+}

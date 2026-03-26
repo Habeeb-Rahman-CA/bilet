@@ -359,61 +359,126 @@
 <!-- Help Modal -->
 <div class="help-overlay" *ngIf="showHelp" (click)="showHelp = false">
   <div class="help-content" (click)="$event.stopPropagation()">
-    <h2>Keyboard Shortcuts</h2>
-    <div class="shortcut-list">
-      <!-- App Navigation -->
-      <div class="shortcut-group">
-        <div class="shortcut-group-title">App Navigation</div>
-        <div class="shortcut-item"><span>Ctrl + Shift + Space</span> Switch Section</div>
-        <div class="shortcut-item"><span>Ctrl + F</span> Search</div>
-        <div class="shortcut-item"><span>Ctrl + Shift + B</span> History / Bin</div>
-        <div class="shortcut-item"><span>Ctrl + H</span> Help</div>
-        <div class="shortcut-item"><span>Esc</span> Close Modal</div>
+    <div class="shortcuts-header"
+      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h2 style="margin: 0;">Keyboard Shortcuts</h2>
+      <button class="text-btn" (click)="resetAllShortcuts()"
+        style="padding: 4px 8px; font-size: 13px; cursor: pointer; border: none; background: transparent; color: var(--text-color); opacity: 0.7;">Reset
+        Defaults</button>
+    </div>
+
+    <div class="shortcuts-search" style="margin-bottom: 20px;">
+      <input class="shortcut-search-input" [(ngModel)]="shortcutSearchTerm" placeholder="Search shortcuts..."
+        style="width: 100%; padding: 4px 0px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-color); outline: none; box-sizing: border-box; font-family: inherit;" />
+    </div>
+
+    <div class="shortcut-list scrollable">
+      <div class="shortcut-group" *ngFor="let cat of shortcutCategories">
+        <div class="shortcut-group-title">{{ cat }}</div>
+        <ng-container *ngFor="let sc of getShortcutsByCategory(cat)">
+          <div class="shortcut-item editable-shortcut" [class.editing]="editingShortcutId === sc.id"
+            style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0;">
+            <span class="shortcut-label">{{ sc.label }}</span>
+            <div class="shortcut-editor"
+              style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
+              <span class="keys-display" *ngIf="editingShortcutId !== sc.id" (click)="startEditShortcut(sc)"
+                title="Click to edit"
+                style="cursor: pointer; padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace; transition: 0.2s;">{{
+                sc.currentKeyStr }}</span>
+
+              <input *ngIf="editingShortcutId === sc.id" type="text" readonly
+                [value]="capturedKeyString || 'Press keys...'" (keydown)="captureShortcut($event, sc)"
+                (blur)="cancelEditShortcut()"
+                style="width: 140px; text-align: center; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--accent-color); background: var(--bg-color); color: var(--text-color); font-family: monospace; outline: none; box-sizing: border-box;"
+                autofocus />
+            </div>
+          </div>
+        </ng-container>
       </div>
 
-      <!-- Notepad -->
-      <div class="shortcut-group">
-        <div class="shortcut-group-title">Notepad</div>
-        <div class="shortcut-item"><span>Ctrl + N</span> New Tab</div>
-        <div class="shortcut-item"><span>Ctrl + S</span> Save File</div>
-        <div class="shortcut-item"><span>Ctrl + Space</span> Shift/Cycle Tabs</div>
-        <div class="shortcut-item"><span>Ctrl + Shift + D</span> Delete Current Tab</div>
-        <div class="shortcut-item"><span>Ctrl + B</span> Bold</div>
-        <div class="shortcut-item"><span>Ctrl + I</span> Italic</div>
-        <div class="shortcut-item"><span>Ctrl + U</span> Underline</div>
-        <div class="shortcut-item"><span>Alt + Shift + ↑/↓</span> Duplicate Line</div>
-        <div class="shortcut-item"><span>Alt + ↑/↓</span> Move Line</div>
-      </div>
+      <!-- Static Contextual Keys -->
+      <div class="shortcut-group" *ngIf="shortcutSearchTerm === ''">
+        <div class="shortcut-group-title">Other Contextual Navigation</div>
 
-      <!-- Time Travel -->
-      <div class="shortcut-group">
-        <div class="shortcut-group-title">Version History</div>
-        <div class="shortcut-item"><span>Ctrl + T</span> Open Version History</div>
-        <div class="shortcut-item"><span> ↑ / ↓ </span> Navigate Versions</div>
-        <div class="shortcut-item"><span>D</span> View Diff</div>
-        <div class="shortcut-item"><span>R / Enter</span> Restore Version</div>
-      </div>
+        <div class="shortcut-item editable-shortcut"
+          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
+          <span class="shortcut-label">Close Modals / Cancel</span>
+          <div class="shortcut-editor"
+            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
+            <span class="keys-display"
+              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">Esc</span>
+          </div>
+        </div>
 
-      <!-- Tasks -->
-      <div class="shortcut-group">
-        <div class="shortcut-group-title">Tasks</div>
-        <div class="shortcut-item"><span>Ctrl + A</span> Focus Input</div>
-        <div class="shortcut-item"><span>Ctrl + L</span> Focus List</div>
-        <div class="shortcut-item"><span> ↑ / ↓ </span> Navigate</div>
-        <div class="shortcut-item"><span>Enter</span> Select / Confirm</div>
-        <div class="shortcut-item"><span>Ctrl + E</span> Edit</div>
-        <div class="shortcut-item"><span>Ctrl + S</span> Save</div>
-        <div class="shortcut-item"><span>Ctrl + D</span> Delete</div>
-        <div class="shortcut-item"><span>Ctrl + P</span> Pin / Unpin</div>
-        <div class="shortcut-item"><span>Ctrl + R</span> Restore Item</div>
-        <div class="shortcut-item"><span>Ctrl + Shift + C</span> Clear All history</div>
-      </div>
-      <div class="modal-footer">
-        <span class="version-text">Version {{ appVersion }}</span>
-        <span class="version-text">&copy; 2026 Habrmnc</span>
+        <div class="shortcut-item editable-shortcut"
+          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
+          <span class="shortcut-label">Confirm Selection</span>
+          <div class="shortcut-editor"
+            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
+            <span class="keys-display"
+              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">Enter</span>
+          </div>
+        </div>
+
+        <div class="shortcut-item editable-shortcut"
+          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
+          <span class="shortcut-label">Navigate Lists</span>
+          <div class="shortcut-editor"
+            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
+            <span class="keys-display"
+              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">↑ /
+              ↓</span>
+          </div>
+        </div>
+
+        <div class="shortcut-item editable-shortcut"
+          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
+          <span class="shortcut-label">View Diff (Version History)</span>
+          <div class="shortcut-editor"
+            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
+            <span class="keys-display"
+              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">D</span>
+          </div>
+        </div>
+
+        <div class="shortcut-item editable-shortcut"
+          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
+          <span class="shortcut-label">Restore (Version History)</span>
+          <div class="shortcut-editor"
+            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
+            <span class="keys-display"
+              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">R</span>
+          </div>
+        </div>
+
+        <div class="shortcut-item editable-shortcut"
+          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
+          <span class="shortcut-label">Clear Bin History</span>
+          <div class="shortcut-editor"
+            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
+            <span class="keys-display"
+              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">Ctrl
+              + Shift + C</span>
+          </div>
+        </div>
+
+        <div class="shortcut-item editable-shortcut"
+          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
+          <span class="shortcut-label">Restore Bin Item</span>
+          <div class="shortcut-editor"
+            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
+            <span class="keys-display"
+              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">Ctrl
+              + R</span>
+          </div>
+        </div>
+
       </div>
     </div>
-    <button class="primary" (click)="showHelp = false">Got it</button>
+    <div class="modal-footer">
+      <span class="version-text">Version {{ appVersion }}</span>
+      <span class="version-text">&copy; 2026 Habrmnc</span>
+    </div>
   </div>
 </div>
 
@@ -512,6 +577,32 @@
       <div class="font-item upload-font" (click)="uploadFont()">
         <span>Upload Custom Font (.ttf/.otf)</span>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Shortcuts Confirmation Modal -->
+<div class="help-overlay save-prompt-overlay" *ngIf="isConfirmingResetShortcuts"
+  (click)="isConfirmingResetShortcuts = false" style="z-index: 2000;">
+  <div class="help-content prompt-content" (click)="$event.stopPropagation()" style="text-align: center;">
+    <h2 style="margin-top: 0; margin-bottom: 24px;">Reset Defaults</h2>
+    <p style="margin-bottom: 24px; opacity: 0.8;">Are you sure you want to revert all customized shortcuts back to their
+      default configuration?</p>
+    <div class="prompt-shortcuts">
+      <div class="prompt-shortcut-item"><span>Enter</span> Confirm</div>
+      <div class="prompt-shortcut-item"><span>Esc</span> Cancel</div>
+    </div>
+  </div>
+</div>
+
+<!-- Shortcut Conflict Modal -->
+<div class="help-overlay save-prompt-overlay" *ngIf="shortcutConflictMessage" (click)="shortcutConflictMessage = null"
+  style="z-index: 2100;">
+  <div class="help-content prompt-content" (click)="$event.stopPropagation()" style="text-align: center;">
+    <h2 style="margin-top: 0; margin-bottom: 24px;">Shortcut in Use</h2>
+    <p style="margin-bottom: 24px; opacity: 0.8;">{{ shortcutConflictMessage }}</p>
+    <div class="prompt-shortcuts">
+      <div class="prompt-shortcut-item"><span>Enter</span> Ok</div>
     </div>
   </div>
 </div>
