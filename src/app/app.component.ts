@@ -158,7 +158,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   password = "";
   errorMessage = "";
   isDarkMode = false;
-  appVersion = "1.1.0";
+  appVersion = "1.2.0";
   isSticky = false;
 
   async toggleStickyMode() {
