@@ -159,6 +159,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     { id: 'app.search', label: 'Global Search', category: 'Global Navigation', defaultKeyStr: 'Ctrl + F', currentKeyStr: 'Ctrl + F' },
     { id: 'app.history', label: 'History / Bin', category: 'Global Navigation', defaultKeyStr: 'Ctrl + Shift + B', currentKeyStr: 'Ctrl + Shift + B' },
     { id: 'app.help', label: 'Keyboard Shortcuts', category: 'Global Navigation', defaultKeyStr: 'Ctrl + H', currentKeyStr: 'Ctrl + H' },
+    { id: 'app.toggle_sticky', label: 'Toggle Always on Top', category: 'Global Navigation', defaultKeyStr: 'Ctrl + Shift + P', currentKeyStr: 'Ctrl + Shift + P' },
 
     { id: 'notepad.new_tab', label: 'New Tab', category: 'Notepad', defaultKeyStr: 'Ctrl + N', currentKeyStr: 'Ctrl + N' },
     { id: 'notepad.save', label: 'Save Tab', category: 'Notepad', defaultKeyStr: 'Ctrl + S', currentKeyStr: 'Ctrl + S' },
@@ -357,6 +358,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       if (this.activeTabId) {
         this.closeTab(this.activeTabId);
       }
+      return;
+    }
+    
+    if (this.matchShortcut(event, 'app.toggle_sticky')) {
+      event.preventDefault();
+      this.toggleStickyMode();
       return;
     }
 
