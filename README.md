@@ -1,55 +1,55 @@
 <div align="center">
   <img src="./src-tauri/icons/bilet-icon.png" width="128" height="128" alt="bilet icon">
   <h1>bilet</h1>
-  <p><strong>A secure, privacy-first desktop productivity suite for managing thoughts and tasks.</strong></p>
+  <p><strong>A secure, privacy-focused desktop productivity suite for managing thoughts and tasks.</strong></p>
 </div>
 
 ---
 
-## 🔒 Privacy at its Core
-**bilet** is designed with a "zero-trust" philosophy. Your data belongs to you, and it never leaves your machine.
+## Privacy at its Core
+**bilet** is developed with a zero-trust philosophy. All data is processed locally, ensuring user information remains private and secure.
 
-- **End-to-End Encryption**: Every note and pad is encrypted at rest using **AES-256-GCM**.
-- **Secure Vault**: Access is guarded by a master password verified with **Argon2id** (the industry standard for password hashing).
-- **Inactivity Protection**: The app automatically locks itself after periods of inactivity, ensuring your data remains private even if you step away.
-- **Local-Only**: No cloud, no tracking, no telemetry. Just a local SQLite database that stays on your disk.
-
----
-
-## ✨ Features
-
-### 📝 Tasks (Quick Notes)
-- **Pin & Organize**: Keep urgent tasks at the top with pinning.
-- **Rich Formatting**: Inline support for bold, italic, and underline using standard shortcuts.
-- **Instant Search**: Find any task instantly with a powerful local search (`Ctrl + F`).
-- **Safety Net**: Deleted tasks go to the **Bin**, allowing for easy recovery.
-
-### 📄 Rich Notepad (Tabbed Editor)
-- **Browser-Style Tabs**: Manage multiple documents simultaneously with a sleek tab bar.
-- **Code-Ready Navigation**: Line numbers, bookmarking, and IDE-like line manipulation (`Alt + Up/Down`).
-- **Auto-Save & Persistence**: Never lose a word. The app restores your open tabs and cursor position on relaunch.
-- **Sync to Disk**: Optionally save any tab directly to a local file for external usage.
-
-### 🎨 Premium Aesthetics
-- **Apple-Inspired Design**: A high-fidelity UI featuring **Glassmorphism**, noise textures, and smooth blur effects.
-- **Minimalist UX**: A clean black-and-white palette that minimizes distractions.
-- **Custom Typography**: Support for **Cascadia Code**, **Fira Code**, **JetBrains Mono**, and even your own custom `.ttf`/`.otf` font uploads.
-- **Native Performance**: Frameless window with Mac-style controls and zero FOUC (Flash of Unstyled Content).
-
-### ⚡ Productivity Workflow
-- **Global Summon**: Bring the app to focus from anywhere with `Ctrl + Shift + N`.
-- **Keyboard First**: Designed to be fully usable without touching the mouse.
-- **System Integration**: Runs in the tray for quick access and supports auto-start.
+- **End-to-End Encryption**: All notes and documents are encrypted at rest using AES-256-GCM.
+- **Secure Vault**: Access is protected by a master password, verified using the Argon2id password hashing standard.
+- **Inactivity Protection**: The application includes an automatic locking mechanism to secure data during periods of inactivity.
+- **Local Storage**: Data is stored in a local SQLite database. There is no cloud synchronization, tracking, or telemetry.
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## Features
 
-### Navigation & Global
+### Tasks and Quick Notes
+- **Organization**: Pin urgent tasks for immediate visibility and organized management.
+- **Rich Formatting**: Support for standard formatting shortcuts including bold, italic, and underline.
+- **Instant Search**: Efficient local search functionality accessible via `Ctrl + F`.
+- **Data Recovery**: A dedicated Bin for deleted tasks allows for secure recovery.
+
+### Rich Notepad
+- **Tabbed Management**: A multi-document interface with a streamlined tab bar for efficient document handling.
+- **Advanced Navigation**: Features include line numbering, bookmarking, and IDE-style line manipulation.
+- **Persistence**: Automatic saving ensures document state, including tab positions and cursor location, is restored upon relaunch.
+- **Export Options**: Support for saving individual tabs directly to the local filesystem.
+
+### Design and Aesthetics
+- **Professional UI**: A high-fidelity interface featuring minimalist design elements and smooth visual transitions.
+- **Enhanced Readability**: A clean, high-contrast palette designed to minimize distractions and improve focus.
+- **Custom Typography**: Support for industry-standard monospaced fonts and custom font uploads.
+- **Optimized Performance**: Built for native performance with a seamless, frameless window architecture.
+
+### Productivity Workflow
+- **Global Access**: Quickly toggle application visibility from any context using a global shortcut.
+- **Keyboard-Centric Design**: Optimized for full functionality through keyboard interaction.
+- **System Integration**: Tray integration and optional auto-start support for streamlined access.
+
+---
+
+## Keyboard Shortcuts
+
+### Navigation and Global
 | Shortcut | Action |
 |:---:|---|
 | `Ctrl + Shift + Space` | Toggle between Tasks and Notepad |
-| `Ctrl + Shift + N` | Summon/Hide App (Global) |
+| `Ctrl + Shift + N` | Toggle Application Visibility (Global) |
 | `Ctrl + F` | Global Search |
 | `Ctrl + Shift + B` | Open History / Bin |
 | `Ctrl + H` | Help & Documentation |
@@ -59,21 +59,21 @@
 | Shortcut | Action |
 |:---:|---|
 | `Ctrl + N` | Create New Tab |
-| `Ctrl + S` | Save Current Pad to File |
+| `Ctrl + S` | Save Current Content to File |
 | `Ctrl + Space` | Cycle through Open Tabs |
 | `Ctrl + Shift + D` | Delete Current Tab |
-| `Alt + ↑ / ↓` | Move Current Line Up/Down |
+| `Alt + ↑ / ↓` | Move Current Line Up or Down |
 | `Alt + Shift + ↑ / ↓` | Duplicate Current Line |
 
 ---
 
-## 👤 Author
+## Author
 
 **Habrmnc** — [habrhmnc.dev](https://habrhmnc.dev)
-*Crafted with precision for private productivity.*
+*Precision-crafted tools for private productivity.*
 
 ---
 
-## 📄 License
+## License
 
 This project is private and proprietary.
