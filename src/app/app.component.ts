@@ -424,6 +424,62 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     }
 
+    if (this.showBin) {
+      const activeTagName = document.activeElement?.tagName.toLowerCase();
+      const isInputOrEditor = activeTagName === 'input' || activeTagName === 'textarea' || document.activeElement?.classList.contains('pad-content-editor');
+
+      if (!isInputOrEditor && this.binItems.length > 0) {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          const currentIndex = this.binItems.findIndex(v => v.id === this.selectedBinItemId?.id && v.type === this.selectedBinItemId?.type);
+          const nextIndex = currentIndex < this.binItems.length - 1 ? currentIndex + 1 : this.binItems.length - 1;
+          this.selectedBinItemId = { id: this.binItems[nextIndex].id, type: this.binItems[nextIndex].type };
+          this.scrollSelectedBinIntoView();
+          return;
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          const currentIndex = this.binItems.findIndex(v => v.id === this.selectedBinItemId?.id && v.type === this.selectedBinItemId?.type);
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+          this.selectedBinItemId = { id: this.binItems[prevIndex].id, type: this.binItems[prevIndex].type };
+          this.scrollSelectedBinIntoView();
+          return;
+        } else if (event.ctrlKey && event.key.toLowerCase() === "r" && this.selectedBinItemId) {
+          event.preventDefault();
+          this.isConfirmingRestoreId = { ...this.selectedBinItemId };
+          this.isConfirmingBinDeleteId = null;
+          this.isConfirmingClearAll = false;
+          return;
+        } else if (event.ctrlKey && event.key.toLowerCase() === "d" && this.selectedBinItemId) {
+          event.preventDefault();
+          this.isConfirmingBinDeleteId = { ...this.selectedBinItemId };
+          this.isConfirmingRestoreId = null;
+          this.isConfirmingClearAll = false;
+          return;
+        } else if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "c") {
+          event.preventDefault();
+          this.isConfirmingClearAll = true;
+          this.isConfirmingBinDeleteId = null;
+          this.isConfirmingRestoreId = null;
+          return;
+        } else if (event.key === "Enter") {
+          if (this.isConfirmingRestoreId && this.selectedBinItemId) {
+            event.preventDefault();
+            this.restoreItem(this.selectedBinItemId);
+            this.isConfirmingRestoreId = null;
+          } else if (this.isConfirmingBinDeleteId && this.selectedBinItemId) {
+            event.preventDefault();
+            this.permanentDeleteItem(this.selectedBinItemId);
+            this.isConfirmingBinDeleteId = null;
+          } else if (this.isConfirmingClearAll) {
+            event.preventDefault();
+            this.clearBin();
+            this.isConfirmingClearAll = false;
+          }
+          return;
+        }
+      }
+    }
+
     // Toggle Help (Ctrl + H)
     if (this.matchShortcut(event, 'app.help')) {
       event.preventDefault();
@@ -1155,13 +1211,19 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async restoreItem(item: { id: number; type: "pad" }) {
     try {
-      await this.tauri.restorePad(item.id);
+      if (item.type === "pad") {
+        await this.tauri.restoreBinItem(item.id);
+      }
+      this.selectedBinItemId = null;
+      this.isConfirmingRestoreId = null;
+      await this.loadBinItems();
       await this.loadPads();
 
-      // Re-open the tab if it's a pad so it's visible to the user immediately
-      this.openTab(item.id);
-
-      await this.loadBinItems();
+      // Automatically open the restored pad as a tab and focus it
+      if (item.type === "pad") {
+        await this.openTab(item.id);
+        this.showBin = false; // Redirect user to the editor
+      }
     } catch (err) {
       console.error(err);
     }
@@ -1169,7 +1231,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async permanentDeleteItem(item: { id: number; type: "pad" }) {
     try {
-      await this.tauri.permanentDeletePad(item.id);
+      if (item.type === "pad") {
+        await this.tauri.deletePermanently(item.id);
+      }
+      this.selectedBinItemId = null;
+      this.isConfirmingBinDeleteId = null;
       await this.loadBinItems();
     } catch (err) {
       console.error(err);
@@ -1179,6 +1245,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   async clearBin() {
     try {
       await this.tauri.clearBin();
+      this.selectedBinItemId = null;
+      this.isConfirmingClearAll = false;
       await this.loadBinItems();
     } catch (err) {
       console.error(err);

@@ -53,18 +53,16 @@ export class TauriService {
     return await invoke<Pad[]>("get_bin_pads");
   }
 
-  async restorePad(id: number): Promise<void> {
+  async restoreBinItem(id: number): Promise<void> {
     await invoke("restore_pad", { id });
   }
 
-  async permanentDeletePad(id: number): Promise<void> {
+  async deletePermanently(id: number): Promise<void> {
     await invoke("permanent_delete_pad", { id });
   }
 
   async clearBin(): Promise<void> {
-    // Both commands might be needed based on existing code
     await invoke("clear_bin");
-    await invoke("clear_pad_bin");
   }
 
   // --- Version Commands ---

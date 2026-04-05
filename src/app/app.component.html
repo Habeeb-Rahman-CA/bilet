@@ -281,7 +281,7 @@
     <span class="status-divider">·</span>
     <span class="status-stat"><span class="status-code">L</span>{{ padStats.l }}</span>
     <span class="status-divider">·</span>
-    <button class="status-action" (click)="toggleVersionHistory()" title="Time Travel (Ctrl+T)">
+    <button class="status-action" (click)="toggleVersionHistory()" title="Time Travel">
       <svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"
         style="vertical-align: -1px; margin-right: 2px;">
         <path
@@ -451,13 +451,13 @@
           </span>
         </div>
 
-        <!-- Individual Restoration Confirmation -->
+        <!-- Individual Restoration Confirmation Overlay -->
         <div class="delete-overlay"
           *ngIf="isConfirmingRestoreId?.id === item.id && isConfirmingRestoreId?.type === item.type">
           <span>Restore?</span>
         </div>
 
-        <!-- Individual Permanent Deletion Confirmation -->
+        <!-- Individual Permanent Deletion Confirmation Overlay -->
         <div class="delete-overlay"
           *ngIf="isConfirmingBinDeleteId?.id === item.id && isConfirmingBinDeleteId?.type === item.type">
           <span>Delete Forever?</span>
@@ -465,9 +465,10 @@
       </div>
     </div>
 
-    <!-- Bulk Clear Confirmation -->
+    <!-- Bulk Clear Confirmation Overlay -->
     <div class="delete-overlay bulk-clear-overlay" *ngIf="isConfirmingClearAll">
       <span>Clear all history?</span>
+      <span class="search-hint bin-hint">Press Enter to confirm clear</span>
     </div>
 
     <div class="empty-state" *ngIf="binItems.length === 0">
