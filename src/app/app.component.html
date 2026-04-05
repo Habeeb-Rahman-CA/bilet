@@ -108,54 +108,9 @@
   </div>
 </div>
 
-<!-- ========== TASKS SECTION ========== -->
-<main class="container" *ngIf="authStatus === 'Unlocked' && activeSection === 'tasks'">
-
-  <div class="input-group">
-    <div #noteInput class="note-input-editor" contenteditable="true" (keydown)="handleNoteKeyDown($event)"
-      placeholder="Write a new task..." [attr.spellcheck]="spellCheckEnabled"></div>
-  </div>
-
-  <div class="notes-list">
-    <div class="note-card" *ngFor="let note of notes" (click)="selectNote(note, $event)"
-      [class.selected]="selectedNoteId === note.id" [class.editing]="editingNoteId === note.id">
-
-      <!-- Normal View -->
-      <div *ngIf="editingNoteId !== note.id; else editView" class="note-wrapper">
-        <div class="note-header">
-          <p class="note-content" [innerHTML]="formatContent(note.content)"></p>
-          <div class="pin-icon" *ngIf="note.is_pinned">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11V22L12,23L13,22V16H18V14L16,12Z" />
-            </svg>
-          </div>
-        </div>
-        <span class="note-date">{{ formatDate(note.timestamp) }}</span>
-
-        <!-- Small Confirmation Overlay -->
-        <div class="delete-overlay" *ngIf="isConfirmingDeleteId === note.id">
-          <span>Delete?</span>
-        </div>
-      </div>
-
-      <!-- Edit View -->
-      <ng-template #editView>
-        <div class="edit-mode">
-          <div #editInput class="edit-input-editor" contenteditable="true" (keydown)="handleEditKeyDown($event, note)"
-            [innerHTML]="formatContent(note.content)" [attr.spellcheck]="spellCheckEnabled"></div>
-        </div>
-      </ng-template>
-
-    </div>
-
-    <div class="empty-state" *ngIf="notes.length === 0">
-      <p>No <b>bilets</b> found. Start by adding one above!</p>
-    </div>
-  </div>
-</main>
 
 <!-- ========== NOTEPAD SECTION ========== -->
-<div class="notepad-container" *ngIf="authStatus === 'Unlocked' && activeSection === 'notepad'">
+<div class="notepad-container" *ngIf="authStatus === 'Unlocked'">
 
   <!-- Tab Bar -->
   <div class="tab-bar">
@@ -319,11 +274,7 @@
   <!-- Status Bar -->
   <div class="status-bar" *ngIf="activePad">
     <!-- Smart actions (visible when text is selected) -->
-    <ng-container *ngIf="selectedPadText">
-      <button class="status-action" (mousedown)="$event.preventDefault()" (click)="toggleJSON()">JSON</button>
-      <button class="status-action" (mousedown)="$event.preventDefault()" (click)="toggleBase64()">Base64</button>
-      <span class="status-divider">·</span>
-    </ng-container>
+
     <span class="status-stat"><span class="status-code">W</span>{{ padStats.w }}</span>
     <span class="status-divider">·</span>
     <span class="status-stat"><span class="status-code">C</span>{{ padStats.c }}</span>
@@ -482,33 +433,6 @@
   </div>
 </div>
 
-<!-- Search Modal -->
-<div class="help-overlay search-overlay" *ngIf="showSearch" (click)="showSearch = false">
-  <div class="help-content search-content" (click)="$event.stopPropagation()">
-    <h2>Search Keywords</h2>
-    <div class="search-input-wrapper">
-      <input #searchInput [(ngModel)]="searchQuery" placeholder="Type to search..." />
-    </div>
-
-    <div class="search-results scrollable" *ngIf="searchQuery.trim()">
-      <div class="search-result-item" *ngFor="let note of getFilteredNotes()" (click)="selectSearchResult(note)"
-        [class.selected]="selectedNoteId === note.id">
-        <div class="search-info">
-          <p class="search-preview" [innerHTML]="formatContent(note.content)"></p>
-          <div class="pin-icon mini" *ngIf="note.is_pinned">
-            <svg viewBox="0 0 24 24" fill="currentColor">
-              <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11V22L12,23L13,22V16H18V14L16,12Z" />
-            </svg>
-          </div>
-        </div>
-        <span class="search-date">{{ formatDate(note.timestamp) }}</span>
-      </div>
-      <div class="empty-state" *ngIf="getFilteredNotes().length === 0">
-        No results found for "{{ searchQuery }}"
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Bin Modal (History) -->
 <div class="help-overlay bin-overlay" *ngIf="showBin" (click)="showBin = false">
@@ -523,7 +447,6 @@
         <div class="bin-item-content">
           <p class="bin-text" [innerHTML]="formatContent(item.content)"></p>
           <span class="bin-date">
-            <span *ngIf="item.type === 'pad'" style="opacity:0.5; margin-right:6px;">Pad</span>
             {{ formatDate(item.timestamp) }}
           </span>
         </div>

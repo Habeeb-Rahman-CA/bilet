@@ -15,13 +15,6 @@ import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { save, open } from "@tauri-apps/plugin-dialog";
 
-interface Note {
-  id: number;
-  content: string;
-  timestamp: string;
-  is_pinned: boolean;
-  is_deleted: boolean;
-}
 
 interface Pad {
   id: number;
@@ -63,31 +56,20 @@ export interface AppShortcut {
   styleUrl: "./app.component.css",
 })
 export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
-  @ViewChild("noteInput") noteInput!: ElementRef<HTMLDivElement>;
-  @ViewChild("editInput") editInput?: ElementRef<HTMLDivElement>;
-  private needsFocus = false;
-  private editNeedsFocus = false;
-
-  notes: Note[] = [];
-  selectedNoteId: number | null = null;
-  editingNoteId: number | null = null;
-  isConfirmingDeleteId: number | null = null;
   autoStartEnabled = false;
   showHelp = false;
-  showSearch = false;
   showBin = false;
   showSplash = true;
   splashFading = false;
-  searchQuery = "";
   binItems: {
     id: number;
-    type: "task" | "pad";
+    type: "pad";
     content: string;
     timestamp: string;
   }[] = [];
-  selectedBinItemId: { id: number; type: "task" | "pad" } | null = null;
-  isConfirmingBinDeleteId: { id: number; type: "task" | "pad" } | null = null;
-  isConfirmingRestoreId: { id: number; type: "task" | "pad" } | null = null;
+  selectedBinItemId: { id: number; type: "pad" } | null = null;
+  isConfirmingBinDeleteId: { id: number; type: "pad" } | null = null;
+  isConfirmingRestoreId: { id: number; type: "pad" } | null = null;
   isConfirmingClearAll = false;
   @ViewChild("searchInput") searchInput?: ElementRef;
   @ViewChild("padEditor") padEditor?: ElementRef<HTMLDivElement>;
@@ -96,8 +78,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   private padEditorNeedsContent = false;
   isConfirmingPadCloseId: number | null = null;
 
-  // Section switching
-  activeSection: "tasks" | "notepad" = "notepad";
 
   // Notepad state
   pads: Pad[] = [];
@@ -211,7 +191,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   // Customizable Keyboard Shortcuts
   shortcuts: AppShortcut[] = [
-    { id: 'app.switch_section', label: 'Switch Section', category: 'Global Navigation', defaultKeyStr: 'Ctrl + Shift + Space', currentKeyStr: 'Ctrl + Shift + Space' },
     { id: 'app.search', label: 'Global Search', category: 'Global Navigation', defaultKeyStr: 'Ctrl + F', currentKeyStr: 'Ctrl + F' },
     { id: 'app.history', label: 'History / Bin', category: 'Global Navigation', defaultKeyStr: 'Ctrl + Shift + B', currentKeyStr: 'Ctrl + Shift + B' },
     { id: 'app.help', label: 'Keyboard Shortcuts', category: 'Global Navigation', defaultKeyStr: 'Ctrl + H', currentKeyStr: 'Ctrl + H' },
@@ -225,14 +204,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     { id: 'notepad.italic', label: 'Italic', category: 'Notepad', defaultKeyStr: 'Ctrl + I', currentKeyStr: 'Ctrl + I' },
     { id: 'notepad.underline', label: 'Underline', category: 'Notepad', defaultKeyStr: 'Ctrl + U', currentKeyStr: 'Ctrl + U' },
     { id: 'notepad.dup_line', label: 'Duplicate Line', category: 'Notepad', defaultKeyStr: 'Alt + Shift + Up', currentKeyStr: 'Alt + Shift + Up' },
-    { id: 'notepad.move_line', label: 'Move Line', category: 'Notepad', defaultKeyStr: 'Alt + Up', currentKeyStr: 'Alt + Up' },
-
-    { id: 'tasks.focus_input', label: 'Focus Input', category: 'Tasks', defaultKeyStr: 'Ctrl + A', currentKeyStr: 'Ctrl + A' },
-    { id: 'tasks.focus_list', label: 'Focus List', category: 'Tasks', defaultKeyStr: 'Ctrl + L', currentKeyStr: 'Ctrl + L' },
-    { id: 'tasks.save', label: 'Save Selection', category: 'Tasks', defaultKeyStr: 'Ctrl + S', currentKeyStr: 'Ctrl + S' },
-    { id: 'tasks.delete', label: 'Delete Selection', category: 'Tasks', defaultKeyStr: 'Ctrl + D', currentKeyStr: 'Ctrl + D' },
-    { id: 'tasks.edit', label: 'Edit Selection', category: 'Tasks', defaultKeyStr: 'Ctrl + E', currentKeyStr: 'Ctrl + E' },
-    { id: 'tasks.pin', label: 'Pin / Unpin', category: 'Tasks', defaultKeyStr: 'Ctrl + P', currentKeyStr: 'Ctrl + P' }
+    { id: 'notepad.move_line', label: 'Move Line', category: 'Notepad', defaultKeyStr: 'Alt + Up', currentKeyStr: 'Alt + Up' }
   ];
   editingShortcutId: string | null = null;
   capturedKeyString: string = '';
@@ -253,10 +225,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.authStatus = await invoke<AuthStatus>("check_auth_status");
 
       if (this.authStatus === "Unlocked") {
-        await this.loadNotes();
         await this.loadPads();
         this.loadSession();
-        this.triggerFocus();
+        this.triggerPadEditorFocus();
       }
 
       // Dismiss splash screen
@@ -285,11 +256,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
       win.onFocusChanged(({ payload: focused }) => {
         if (focused && this.authStatus === "Unlocked") {
-          if (this.activeSection === "tasks") {
-            this.triggerFocus();
-          } else {
-            this.triggerPadEditorFocus();
-          }
+          this.triggerPadEditorFocus();
         }
       });
     } catch (err) {
@@ -362,14 +329,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   ngAfterViewChecked() {
-    if (this.needsFocus && this.noteInput) {
-      this.noteInput.nativeElement.focus();
-      this.needsFocus = false;
-    }
-    if (this.editNeedsFocus && this.editInput) {
-      this.editInput.nativeElement.focus();
-      this.editNeedsFocus = false;
-    }
     if (this.searchNeedsFocus && this.searchInput) {
       this.searchInput.nativeElement.focus();
       this.searchNeedsFocus = false;
@@ -386,13 +345,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  triggerFocus() {
-    this.needsFocus = true;
-  }
-
-  triggerEditFocus() {
-    this.editNeedsFocus = true;
-  }
 
   triggerSearchFocus() {
     this.searchNeedsFocus = true;
@@ -408,49 +360,39 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     if (this.authStatus !== "Unlocked") return;
 
-    // Ctrl + Shift + Space: Switch sections
-    if (this.matchShortcut(event, 'app.switch_section')) {
+    // Notepad shortcuts
+    if (this.matchShortcut(event, 'notepad.save')) {
       event.preventDefault();
-      this.switchSection(this.activeSection === "tasks" ? "notepad" : "tasks");
+      if (this.activeTabId) {
+        this.downloadPadToLocal(this.activeTabId, false);
+      }
       return;
     }
 
-    // If in notepad section, handle notepad specific keys completely here
-    if (this.activeSection === "notepad") {
-      if (this.matchShortcut(event, 'notepad.save')) {
-        event.preventDefault();
-        if (this.activeTabId) {
-          this.downloadPadToLocal(this.activeTabId, false);
-        }
-        return;
-      }
+    if (this.matchShortcut(event, 'notepad.time_travel')) {
+      event.preventDefault();
+      this.toggleVersionHistory();
+      return;
+    }
 
-      if (this.matchShortcut(event, 'notepad.time_travel')) {
-        event.preventDefault();
-        this.toggleVersionHistory();
-        return;
-      }
+    if (this.matchShortcut(event, 'notepad.cycle_tabs')) {
+      event.preventDefault();
+      this.cycleTab();
+      return;
+    }
 
-      if (this.matchShortcut(event, 'notepad.cycle_tabs')) {
-        event.preventDefault();
-        this.cycleTab();
-        return;
-      }
+    if (this.matchShortcut(event, 'notepad.new_tab')) {
+      event.preventDefault();
+      this.createPad();
+      return;
+    }
 
-      if (this.matchShortcut(event, 'notepad.new_tab')) {
-        event.preventDefault();
-        this.createPad();
-        return;
+    if (this.matchShortcut(event, 'notepad.delete_tab')) {
+      event.preventDefault();
+      if (this.activeTabId) {
+        this.closeTab(this.activeTabId);
       }
-
-      if (this.matchShortcut(event, 'notepad.delete_tab')) {
-        event.preventDefault();
-        if (this.activeTabId) {
-          this.closeTab(this.activeTabId);
-        }
-        return;
-      }
-      // Note: We do NOT 'return;' arbitrarily here so that Ctrl+H, Ctrl+B, etc below still run!
+      return;
     }
 
     if (this.showFontSettings) {
@@ -529,7 +471,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.showBin = !this.showBin;
       if (this.showBin) {
         this.showHelp = false;
-        this.showSearch = false;
         this.isConfirmingBinDeleteId = null;
         this.isConfirmingRestoreId = null;
         this.isConfirmingClearAll = false;
@@ -541,16 +482,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     // Toggle Search (Ctrl + F)
     if (this.matchShortcut(event, 'app.search')) {
       event.preventDefault();
-      if (this.activeSection === "tasks") {
-        this.showSearch = !this.showSearch;
-        if (this.showSearch) {
-          this.showHelp = false;
-          this.searchQuery = "";
-          this.triggerSearchFocus();
-        }
-      } else if (this.activeSection === "notepad") {
-        this.toggleFindReplace();
-      }
+      this.toggleFindReplace();
       return;
     }
 
@@ -624,12 +556,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
       if (
         this.showHelp ||
-        this.showSearch ||
         this.showBin ||
         this.isConfirmingPadCloseId
       ) {
         this.showHelp = false;
-        this.showSearch = false;
         this.showBin = false;
         this.isConfirmingPadCloseId = null;
         event.preventDefault();
@@ -637,239 +567,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     }
 
-    // --- Section Exclusive Shortcuts ---
-    if (
-      this.activeSection === "notepad" &&
-      !this.showBin &&
-      !this.showSearch &&
-      !this.showHelp
-    ) {
-      return; // Skip task-specific shortcuts unless in a global modal
     }
-
-    // --- List Navigation & Focus ---
-
-    // Focus List / Select first note
-    if (this.matchShortcut(event, 'tasks.focus_list')) {
-      event.preventDefault();
-      this.showHelp = false;
-      const list = this.showSearch ? this.getFilteredNotes() : this.notes;
-      if (list.length > 0) {
-        if (
-          this.selectedNoteId === null ||
-          !list.find((n) => n.id === this.selectedNoteId)
-        ) {
-          this.selectedNoteId = list[0].id;
-        }
-        this.editingNoteId = null;
-        this.isConfirmingDeleteId = null;
-      }
-    }
-
-    // Focus Input
-    if (this.matchShortcut(event, 'tasks.focus_input')) {
-      event.preventDefault();
-      this.showHelp = false;
-      this.showSearch = false;
-      this.selectedNoteId = null;
-      this.editingNoteId = null;
-      this.isConfirmingDeleteId = null;
-      this.triggerFocus();
-
-      const container = document.querySelector(".container");
-      if (container) container.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    // Arrow keys for navigation
-    if (this.showBin) {
-      // Clear All Shortcut (Ctrl + Shift + C)
-      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "c") {
-        event.preventDefault();
-        this.isConfirmingClearAll = true;
-        return;
-      }
-
-      // Enter for Bin confirmations
-      if (event.key === "Enter") {
-        if (this.isConfirmingBinDeleteId !== null) {
-          event.preventDefault();
-          this.permanentDeleteItem(this.isConfirmingBinDeleteId);
-          this.isConfirmingBinDeleteId = null;
-          return;
-        }
-        if (this.isConfirmingRestoreId !== null) {
-          event.preventDefault();
-          this.restoreItem(this.isConfirmingRestoreId);
-          this.isConfirmingRestoreId = null;
-          return;
-        }
-        if (this.isConfirmingClearAll) {
-          event.preventDefault();
-          this.clearBin();
-          this.isConfirmingClearAll = false;
-          return;
-        }
-      }
-
-      if (
-        this.binItems.length > 0 &&
-        !this.isConfirmingBinDeleteId &&
-        !this.isConfirmingRestoreId &&
-        !this.isConfirmingClearAll
-      ) {
-        let currentIndex = this.binItems.findIndex(
-          (n) =>
-            n.id === this.selectedBinItemId?.id &&
-            n.type === this.selectedBinItemId?.type,
-        );
-
-        // Ctrl + D (Permanent Delete)
-        if (event.ctrlKey && event.key.toLowerCase() === "d") {
-          event.preventDefault();
-          this.isConfirmingBinDeleteId = this.selectedBinItemId;
-          return;
-        }
-        // Ctrl + R (Restore)
-        if (event.ctrlKey && event.key.toLowerCase() === "r") {
-          event.preventDefault();
-          this.isConfirmingRestoreId = this.selectedBinItemId;
-          return;
-        }
-
-        if (event.key === "ArrowDown") {
-          event.preventDefault();
-          const nextIndex = (currentIndex + 1) % this.binItems.length;
-          this.selectedBinItemId = {
-            id: this.binItems[nextIndex].id,
-            type: this.binItems[nextIndex].type,
-          };
-          this.scrollSelectedBinIntoView();
-        }
-        if (event.key === "ArrowUp") {
-          event.preventDefault();
-          const prevIndex =
-            (currentIndex - 1 + this.binItems.length) % this.binItems.length;
-          this.selectedBinItemId = {
-            id: this.binItems[prevIndex].id,
-            type: this.binItems[prevIndex].type,
-          };
-          this.scrollSelectedBinIntoView();
-        }
-      }
-      return;
-    }
-
-    if (
-      this.selectedNoteId !== null &&
-      this.editingNoteId === null &&
-      this.isConfirmingDeleteId === null
-    ) {
-      const list = this.showSearch ? this.getFilteredNotes() : this.notes;
-      const currentIndex = list.findIndex((n) => n.id === this.selectedNoteId);
-
-      if (currentIndex !== -1) {
-        if (event.key === "ArrowDown") {
-          event.preventDefault();
-          const nextIndex = (currentIndex + 1) % list.length;
-          this.selectedNoteId = list[nextIndex].id;
-          if (!this.showSearch) {
-            this.scrollSelectedIntoView();
-          } else {
-            this.scrollSelectedSearchResultIntoView();
-          }
-        }
-
-        if (event.key === "ArrowUp") {
-          event.preventDefault();
-          const prevIndex = (currentIndex - 1 + list.length) % list.length;
-          this.selectedNoteId = list[prevIndex].id;
-          if (!this.showSearch) {
-            this.scrollSelectedIntoView();
-          } else {
-            this.scrollSelectedSearchResultIntoView();
-          }
-        }
-      }
-    }
-
-    // Enter in Search to select and scroll
-    if (this.showSearch && event.key === "Enter" && this.selectedNoteId) {
-      const note = this.notes.find((n) => n.id === this.selectedNoteId);
-      if (note) this.selectSearchResult(note);
-      event.preventDefault();
-    }
-
-    // --- Actions on Selected Note ---
-
-    if (this.selectedNoteId !== null && this.editingNoteId === null) {
-      if (this.matchShortcut(event, 'tasks.edit')) {
-        event.preventDefault();
-        const note = this.notes.find((n) => n.id === this.selectedNoteId);
-        if (note) this.startEdit(note);
-      }
-      if (this.matchShortcut(event, 'tasks.delete')) {
-        event.preventDefault();
-        this.isConfirmingDeleteId = this.selectedNoteId;
-      }
-    }
-
-    // While Editing
-    if (this.editingNoteId !== null) {
-      if (this.matchShortcut(event, 'tasks.save')) {
-        event.preventDefault();
-        this.updateNote();
-      }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        this.cancelEdit();
-      }
-    }
-
-    // Confirm Deletion (Enter)
-    if (event.key === "Enter" && this.isConfirmingDeleteId !== null) {
-      event.preventDefault();
-      this.deleteNote(this.isConfirmingDeleteId);
-      return;
-    }
-
-    // Toggle Pin
-    if (this.matchShortcut(event, 'tasks.pin')) {
-      event.preventDefault();
-      if (this.selectedNoteId !== null) {
-        this.togglePin(this.selectedNoteId);
-      }
-    }
-
-    // While Confirming Delete
-    if (this.isConfirmingDeleteId !== null) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        this.isConfirmingDeleteId = null;
-      }
-    }
-  }
-
-  private scrollSelectedIntoView() {
-    setTimeout(() => {
-      const element = document.querySelector(".note-card.selected");
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    }, 10);
-  }
+  
 
   private scrollSelectedBinIntoView() {
     setTimeout(() => {
       const element = document.querySelector(".bin-item.selected");
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-    }, 10);
-  }
-
-  private scrollSelectedSearchResultIntoView() {
-    setTimeout(() => {
-      const element = document.querySelector(".search-result-item.selected");
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
@@ -907,28 +610,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     */
   }
 
-  switchSection(section: "tasks" | "notepad") {
-    this.activeSection = section;
-    // Close modals
-    this.showHelp = false;
-    this.showSearch = false;
-    this.showBin = false;
-    this.showFontSettings = false;
-    this.selectedPadText = "";
-    this.closeFindReplace();
-    this.showVersionHistory = false;
-    this.previewingVersion = null;
-    this.selectedVersionId = null;
-
-    if (section === "tasks") {
-      this.triggerFocus();
-    } else {
-      // The notepad DOM is destroyed/recreated by *ngIf; re-hydrate editor content
-      this.padEditorNeedsContent = true;
-      this.triggerPadEditorFocus();
-    }
-  }
-
   async unlockVault() {
     if (!this.password.trim()) return;
     try {
@@ -938,7 +619,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.password = "";
       this.lastActivity = Date.now();
       this.startIdleDetection();
-      await this.loadNotes();
       await this.loadPads();
       this.loadSession();
       this.triggerPadEditorFocus();
@@ -949,35 +629,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async lockVault() {
     // Manual locking is disabled as per user request to 'never ask again'.
-    /*
-    try {
-      await invoke("lock_vault");
-      this.authStatus = "Locked";
-      this.notes = [];
-      this.newNote = "";
-      this.password = "";
-      this.selectedNoteId = null;
-      this.editingNoteId = null;
-      this.pads = [];
-      this.activeTabId = null;
-      this.activePad = null;
-      this.padContent = "";
-      this.lineNumbers = [1];
-      this.activeSection = "notepad";
-      if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
-      if (this.idleCheckInterval) clearInterval(this.idleCheckInterval);
-    } catch (err) {
-      console.error(err);
-    }
-    */
-  }
-
-  async loadNotes() {
-    try {
-      this.notes = await invoke<Note[]>("get_notes");
-    } catch (err) {
-      console.error(err);
-    }
   }
 
   formatDate(dateStr: string): string {
@@ -998,21 +649,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  async addNote() {
-    const content = this.noteInput.nativeElement.innerHTML.trim();
-    if (!content) return;
-    try {
-      await invoke("add_note", { content });
-      this.noteInput.nativeElement.innerHTML = "";
-      await this.loadNotes();
-      this.selectedNoteId = null;
-      this.triggerFocus();
-    } catch (err) {
-      console.error(err);
-    }
-  }
 
-  handleNoteKeyDown(event: KeyboardEvent) {
+
+  handleEditKeyDown(event: KeyboardEvent) {
     if (event.ctrlKey) {
       const key = event.key.toLowerCase();
       if (key === 'b' || key === 'i' || key === 'u') {
@@ -1023,39 +662,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     }
 
-    if (event.key === "Enter") {
-      if (!event.ctrlKey && !event.shiftKey) {
-        // Plain Enter: Save
-        event.preventDefault();
-        this.addNote();
-      }
-      // Ctrl+Enter and Shift+Enter will naturally insert newline/div in contenteditable
-    }
-  }
-
-  handleEditKeyDown(event: KeyboardEvent, note: Note) {
-    if (event.ctrlKey) {
-      const key = event.key.toLowerCase();
-      if (key === 'b' || key === 'i' || key === 'u') {
-        event.preventDefault();
-        const command = key === 'b' ? 'bold' : key === 'i' ? 'italic' : 'underline';
-        document.execCommand(command, false);
-        return;
-      }
-    }
-
-    if (event.key === "Enter") {
-      if (!event.ctrlKey && !event.shiftKey) {
-        // Plain Enter: Save
-        event.preventDefault();
-        this.updateNote();
-      }
-    }
-
-    if (event.key === "Escape") {
-      event.preventDefault();
-      this.cancelEdit();
-    }
   }
 
   async toggleAutoStart() {
@@ -1068,80 +674,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  // Debug selection
-  selectNote(note: Note, event: MouseEvent) {
-    if (this.editingNoteId === note.id) return;
-    event.stopPropagation();
-    this.selectedNoteId = note.id;
-    this.isConfirmingDeleteId = null;
-    console.log("Note selected:", this.selectedNoteId);
-  }
-
-  startEdit(note: Note) {
-    this.editingNoteId = note.id;
-    this.triggerEditFocus();
-  }
-
-  cancelEdit() {
-    this.editingNoteId = null;
-    this.triggerFocus();
-  }
-
-  async updateNote() {
-    if (this.editingNoteId === null || !this.editInput) return;
-    const content = this.editInput.nativeElement.innerHTML.trim();
-    try {
-      await invoke("update_note", { id: this.editingNoteId, content });
-      this.editingNoteId = null;
-      await this.loadNotes();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async deleteNote(id: number) {
-    // Find index before deleting
-    const index = this.notes.findIndex((n) => n.id === id);
-
-    try {
-      await invoke("delete_note", { id });
-      this.isConfirmingDeleteId = null;
-      await this.loadNotes();
-
-      if (this.notes.length > 0) {
-        // Select next available note at same index, or the last one if we deleted the end item
-        const nextIndex = Math.min(index, this.notes.length - 1);
-        this.selectedNoteId = this.notes[nextIndex].id;
-      } else {
-        this.selectedNoteId = null;
-        this.triggerFocus();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  getFilteredNotes(): Note[] {
-    if (!this.searchQuery.trim()) return this.notes;
-    return this.notes.filter((n) =>
-      n.content.toLowerCase().includes(this.searchQuery.toLowerCase()),
-    );
-  }
-
-  selectSearchResult(note: Note) {
-    this.showSearch = false;
-    this.selectedNoteId = note.id;
-    this.scrollSelectedIntoView();
-  }
-
-  async togglePin(id: number) {
-    try {
-      await invoke("toggle_pin", { id });
-      await this.loadNotes();
-    } catch (err) {
-      console.error(err);
-    }
-  }
 
   // ===== Notepad Methods =====
 
@@ -1423,77 +955,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.selectedPadText = sel ? sel.toString() : "";
   }
 
-  toggleBase64() {
-    if (!this.selectedPadText) return;
 
-    if (this.isBase64(this.selectedPadText)) {
-      try {
-        const decoded = decodeURIComponent(atob(this.selectedPadText).split('').map((c) => {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        this.replaceSelectionClean(decoded);
-        return;
-      } catch (e) {
-        // Fall through to encode
-      }
-    }
 
-    try {
-      const encoded = btoa(encodeURIComponent(this.selectedPadText).replace(/%([0-9A-F]{2})/g,
-        (match, p1) => String.fromCharCode(parseInt(p1, 16))));
-      this.replaceSelectionClean(encoded);
-    } catch (e) {
-      console.error('Base64 operation failed', e);
-    }
-  }
-
-  toggleJSON() {
-    if (!this.selectedPadText) return;
-    try {
-      const obj = JSON.parse(this.selectedPadText);
-      const hasNewlines = this.selectedPadText.includes('\n');
-      const result = hasNewlines ? JSON.stringify(obj) : JSON.stringify(obj, null, 2);
-      this.replaceSelectionClean(result);
-    } catch (e) {
-      console.error('JSON toggle failed', e);
-    }
-  }
-
-  /**
-   * Replace the current selectedPadText in the editor with newText, then
-   * rebuild the editor's innerHTML cleanly (one <div> per line) to avoid
-   * orphaned block elements left by contenteditable's execCommand.
-   */
-  private replaceSelectionClean(newText: string) {
-    if (!this.padEditor) return;
-    const el = this.padEditor.nativeElement;
-
-    // Get full plain text, strip the phantom trailing \n browsers append
-    const full = (el.innerText || '').replace(/\n$/, '');
-    const selected = this.selectedPadText.replace(/\n$/, ''); // strip trailing too
-
-    const idx = full.indexOf(selected);
-    let rebuilt: string;
-    if (idx !== -1) {
-      rebuilt = full.slice(0, idx) + newText + full.slice(idx + selected.length);
-    } else {
-      // Fallback: append replacement (shouldn't normally happen)
-      rebuilt = full + newText;
-    }
-
-    // Work out which line the cursor should land on after insertion
-    const targetLine = (full.slice(0, idx !== -1 ? idx : full.length) + newText).split('\n').length - 1;
-
-    // Rebuild innerHTML with exactly one <div> per logical line
-    const lines = rebuilt.split('\n');
-    el.innerHTML = lines
-      .map(line => `<div>${this.htmlEscape(line) || '<br>'}</div>`)
-      .join('');
-
-    this.selectedPadText = '';
-    this.onPadInput();
-    setTimeout(() => this.setCaretToLine(el, targetLine));
-  }
 
   private htmlEscape(str: string): string {
     return str
@@ -1502,14 +965,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       .replace(/>/g, '&gt;');
   }
 
-  private isBase64(str: string): boolean {
-    if (!str || str.trim() === "" || str.length % 4 !== 0) return false;
-    try {
-      return btoa(atob(str)) === str.trim();
-    } catch (err) {
-      return false;
-    }
-  }
 
   onPadContentChange() {
     this.updateLineNumbers();
@@ -1542,7 +997,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   handlePadKeyDown(event: KeyboardEvent, editor: HTMLElement) {
     if (
       this.showHelp ||
-      this.showSearch ||
       this.showBin ||
       this.isConfirmingPadCloseId !== null
     ) {
@@ -1724,23 +1178,14 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async loadBinItems() {
     try {
-      const notes = await invoke<Note[]>("get_bin_notes");
       const pads = await invoke<Pad[]>("get_bin_pads");
 
-      this.binItems = [
-        ...notes.map((n) => ({
-          id: n.id,
-          type: "task" as "task" | "pad",
-          content: n.content,
-          timestamp: n.timestamp,
-        })),
-        ...pads.map((p) => ({
-          id: p.id,
-          type: "pad" as "task" | "pad",
-          content: this.getPadTabTitle(p),
-          timestamp: p.updated_at,
-        })),
-      ].sort(
+      this.binItems = pads.map((p) => ({
+        id: p.id,
+        type: "pad" as const,
+        content: this.getPadTabTitle(p),
+        timestamp: p.updated_at,
+      })).sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       );
@@ -1748,7 +1193,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       if (this.binItems.length > 0 && this.selectedBinItemId === null) {
         this.selectedBinItemId = {
           id: this.binItems[0].id,
-          type: this.binItems[0].type,
+          type: "pad",
         };
       }
     } catch (err) {
@@ -1756,31 +1201,23 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  async restoreItem(item: { id: number; type: "task" | "pad" }) {
+  async restoreItem(item: { id: number; type: "pad" }) {
     try {
-      if (item.type === "task") {
-        await invoke("restore_note", { id: item.id });
-        await this.loadNotes();
-      } else {
-        await invoke("restore_pad", { id: item.id });
-        await this.loadPads();
+      await invoke("restore_pad", { id: item.id });
+      await this.loadPads();
 
-        // Re-open the tab if it's a pad so it's visible to the user immediately
-        this.openTab(item.id);
-      }
+      // Re-open the tab if it's a pad so it's visible to the user immediately
+      this.openTab(item.id);
+
       await this.loadBinItems();
     } catch (err) {
       console.error(err);
     }
   }
 
-  async permanentDeleteItem(item: { id: number; type: "task" | "pad" }) {
+  async permanentDeleteItem(item: { id: number; type: "pad" }) {
     try {
-      if (item.type === "task") {
-        await invoke("permanent_delete_note", { id: item.id });
-      } else {
-        await invoke("permanent_delete_pad", { id: item.id });
-      }
+      await invoke("permanent_delete_pad", { id: item.id });
       await this.loadBinItems();
     } catch (err) {
       console.error(err);
@@ -1814,8 +1251,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   formatContent(content: string): string {
     if (!content) return '';
 
-    // If it already contains HTML tags (from contenteditable), we want to preserve them
-    // but we also want to support Markdown-style markers for the Task textareas.
+    // If it already contains HTML tags (from contenteditable), we want to preserve them.
 
     let result = content;
 
