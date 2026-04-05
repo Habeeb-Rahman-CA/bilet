@@ -10,43 +10,8 @@ import {
 import { CommonModule } from "@angular/common";
 import { RouterOutlet } from "@angular/router";
 import { FormsModule } from "@angular/forms";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { save, open } from "@tauri-apps/plugin-dialog";
-
-
-interface Pad {
-  id: number;
-  title: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-  is_deleted: boolean;
-  is_open: boolean;
-  is_active: boolean;
-  tab_index: number;
-  file_path: string | null;
-  isDirty?: boolean;
-}
-
-interface PadVersion {
-  id: number;
-  pad_id: number;
-  content: string;
-  timestamp: string;
-  label: string | null;
-}
-
-type AuthStatus = "SetupRequired" | "Locked" | "Unlocked" | "Checking";
-
-export interface AppShortcut {
-  id: string;
-  label: string;
-  category: string;
-  defaultKeyStr: string;
-  currentKeyStr: string;
-}
+import { TauriService } from "./services/tauri.service";
+import { Pad, PadVersion, AuthStatus, AppShortcut, BinItem } from "./models/app.models";
 
 @Component({
   selector: "app-root",
@@ -56,6 +21,7 @@ export interface AppShortcut {
   styleUrl: "./app.component.css",
 })
 export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
+  constructor(private tauri: TauriService) {}
   autoStartEnabled = false;
   showHelp = false;
   showBin = false;
@@ -144,8 +110,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   async toggleStickyMode() {
     this.isSticky = !this.isSticky;
     try {
-      const win = getCurrentWindow();
-      await win.setAlwaysOnTop(this.isSticky);
+      await this.tauri.setAlwaysOnTop(this.isSticky);
     } catch (e) {
       console.error("Failed to toggle sticky mode:", e);
     }
@@ -216,13 +181,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     await this.loadCustomFonts();
     this.loadShortcuts();
     try {
-      this.autoStartEnabled = await isEnabled();
+      this.autoStartEnabled = await this.tauri.isAutostartEnabled();
     } catch (err) {
       console.warn("Autostart plugin not available:", err);
     }
 
     try {
-      this.authStatus = await invoke<AuthStatus>("check_auth_status");
+      this.authStatus = await this.tauri.checkAuthStatus();
 
       if (this.authStatus === "Unlocked") {
         await this.loadPads();
@@ -240,7 +205,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
       this.startIdleDetection();
 
-      const win = getCurrentWindow();
+      const win = this.tauri.getWindow();
 
       const isMax = await win.isMaximized();
       if (isMax) document.body.classList.add("maximized");
@@ -254,8 +219,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         }
       });
 
-      win.onFocusChanged(({ payload: focused }) => {
-        if (focused && this.authStatus === "Unlocked") {
+      win.onFocusChanged(({ payload }: { payload: boolean }) => {
+        if (payload && this.authStatus === "Unlocked") {
           this.triggerPadEditorFocus();
         }
       });
@@ -614,7 +579,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (!this.password.trim()) return;
     try {
       this.errorMessage = "";
-      await invoke("unlock_db", { password: this.password });
+      await this.tauri.unlockVault(this.password);
       this.authStatus = "Unlocked";
       this.password = "";
       this.lastActivity = Date.now();
@@ -666,9 +631,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async toggleAutoStart() {
     try {
-      if (this.autoStartEnabled) await disable();
-      else await enable();
-      this.autoStartEnabled = await isEnabled();
+      if (this.autoStartEnabled) await this.tauri.disableAutostart();
+      else await this.tauri.enableAutostart();
+      this.autoStartEnabled = await this.tauri.isAutostartEnabled();
     } catch (err) {
       console.error(err);
     }
@@ -679,9 +644,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async loadPads() {
     try {
-      const dbPads = await invoke<Pad[]>("get_pads");
+      const dbPads = await this.tauri.getPads();
       // Preserve isDirty state for existing pads
-      this.pads = dbPads.map(dbPad => {
+      this.pads = dbPads.map((dbPad: Pad) => {
         const existing = this.pads.find(p => p.id === dbPad.id);
         return {
           ...dbPad,
@@ -695,10 +660,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async createPad() {
     try {
-      const id = await invoke<number>("add_pad", {
-        title: "Untitled",
-        content: "",
-      });
+      const id = await this.tauri.addPad("Untitled", "");
       await this.loadPads();
       this.openTab(id);
     } catch (err) {
@@ -719,7 +681,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (event) event.stopPropagation();
 
     try {
-      await invoke("delete_pad", { id: padId });
+      await this.tauri.deletePadToBin(padId);
 
       const padToDelete = this.pads.find(p => p.id === padId);
       if (padToDelete && padToDelete.is_open) {
@@ -741,7 +703,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (!pad) return;
 
     if (!skipMetadata) {
-      await invoke("open_pad_tab", { id: padId });
+      await this.tauri.openPadTab(padId);
       await this.loadPads();
     }
 
@@ -817,7 +779,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     // 2. Use dedicated command — no Options, guaranteed to execute
-    await invoke("close_pad_tab", { id: padId });
+    await this.tauri.closePadTab(padId);
 
     // 3. Reload from DB
     await this.loadPads();
@@ -851,7 +813,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       let filePath = pad.file_path;
 
       if (!filePath) {
-        filePath = await save({
+        filePath = await this.tauri.saveDialog({
           filters: [{ name: "Text Document", extensions: ["txt", "md"] }],
           defaultPath: `${titleToSave}.txt`,
           title: "Save Pad to Local Computer",
@@ -859,10 +821,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
 
       if (filePath) {
-        await invoke("save_file_to_local", {
-          path: filePath,
-          content: contentToSave,
-        });
+        await this.tauri.saveFileToLocal(filePath, contentToSave);
 
         // Update pad state
         pad.file_path = filePath;
@@ -873,10 +832,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         }
 
         // Persist filePath to database with dedicated command
-        await invoke("update_pad_file_path", {
-          id: padId,
-          file_path: filePath
-        });
+        await this.tauri.updatePadFilePath(padId, filePath);
 
         return true;
       }
@@ -1154,11 +1110,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     const firstLine = text.split("\n")[0]?.trim();
     const title = firstLine || "Untitled";
     try {
-      await invoke("update_pad", {
-        id: this.activePad.id,
-        title,
-        content: this.padContent,
-      });
+      await this.tauri.updatePad(this.activePad.id, title, this.padContent);
 
       const pad = this.pads.find((p) => p.id === this.activePad!.id);
       if (pad) {
@@ -1178,15 +1130,15 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async loadBinItems() {
     try {
-      const pads = await invoke<Pad[]>("get_bin_pads");
+      const pads = await this.tauri.getBinPads();
 
-      this.binItems = pads.map((p) => ({
+      this.binItems = pads.map((p: Pad) => ({
         id: p.id,
         type: "pad" as const,
         content: this.getPadTabTitle(p),
         timestamp: p.updated_at,
       })).sort(
-        (a, b) =>
+        (a: BinItem, b: BinItem) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       );
 
@@ -1203,7 +1155,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async restoreItem(item: { id: number; type: "pad" }) {
     try {
-      await invoke("restore_pad", { id: item.id });
+      await this.tauri.restorePad(item.id);
       await this.loadPads();
 
       // Re-open the tab if it's a pad so it's visible to the user immediately
@@ -1217,7 +1169,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async permanentDeleteItem(item: { id: number; type: "pad" }) {
     try {
-      await invoke("permanent_delete_pad", { id: item.id });
+      await this.tauri.permanentDeletePad(item.id);
       await this.loadBinItems();
     } catch (err) {
       console.error(err);
@@ -1226,8 +1178,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async clearBin() {
     try {
-      await invoke("clear_bin");
-      await invoke("clear_pad_bin");
+      await this.tauri.clearBin();
       await this.loadBinItems();
     } catch (err) {
       console.error(err);
@@ -1235,17 +1186,17 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   async minimize() {
-    await getCurrentWindow().minimize();
+    await this.tauri.minimizeWindow();
   }
   async maximize() {
     try {
-      await invoke("toggle_maximize");
+      await this.tauri.toggleMaximize();
     } catch (err) {
       console.error(err);
     }
   }
   async close() {
-    await getCurrentWindow().close();
+    await this.tauri.closeWindow();
   }
 
   formatContent(content: string): string {
@@ -1272,7 +1223,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async uploadFont() {
     try {
-      const selected = await open({
+      const selected = await this.tauri.openDialog({
         multiple: false,
         filters: [{
           name: 'Font',
@@ -1291,7 +1242,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       const name = fileName.replace(/\.(ttf|otf)$/i, '') || 'CustomFont';
       console.log('Font name:', name);
 
-      const result = await invoke('upload_custom_font', { name, srcPath: filePath });
+      const result = await this.tauri.uploadCustomFont(name, filePath);
       console.log('Upload result:', result);
 
       await this.loadCustomFonts();
@@ -1306,7 +1257,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async loadCustomFonts() {
     try {
-      const fonts = await invoke<any[]>('get_custom_fonts');
+      const fonts = await this.tauri.getCustomFonts();
       console.log('Custom fonts from backend:', fonts);
 
       // Remove existing custom fonts from list to avoid duplicates
@@ -1326,7 +1277,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         if (!name || !path) continue;
 
         const familyName = `Custom-${name}`;
-        const assetUrl = convertFileSrc(path);
+        const assetUrl = this.tauri.convertAssetUrl(path);
         console.log('Loading font:', name, 'from:', assetUrl);
 
         fontCache[familyName] = assetUrl;
@@ -1363,7 +1314,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   async deleteCustomFont(fontName: string, event: MouseEvent) {
     event.stopPropagation();
     try {
-      await invoke('delete_custom_font', { name: fontName });
+      await this.tauri.deleteCustomFont(fontName);
 
       // If the deleted font was selected, switch to default
       if (this.selectedFont === fontName) {
@@ -1636,7 +1587,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async loadVersions(padId: number) {
     try {
-      this.padVersions = await invoke<PadVersion[]>('get_pad_versions', { padId });
+      this.padVersions = await this.tauri.getPadVersions(padId);
     } catch (err) {
       console.error('Failed to load versions:', err);
       this.padVersions = [];
@@ -1658,11 +1609,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (plainText === this.lastVersionContent) return;
 
     try {
-      const result = await invoke<number>('save_pad_version', {
-        padId: this.activePad.id,
-        content: plainText,
-        label: null,
-      });
+      const result = await this.tauri.savePadVersion(this.activePad.id, plainText, null);
       if (result !== -1) {
         this.lastVersionContent = plainText;
         // Refresh if panel is open
@@ -1682,11 +1629,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     const label = prompt('Checkpoint name (optional):') || 'Checkpoint';
     try {
-      await invoke<number>('save_pad_version', {
-        padId: this.activePad.id,
-        content: plainText,
-        label,
-      });
+      await this.tauri.savePadVersion(this.activePad.id, plainText, label);
       this.lastVersionContent = plainText;
       if (this.activeTabId) {
         await this.loadVersions(this.activeTabId);
@@ -1785,7 +1728,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   async deleteVersion(version: PadVersion, event: MouseEvent) {
     event.stopPropagation();
     try {
-      await invoke('delete_pad_version', { id: version.id });
+      await this.tauri.deletePadVersion(version.id);
       if (this.selectedVersionId === version.id) {
         this.selectedVersionId = null;
         this.previewingVersion = null;
@@ -1807,7 +1750,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   async saveLabel(version: PadVersion) {
     try {
       const label = this.editingLabelText.trim() || null;
-      await invoke('update_version_label', { id: version.id, label });
+      await this.tauri.updateVersionLabel(version.id, label);
       version.label = label;
       this.editingLabelId = null;
     } catch (err) {
