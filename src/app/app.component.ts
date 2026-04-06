@@ -106,10 +106,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   errorMessage = "";
   isDarkMode = false;
   appVersion = "1.2.0";
-  isSticky = false;
+  isSticky = localStorage.getItem('isSticky') === 'true';
 
   async toggleStickyMode() {
     this.isSticky = !this.isSticky;
+    localStorage.setItem('isSticky', String(this.isSticky));
     try {
       await this.tauri.setAlwaysOnTop(this.isSticky);
     } catch (e) {
@@ -149,6 +150,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   showFontSettings = false;
   focusedFontIndex = 0;
   spellCheckEnabled = localStorage.getItem('spellcheck') === 'true';
+  fontSize = Number(localStorage.getItem('fontSize')) || 13;
+  lineHeight = Number(localStorage.getItem('lineHeight')) || 1.7;
+  wordWrap = localStorage.getItem('wordWrap') !== 'false'; // Default to true
 
   // Idle Detection
   private idleTimeout = 10 * 60 * 1000; // 10 minutes
@@ -231,6 +235,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
     this.loadFont();
     this.loadDarkMode();
+    this.applyEditorSettings();
+    if (this.isSticky) {
+      this.tauri.setAlwaysOnTop(true).catch(e => console.error("Initial sticky failed:", e));
+    }
   }
 
   ngOnDestroy() {
@@ -254,6 +262,40 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.showSettings) {
       this.showVersionHistory = false;
     }
+  }
+
+  async resetSettings() {
+    // 1. Reset Appearance
+    this.isDarkMode = false;
+    localStorage.setItem("darkMode", "false");
+    document.documentElement.classList.remove("dark-mode");
+    
+    this.selectedFont = "Cascadia Code";
+    localStorage.setItem("selectedFont", "Cascadia Code");
+    document.documentElement.style.setProperty("--main-font", "'Cascadia Code', monospace");
+
+    this.fontSize = 13;
+    this.lineHeight = 1.7;
+    localStorage.removeItem('fontSize');
+    localStorage.removeItem('lineHeight');
+
+    // 2. Reset Editor
+    this.spellCheckEnabled = false;
+    localStorage.setItem('spellcheck', 'false');
+
+    this.wordWrap = true;
+    localStorage.removeItem('wordWrap');
+
+    // 3. Reset Window
+    this.isSticky = false;
+    localStorage.setItem('isSticky', 'false');
+    await this.tauri.setAlwaysOnTop(false);
+
+    if (this.autoStartEnabled) {
+      await this.toggleAutoStart();
+    }
+
+    this.applyEditorSettings();
   }
 
   toggleFontSettings() {
@@ -317,6 +359,30 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.padEditor.nativeElement.focus();
       this.padEditorNeedsFocus = false;
     }
+  }
+
+  applyEditorSettings() {
+    document.documentElement.style.setProperty("--editor-font-size", this.fontSize + "px");
+    document.documentElement.style.setProperty("--editor-line-height", String(this.lineHeight));
+    document.documentElement.style.setProperty("--editor-word-wrap", this.wordWrap ? "pre-wrap" : "pre");
+  }
+
+  updateFontSize(size: any) {
+    this.fontSize = Number(size);
+    localStorage.setItem('fontSize', String(this.fontSize));
+    this.applyEditorSettings();
+  }
+
+  updateLineHeight(height: any) {
+    this.lineHeight = Number(height);
+    localStorage.setItem('lineHeight', String(this.lineHeight));
+    this.applyEditorSettings();
+  }
+
+  toggleWordWrap() {
+    this.wordWrap = !this.wordWrap;
+    localStorage.setItem('wordWrap', String(this.wordWrap));
+    this.applyEditorSettings();
   }
 
 

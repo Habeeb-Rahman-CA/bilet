@@ -1165,16 +1165,16 @@ button.primary:hover {
   border: none;
   outline: none;
   color: var(--text-color);
-  font-size: 13px;
+  font-size: var(--editor-font-size, 13px);
   font-family: inherit;
   resize: none;
-  line-height: 1.7;
+  line-height: var(--editor-line-height, 1.7);
   padding: 16px;
   padding-left: 0;
   overflow-y: auto;
   scrollbar-width: none;
   tab-size: 4;
-  white-space: pre-wrap;
+  white-space: var(--editor-word-wrap, pre-wrap);
   word-wrap: break-word;
 }
 
@@ -1981,4 +1981,92 @@ button.primary:hover {
   opacity: 0.5;
   font-family: inherit;
   font-weight: 600;
+}
+.settings-item.no-click {
+  cursor: default;
+}
+
+.settings-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 4px;
+  background: var(--hover-color);
+  border-radius: 2px;
+  outline: none;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--text-color);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: all 0.2s;
+}
+
+.settings-slider::-webkit-slider-thumb:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.settings-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--hover-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 28px 4px 10px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='gray' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.settings-select:hover {
+  background-color: var(--bg-color);
+  border-color: var(--text-color);
+}
+
+.settings-select option {
+  background: var(--bg-color);
+  color: var(--text-color);
+  padding: 8px;
+}
+
+.settings-footer {
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+  margin-top: 8px;
+  text-align: center;
+}
+
+.reset-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.2s;
+}
+
+.reset-btn:hover {
+  opacity: 1;
+  background: var(--hover-color);
+  border-color: var(--text-color);
 }
