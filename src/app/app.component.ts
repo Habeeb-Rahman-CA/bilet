@@ -161,6 +161,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   accentColor = localStorage.getItem('accentColor') || '#ffffffff';
   showStatusBar = localStorage.getItem('showStatusBar') !== 'false';
   skipSplashScreen = localStorage.getItem('skipSplashScreen') === 'true';
+  minimizeToTray = localStorage.getItem('minimizeToTray') !== 'false';
   animationSpeed = (localStorage.getItem('animationSpeed') as 'none' | 'reduced' | 'normal') || 'normal';
   activeLineIndex = 0;
   private currentCaretLine = 0;
@@ -254,6 +255,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.isSticky) {
       this.tauri.setAlwaysOnTop(true).catch(e => console.error("Initial sticky failed:", e));
     }
+    this.tauri.setMinimizeToTray(this.minimizeToTray).catch(e => console.error("Initial tray setting failed:", e));
   }
 
   ngOnDestroy() {
@@ -305,6 +307,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.accentColor = '#ffffffff';
     this.showStatusBar = true;
     this.skipSplashScreen = false;
+    this.minimizeToTray = true;
     this.animationSpeed = 'normal';
 
     localStorage.removeItem('wordWrap');
@@ -314,6 +317,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     localStorage.removeItem('accentColor');
     localStorage.removeItem('showStatusBar');
     localStorage.removeItem('skipSplashScreen');
+    localStorage.removeItem('minimizeToTray');
     localStorage.removeItem('animationSpeed');
 
     // 3. Reset Window
@@ -461,6 +465,20 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.animationSpeed = speed;
     localStorage.setItem('animationSpeed', speed);
     this.applyEditorSettings();
+  }
+
+  toggleMinimizeToTray() {
+    this.minimizeToTray = !this.minimizeToTray;
+    localStorage.setItem('minimizeToTray', String(this.minimizeToTray));
+    this.tauri.setMinimizeToTray(this.minimizeToTray).catch(console.error);
+  }
+
+  async checkForUpdates() {
+    try {
+      await this.tauri.checkForUpdates();
+    } catch (e) {
+      console.error("Update check failed:", e);
+    }
   }
 
 

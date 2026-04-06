@@ -348,6 +348,29 @@
               <div class="toggle-switch" [class.on]="autoStartEnabled"></div>
             </div>
           </div>
+          <div class="settings-item" (click)="toggleMinimizeToTray()">
+            <div class="settings-item-label">Minimize to Tray on Close</div>
+            <div class="settings-item-action">
+              <div class="toggle-switch" [class.on]="minimizeToTray"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- System -->
+        <div class="settings-section">
+          <div class="settings-section-title">System</div>
+          <div class="settings-item no-click">
+            <div class="settings-item-label">App Version</div>
+            <div class="settings-item-action">
+              <span class="settings-value">v{{ appVersion }}</span>
+            </div>
+          </div>
+          <div class="settings-item" (click)="checkForUpdates()">
+            <div class="settings-item-label">Update bilet</div>
+            <div class="settings-item-action">
+              <button class="settings-button">Check Now</button>
+            </div>
+          </div>
         </div>
 
         <div class="settings-footer">

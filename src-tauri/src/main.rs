@@ -61,6 +61,10 @@ struct Session {
 // Internal structure to handle DB + Key
 struct DbState(Mutex<Option<(Connection, [u8; 32])>>);
 
+struct AppState {
+    minimize_to_tray: Mutex<bool>,
+}
+
 #[derive(Serialize, Deserialize)]
 enum AuthStatus {
     SetupRequired,
@@ -760,6 +764,12 @@ fn toggle_maximize(window: tauri::Window) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn set_minimize_to_tray(state: State<'_, AppState>, value: bool) {
+    let mut minimize = state.minimize_to_tray.lock().unwrap();
+    *minimize = value;
+}
+
+#[tauri::command]
 fn save_file_to_local(path: String, content: String) -> Result<String, String> {
     std::fs::write(&path, content).map_err(|e| e.to_string())?;
     Ok("Saved".to_string())
@@ -1086,6 +1096,9 @@ fn update_version_label(id: i64, label: Option<String>, state: State<'_, DbState
 fn main() {
     tauri::Builder::default()
         .manage(DbState(Mutex::new(None)))
+        .manage(AppState {
+            minimize_to_tray: Mutex::new(true),
+        })
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             Some(vec![]),
@@ -1129,7 +1142,8 @@ fn main() {
             save_pad_version,
             get_pad_versions,
             delete_pad_version,
-            update_version_label
+            update_version_label,
+            set_minimize_to_tray
         ])
         .setup(|app| {
             let ctrl_shift_n =
@@ -1170,8 +1184,12 @@ fn main() {
         })
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                window.hide().unwrap();
-                api.prevent_close();
+                let state = window.state::<AppState>();
+                let minimize = state.minimize_to_tray.lock().unwrap();
+                if *minimize {
+                    window.hide().unwrap();
+                    api.prevent_close();
+                }
             }
             _ => {}
         })

@@ -3,6 +3,7 @@ import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { enable, disable, isEnabled } from '@tauri-apps/plugin-autostart';
 import { save, open } from '@tauri-apps/plugin-dialog';
+import { check } from '@tauri-apps/plugin-updater';
 import { AuthStatus, Pad, PadVersion, BinItem } from '../models/app.models';
 
 @Injectable({
@@ -115,6 +116,20 @@ export class TauriService {
 
   async setAlwaysOnTop(isSticky: boolean): Promise<void> {
     await getCurrentWindow().setAlwaysOnTop(isSticky);
+  }
+
+  async setMinimizeToTray(value: boolean): Promise<void> {
+    await invoke("set_minimize_to_tray", { value });
+  }
+
+  async checkForUpdates(): Promise<void> {
+    const update = await check();
+    if (update) {
+      console.log(`Update available: ${update.version}`);
+      await update.downloadAndInstall();
+    } else {
+      console.log("No updates available");
+    }
   }
 
   getWindow() {

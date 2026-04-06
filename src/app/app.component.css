@@ -1649,6 +1649,27 @@ button.primary:hover {
     opacity: 0.2;
   }
 
+  .settings-button {
+    background: var(--text-color);
+    color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .settings-button:hover {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+  }
+
   .version-delete-btn:hover {
     opacity: 0.8 !important;
     background: var(--hover-color);
