@@ -961,6 +961,7 @@ fn save_pad_version(
     pad_id: i64,
     content: String,
     label: Option<String>,
+    retention: i32,
     state: State<'_, DbState>,
 ) -> Result<i64, String> {
     let db_lock = state.0.lock().unwrap();
@@ -1006,10 +1007,10 @@ fn save_pad_version(
 
     let version_id = conn.last_insert_rowid();
 
-    // Cleanup: keep only the latest 50 versions per pad
+    // Cleanup: keep only the latest N versions per pad
     conn.execute(
-        "DELETE FROM pad_versions WHERE pad_id = ?1 AND id NOT IN (SELECT id FROM pad_versions WHERE pad_id = ?1 ORDER BY created_at DESC LIMIT 50)",
-        params![pad_id],
+        "DELETE FROM pad_versions WHERE pad_id = ?1 AND id NOT IN (SELECT id FROM pad_versions WHERE pad_id = ?1 ORDER BY created_at DESC LIMIT ?2)",
+        params![pad_id, retention],
     )
     .map_err(|e| e.to_string())?;
 

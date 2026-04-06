@@ -70,8 +70,8 @@ export class TauriService {
     return await invoke<PadVersion[]>("get_pad_versions", { padId });
   }
 
-  async savePadVersion(padId: number, content: string, label: string | null = null): Promise<number> {
-    return await invoke<number>("save_pad_version", { padId, content, label });
+  async savePadVersion(padId: number, content: string, label: string | null = null, retention: number = 50): Promise<number> {
+    return await invoke<number>("save_pad_version", { padId, content, label, retention });
   }
 
   async updateVersionLabel(id: number, label: string | null): Promise<void> {

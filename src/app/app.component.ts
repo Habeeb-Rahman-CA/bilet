@@ -153,6 +153,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   fontSize = Number(localStorage.getItem('fontSize')) || 13;
   lineHeight = Number(localStorage.getItem('lineHeight')) || 1.7;
   wordWrap = localStorage.getItem('wordWrap') !== 'false'; // Default to true
+  autoSaveDelay = Number(localStorage.getItem('autoSaveDelay')) || 500;
+  versionRetention = Number(localStorage.getItem('versionRetention')) || 50;
+  versionAutoSaveInterval = Number(localStorage.getItem('versionAutoSaveInterval')) || 1000;
 
   // Idle Detection
   private idleTimeout = 10 * 60 * 1000; // 10 minutes
@@ -284,7 +287,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     localStorage.setItem('spellcheck', 'false');
 
     this.wordWrap = true;
+    this.autoSaveDelay = 500;
+    this.versionRetention = 50;
+    this.versionAutoSaveInterval = 1000;
     localStorage.removeItem('wordWrap');
+    localStorage.removeItem('autoSaveDelay');
+    localStorage.removeItem('versionRetention');
+    localStorage.removeItem('versionAutoSaveInterval');
 
     // 3. Reset Window
     this.isSticky = false;
@@ -383,6 +392,21 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.wordWrap = !this.wordWrap;
     localStorage.setItem('wordWrap', String(this.wordWrap));
     this.applyEditorSettings();
+  }
+
+  updateAutoSaveDelay(ms: any) {
+    this.autoSaveDelay = Number(ms);
+    localStorage.setItem('autoSaveDelay', String(this.autoSaveDelay));
+  }
+
+  updateVersionRetention(count: any) {
+    this.versionRetention = Number(count);
+    localStorage.setItem('versionRetention', String(this.versionRetention));
+  }
+
+  updateVersionAutoSaveInterval(ms: any) {
+    this.versionAutoSaveInterval = Number(ms);
+    localStorage.setItem('versionAutoSaveInterval', String(this.versionAutoSaveInterval));
   }
 
 
@@ -1243,7 +1267,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.autoSaveTimer) clearTimeout(this.autoSaveTimer);
     this.autoSaveTimer = setTimeout(() => {
       this.savePadNow();
-    }, 500);
+    }, this.autoSaveDelay);
   }
 
   private async savePadNow() {
@@ -1750,8 +1774,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   private scheduleVersionSave() {
     if (this.versionSaveTimer) clearTimeout(this.versionSaveTimer);
     this.versionSaveTimer = setTimeout(() => {
-      this.autoSaveVersion();
-    }, 1000);
+      if (this.activeTabId) {
+        this.tauri.savePadVersion(this.activeTabId, this.padContent, null, this.versionRetention).catch(e => console.error("Version save failed:", e));
+      }
+    }, this.versionAutoSaveInterval);
   }
 
   private async autoSaveVersion() {

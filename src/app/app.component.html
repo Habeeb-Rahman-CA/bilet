@@ -249,15 +249,17 @@
             </div>
           </div>
           <div class="settings-item no-click">
-            <div class="settings-item-label">Font Size ({{ fontSize }}px)</div>
+            <div class="settings-item-label">Font Size</div>
             <div class="settings-item-action">
-              <input type="range" min="10" max="24" [value]="fontSize" (input)="updateFontSize($any($event.target).value)" class="settings-slider">
+              <span class="settings-value">{{ fontSize }}px</span>
+              <input type="range" min="10" max="24" [(ngModel)]="fontSize" (input)="updateFontSize($any($event.target).value)" class="settings-slider">
             </div>
           </div>
           <div class="settings-item no-click">
-            <div class="settings-item-label">Line Height ({{ lineHeight }})</div>
+            <div class="settings-item-label">Line Height</div>
             <div class="settings-item-action">
-              <input type="range" min="1.2" max="2.5" step="0.1" [value]="lineHeight" (input)="updateLineHeight($any($event.target).value)" class="settings-slider">
+              <span class="settings-value">{{ lineHeight }}</span>
+              <input type="range" min="1.2" max="2.5" step="0.1" [(ngModel)]="lineHeight" (input)="updateLineHeight($any($event.target).value)" class="settings-slider">
             </div>
           </div>
         </div>
@@ -275,6 +277,30 @@
             <div class="settings-item-label">Word Wrap</div>
             <div class="settings-item-action">
               <div class="toggle-switch" [class.on]="wordWrap"></div>
+            </div>
+          </div>
+          <div class="settings-item no-click">
+            <div class="settings-item-label">Auto-Save Delay</div>
+            <div class="settings-item-action">
+              <span class="settings-value">{{autoSaveDelay}}ms</span>
+              <input type="range" class="settings-slider" [(ngModel)]="autoSaveDelay" min="500" max="5000" step="100" (input)="updateAutoSaveDelay($any($event.target).value)">
+            </div>
+          </div>
+          <div class="settings-item no-click">
+            <div class="settings-item-label">Ver. Retention</div>
+            <div class="settings-item-action">
+              <select class="settings-select" [(ngModel)]="versionRetention" (change)="updateVersionRetention($any($event.target).value)">
+                <option [ngValue]="20">20 vers.</option>
+                <option [ngValue]="50">50 vers.</option>
+                <option [ngValue]="100">100 vers.</option>
+              </select>
+            </div>
+          </div>
+          <div class="settings-item no-click">
+            <div class="settings-item-label">Ver. Save Int.</div>
+            <div class="settings-item-action">
+              <span class="settings-value">{{(versionAutoSaveInterval / 1000).toFixed(1)}}s</span>
+              <input type="range" class="settings-slider" [(ngModel)]="versionAutoSaveInterval" min="500" max="10000" step="500" (input)="updateVersionAutoSaveInterval($any($event.target).value)">
             </div>
           </div>
         </div>
