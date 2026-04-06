@@ -25,6 +25,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   autoStartEnabled = false;
   showHelp = false;
   showBin = false;
+  showSettings = false;
   showSplash = true;
   splashFading = false;
   binItems: {
@@ -245,6 +246,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   onBeforeUnload() {
     if (this.autoSaveTimer) {
       this.savePadNow();
+    }
+  }
+
+  toggleSettings() {
+    this.showSettings = !this.showSettings;
+    if (this.showSettings) {
+      this.showVersionHistory = false;
     }
   }
 
@@ -567,6 +575,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (event.key === "Escape") {
       if (this.showVersionHistory) {
         this.closeVersionHistory();
+        event.preventDefault();
+        return;
+      }
+      if (this.showSettings) {
+        this.showSettings = false;
         event.preventDefault();
         return;
       }
@@ -1627,11 +1640,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  // ================= TIME TRAVEL / VERSION HISTORY =================
-
   toggleVersionHistory() {
     this.showVersionHistory = !this.showVersionHistory;
     if (this.showVersionHistory) {
+      this.showSettings = false;
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
