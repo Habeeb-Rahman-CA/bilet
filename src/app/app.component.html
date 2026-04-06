@@ -262,11 +262,39 @@
               <input type="range" min="1.2" max="2.5" step="0.1" [(ngModel)]="lineHeight" (input)="updateLineHeight($any($event.target).value)" class="settings-slider">
             </div>
           </div>
+          <div class="settings-item no-click">
+            <div class="settings-item-label">Accent Color</div>
+            <div class="settings-item-action">
+              <input type="color" [(ngModel)]="accentColor" (change)="updateAccentColor(accentColor)" class="settings-color-picker">
+            </div>
+          </div>
+          <div class="settings-item no-click">
+            <div class="settings-item-label">Ani. Speed</div>
+            <div class="settings-item-action">
+              <select class="settings-select" [(ngModel)]="animationSpeed" (change)="updateAnimationSpeed(animationSpeed)">
+                <option value="none">None</option>
+                <option value="reduced">Reduced</option>
+                <option value="normal">Normal</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <!-- Editor -->
         <div class="settings-section">
           <div class="settings-section-title">Editor</div>
+          <div class="settings-item" (click)="toggleStatusBar()">
+            <div class="settings-item-label">Status Bar</div>
+            <div class="settings-item-action">
+              <div class="toggle-switch" [class.on]="showStatusBar"></div>
+            </div>
+          </div>
+          <div class="settings-item" (click)="toggleSkipSplash()">
+            <div class="settings-item-label">Skip Splash</div>
+            <div class="settings-item-action">
+              <div class="toggle-switch" [class.on]="skipSplashScreen"></div>
+            </div>
+          </div>
           <div class="settings-item" (click)="toggleSpellCheck()">
             <div class="settings-item-label">Spell Check</div>
             <div class="settings-item-action">
@@ -349,7 +377,7 @@
   </div> <!-- end editor-wrapper -->
 
   <!-- Status Bar -->
-  <div class="status-bar" *ngIf="activePad">
+  <div class="status-bar" *ngIf="activePad && showStatusBar">
     <!-- Smart actions (visible when text is selected) -->
 
     <span class="status-stat"><span class="status-code">W</span>{{ padStats.w }}</span>

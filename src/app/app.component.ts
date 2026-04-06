@@ -21,7 +21,7 @@ import { Pad, PadVersion, AuthStatus, AppShortcut, BinItem } from "./models/app.
   styleUrl: "./app.component.css",
 })
 export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
-  constructor(private tauri: TauriService) {}
+  constructor(private tauri: TauriService) { }
   autoStartEnabled = false;
   showHelp = false;
   showBin = false;
@@ -157,6 +157,14 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   versionRetention = Number(localStorage.getItem('versionRetention')) || 50;
   versionAutoSaveInterval = Number(localStorage.getItem('versionAutoSaveInterval')) || 1000;
 
+  // New Appearance & Editor settings
+  accentColor = localStorage.getItem('accentColor') || '#ffffffff';
+  showStatusBar = localStorage.getItem('showStatusBar') !== 'false';
+  skipSplashScreen = localStorage.getItem('skipSplashScreen') === 'true';
+  animationSpeed = (localStorage.getItem('animationSpeed') as 'none' | 'reduced' | 'normal') || 'normal';
+  activeLineIndex = 0;
+  private currentCaretLine = 0;
+
   // Idle Detection
   private idleTimeout = 10 * 60 * 1000; // 10 minutes
   private lastActivity = Date.now();
@@ -205,12 +213,16 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
 
       // Dismiss splash screen
-      setTimeout(() => {
-        this.splashFading = true;
+      if (this.skipSplashScreen) {
+        this.showSplash = false;
+      } else {
         setTimeout(() => {
-          this.showSplash = false;
-        }, 600);
-      }, 1400);
+          this.splashFading = true;
+          setTimeout(() => {
+            this.showSplash = false;
+          }, 600);
+        }, 1400);
+      }
 
       this.startIdleDetection();
 
@@ -272,7 +284,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.isDarkMode = false;
     localStorage.setItem("darkMode", "false");
     document.documentElement.classList.remove("dark-mode");
-    
+
     this.selectedFont = "Cascadia Code";
     localStorage.setItem("selectedFont", "Cascadia Code");
     document.documentElement.style.setProperty("--main-font", "'Cascadia Code', monospace");
@@ -290,10 +302,19 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.autoSaveDelay = 500;
     this.versionRetention = 50;
     this.versionAutoSaveInterval = 1000;
+    this.accentColor = '#ffffffff';
+    this.showStatusBar = true;
+    this.skipSplashScreen = false;
+    this.animationSpeed = 'normal';
+
     localStorage.removeItem('wordWrap');
     localStorage.removeItem('autoSaveDelay');
     localStorage.removeItem('versionRetention');
     localStorage.removeItem('versionAutoSaveInterval');
+    localStorage.removeItem('accentColor');
+    localStorage.removeItem('showStatusBar');
+    localStorage.removeItem('skipSplashScreen');
+    localStorage.removeItem('animationSpeed');
 
     // 3. Reset Window
     this.isSticky = false;
@@ -371,9 +392,20 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   applyEditorSettings() {
-    document.documentElement.style.setProperty("--editor-font-size", this.fontSize + "px");
-    document.documentElement.style.setProperty("--editor-line-height", String(this.lineHeight));
+    const fs = this.fontSize || 13;
+    const lh = this.lineHeight || 1.7;
+    const lhExact = Math.round(fs * lh);
+    
+    document.documentElement.style.setProperty("--editor-font-size", fs + "px");
+    document.documentElement.style.setProperty("--editor-line-height", String(lh));
+    document.documentElement.style.setProperty("--editor-line-height-exact", lhExact + "px");
     document.documentElement.style.setProperty("--editor-word-wrap", this.wordWrap ? "pre-wrap" : "pre");
+    document.documentElement.style.setProperty("--accent-color", this.accentColor);
+    
+    let transitionTime = '0.3s';
+    if (this.animationSpeed === 'none') transitionTime = '0s';
+    if (this.animationSpeed === 'reduced') transitionTime = '0.1s';
+    document.documentElement.style.setProperty("--transition-speed", transitionTime);
   }
 
   updateFontSize(size: any) {
@@ -407,6 +439,28 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   updateVersionAutoSaveInterval(ms: any) {
     this.versionAutoSaveInterval = Number(ms);
     localStorage.setItem('versionAutoSaveInterval', String(this.versionAutoSaveInterval));
+  }
+
+  updateAccentColor(color: string) {
+    this.accentColor = color;
+    localStorage.setItem('accentColor', color);
+    this.applyEditorSettings();
+  }
+
+  toggleStatusBar() {
+    this.showStatusBar = !this.showStatusBar;
+    localStorage.setItem('showStatusBar', String(this.showStatusBar));
+  }
+
+  toggleSkipSplash() {
+    this.skipSplashScreen = !this.skipSplashScreen;
+    localStorage.setItem('skipSplashScreen', String(this.skipSplashScreen));
+  }
+
+  updateAnimationSpeed(speed: any) {
+    this.animationSpeed = speed;
+    localStorage.setItem('animationSpeed', speed);
+    this.applyEditorSettings();
   }
 
 
@@ -458,7 +512,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
       return;
     }
-    
+
     if (this.matchShortcut(event, 'app.toggle_sticky')) {
       event.preventDefault();
       this.toggleStickyMode();
@@ -698,8 +752,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     }
 
-    }
-  
+  }
+
 
   private scrollSelectedBinIntoView() {
     setTimeout(() => {
@@ -935,7 +989,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     const tabs = this.openOrderedTabs;
     const closedTabIdx = tabs.findIndex(t => t.id === padId);
     let nextTabId: number | null = null;
-    
+
     if (this.activeTabId === padId && tabs.length > 1) {
       if (closedTabIdx < tabs.length - 1) {
         nextTabId = tabs[closedTabIdx + 1].id;
@@ -1065,6 +1119,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
       this.onPadContentChange();
       this.scheduleVersionSave();
+      this.activeLineIndex = this.getCaretLineIndex(this.padEditor.nativeElement);
 
       if (this.showFindReplace && this.searchTerm) {
         this.updateFindMatches();
@@ -1075,6 +1130,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   onPadSelect() {
     const sel = window.getSelection();
     this.selectedPadText = sel ? sel.toString() : "";
+    if (this.padEditor) {
+      this.activeLineIndex = this.getCaretLineIndex(this.padEditor.nativeElement);
+    }
   }
 
 
@@ -1146,7 +1204,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     if (
-      this.matchShortcut(event, 'notepad.dup_line') || 
+      this.matchShortcut(event, 'notepad.dup_line') ||
       (event.altKey && event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown'))
     ) {
       event.preventDefault();
@@ -1511,7 +1569,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   // ================= FIND & REPLACE LOGIC =================
-  
+
   toggleFindReplace() {
     this.showFindReplace = !this.showFindReplace;
     if (this.showFindReplace) {
@@ -1559,7 +1617,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     let textContent = '';
     const textNodes: { node: Node; start: number; end: number }[] = [];
-    
+
     // Walk DOM to build clean view-model text representations and track physical nodes
     const walk = (node: Node) => {
       if (node.nodeType === Node.TEXT_NODE && node.nodeValue) {
@@ -1585,11 +1643,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     this.findMatches = [];
     let match;
-    
+
     while ((match = regex.exec(textContent)) !== null) {
       const matchStart = match.index;
       const matchEnd = match.index + match[0].length;
-      
+
       let startNode: Node | null = null, startOff = 0;
       let endNode: Node | null = null, endOff = 0;
 
@@ -1630,7 +1688,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         win.CSS.highlights.delete("search-results");
         win.CSS.highlights.delete("search-active");
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   applyHighlights() {
@@ -1674,7 +1732,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       const rect = activeRange.getBoundingClientRect();
       const editor = this.padEditor.nativeElement;
       const editorRect = editor.getBoundingClientRect();
-      
+
       // Calculate active scroll constraints dynamically
       if (rect.top < editorRect.top || rect.bottom > editorRect.bottom) {
         editor.scrollTop += rect.top - editorRect.top - (editorRect.height / 2);
@@ -1688,30 +1746,30 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (match && match.range) {
       match.range.deleteContents();
       match.range.insertNode(document.createTextNode(this.replaceTerm));
-      
+
       this.syncEditorContent();
-      
+
       // Preserve current index to replace next match falling into place
       const oldIndex = this.currentFindIndex;
-      this.updateFindMatches(); 
+      this.updateFindMatches();
       if (this.findMatches.length > 0) {
-         this.currentFindIndex = Math.min(oldIndex, this.findMatches.length - 1);
-         this.applyHighlights();
-         this.scrollToMatch();
+        this.currentFindIndex = Math.min(oldIndex, this.findMatches.length - 1);
+        this.applyHighlights();
+        this.scrollToMatch();
       }
     }
   }
 
   replaceAllMatches() {
     if (this.findMatches.length === 0) return;
-    
+
     // Replace heavily from the back to preserve the DOM structure of earlier nodes
     for (let i = this.findMatches.length - 1; i >= 0; i--) {
       const match = this.findMatches[i];
       match.range.deleteContents();
       match.range.insertNode(document.createTextNode(this.replaceTerm));
     }
-    
+
     this.syncEditorContent();
     this.updateFindMatches();
   }
@@ -1720,12 +1778,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.padEditor) {
       this.padContent = this.padEditor.nativeElement.innerHTML;
       this.padText = this.padEditor.nativeElement.innerText || '';
-      
+
       // Mark as un-saved
       const pad = this.pads.find(p => p.id === this.activeTabId);
       if (pad) pad.isDirty = true;
       if (this.activePad) this.activePad.isDirty = true;
-      
+
       this.onPadContentChange();
     }
   }
@@ -1982,7 +2040,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
             s.currentKeyStr = parsed[s.id];
           }
         });
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 
@@ -2004,9 +2062,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     const needsShift = parts.includes('shift');
     const needsAlt = parts.includes('alt');
     const needsMeta = parts.includes('meta') || parts.includes('cmd');
-    
+
     const keyPart = parts.find(p => !['ctrl', 'shift', 'alt', 'meta', 'control', 'cmd'].includes(p));
-    
+
     if (event.ctrlKey !== needsCtrl) return false;
     if (event.shiftKey !== needsShift) return false;
     if (event.altKey !== needsAlt) return false;
@@ -2021,7 +2079,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (keyPart === 'esc' && eventKey === 'escape') return true;
     if (keyPart === 'up' && eventKey === 'arrowup') return true;
     if (keyPart === 'down' && eventKey === 'arrowdown') return true;
-    
+
     return eventKey === keyPart;
   }
 
@@ -2032,7 +2090,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   getShortcutsByCategory(cat: string): AppShortcut[] {
     const search = this.shortcutSearchTerm.toLowerCase();
-    return this.shortcuts.filter(s => s.category === cat && 
+    return this.shortcuts.filter(s => s.category === cat &&
       (s.label.toLowerCase().includes(search) || s.currentKeyStr.toLowerCase().includes(search)));
   }
 
@@ -2058,13 +2116,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     event.preventDefault();
     event.stopPropagation();
-    
+
     const key = event.key;
     if (key === 'Escape') {
       this.cancelEditShortcut();
       return;
     }
-    
+
     if (['Control', 'Shift', 'Alt', 'Meta'].includes(key)) {
       return;
     }
@@ -2074,12 +2132,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (event.altKey) parts.push('Alt');
     if (event.shiftKey) parts.push('Shift');
     if (event.metaKey) parts.push('Meta');
-    
+
     let keyName = key.length === 1 ? key.toUpperCase() : key;
     if (event.code === 'Space') keyName = 'Space';
     if (keyName === 'ArrowUp') keyName = 'Up';
     if (keyName === 'ArrowDown') keyName = 'Down';
-    
+
     parts.push(keyName);
     const newKeyStr = parts.join(' + ');
 
