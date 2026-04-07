@@ -806,6 +806,73 @@ fn backup_vault(app_handle: tauri::AppHandle, dest_path: String) -> Result<Strin
 }
 
 #[tauri::command]
+fn clear_all_version_history(state: State<'_, DbState>) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, _) = db_lock.as_ref().ok_or("Vault is locked")?;
+    conn.execute("DELETE FROM pad_versions", [])
+        .map_err(|e| e.to_string())?;
+    Ok("All version history cleared".to_string())
+}
+
+#[tauri::command]
+fn get_app_data_dir(app_handle: tauri::AppHandle) -> Result<String, String> {
+    let app_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    Ok(app_dir.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn export_all_pads(state: State<'_, DbState>, dest_dir: String) -> Result<String, String> {
+    let db_lock = state.0.lock().unwrap();
+    let (conn, key) = db_lock.as_ref().ok_or("Vault is locked")?;
+    let cipher = Aes256Gcm::new(key.into());
+
+    let mut stmt = conn
+        .prepare("SELECT title_nonce, title_ciphertext, content_nonce, content_ciphertext FROM secure_pads WHERE is_deleted = 0")
+        .map_err(|e| e.to_string())?;
+
+    let pad_iter = stmt
+        .query_map(params![], |row| {
+            let tn: Vec<u8> = row.get(0)?;
+            let tc: Vec<u8> = row.get(1)?;
+            let cn: Vec<u8> = row.get(2)?;
+            let cc: Vec<u8> = row.get(3)?;
+
+            let title_nonce = Nonce::from_slice(&tn);
+            let title_dec = cipher
+                .decrypt(title_nonce, tc.as_ref())
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+            let title = String::from_utf8(title_dec).map_err(|_| rusqlite::Error::InvalidQuery)?;
+
+            let content_nonce = Nonce::from_slice(&cn);
+            let content_dec = cipher
+                .decrypt(content_nonce, cc.as_ref())
+                .map_err(|_| rusqlite::Error::InvalidQuery)?;
+            let content =
+                String::from_utf8(content_dec).map_err(|_| rusqlite::Error::InvalidQuery)?;
+
+            Ok((title, content))
+        })
+        .map_err(|e| e.to_string())?;
+
+    for pad_res in pad_iter {
+        let (title, content) = pad_res.map_err(|e| e.to_string())?;
+        let safe_title = title
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-' || *c == '_')
+            .collect::<String>();
+        let filename = if safe_title.is_empty() {
+            "Untitled.txt".to_string()
+        } else {
+            format!("{}.txt", safe_title)
+        };
+        let path = std::path::Path::new(&dest_dir).join(filename);
+        std::fs::write(path, content).map_err(|e| e.to_string())?;
+    }
+
+    Ok("Exported all pads".to_string())
+}
+
+#[tauri::command]
 async fn change_password(
     old_password: String,
     new_password: String,
@@ -1262,6 +1329,7 @@ fn main() {
         ))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -1302,7 +1370,10 @@ fn main() {
             update_version_label,
             set_minimize_to_tray,
             backup_vault,
-            change_password
+            change_password,
+            clear_all_version_history,
+            get_app_data_dir,
+            export_all_pads
         ])
         .setup(|app| {
             let ctrl_shift_n =

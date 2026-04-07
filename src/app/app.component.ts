@@ -44,6 +44,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   private padEditorNeedsFocus = false;
   private padEditorNeedsContent = false;
   isConfirmingPadCloseId: number | null = null;
+  isConfirmingClearVersions = false;
+  appDataDirPath = '';
 
 
   // Notepad state
@@ -278,6 +280,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.showSettings = !this.showSettings;
     if (this.showSettings) {
       this.showVersionHistory = false;
+      this.isConfirmingClearVersions = false;
     }
   }
 
@@ -502,6 +505,61 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   togglePersistentSession() {
     this.persistentSessionEnabled = !this.persistentSessionEnabled;
     localStorage.setItem('persistentSession', String(this.persistentSessionEnabled));
+  }
+
+  // --- Data Management Methods ---
+  async loadAppDataPath() {
+    try {
+      this.appDataDirPath = await this.tauri.getAppDataDir();
+    } catch (e) {
+      console.error("Failed to load app data path:", e);
+    }
+  }
+
+  async clearAllVersionHistory() {
+    if (!this.isConfirmingClearVersions) {
+      this.isConfirmingClearVersions = true;
+      return;
+    }
+    
+    try {
+      await this.tauri.clearAllVersionHistory();
+      this.isConfirmingClearVersions = false;
+      this.showSettings = false; // Close settings to show it worked? Or just stay?
+      // Reload versions if open
+      if (this.showVersionHistory && this.activeTabId) {
+        this.loadVersions(this.activeTabId);
+      }
+    } catch (e) {
+      console.error("Failed to clear version history:", e);
+    }
+  }
+
+  async startBulkExport() {
+    try {
+      const selected = await this.tauri.openDialog({
+        directory: true,
+        multiple: false,
+        title: 'Select Destination for Export'
+      });
+      
+      if (selected && typeof selected === 'string') {
+        const res = await this.tauri.exportAllPads(selected);
+        alert(res); // Simple feedback
+      }
+    } catch (e) {
+      console.error("Bulk export failed:", e);
+    }
+  }
+
+  async openAppDataDir() {
+    if (this.appDataDirPath) {
+      try {
+        await this.tauri.openPath(this.appDataDirPath);
+      } catch (e) {
+        console.error("Failed to open app data dir:", e);
+      }
+    }
   }
 
 

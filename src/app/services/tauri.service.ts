@@ -113,6 +113,22 @@ export class TauriService {
     await invoke("change_password", { old_password: oldPassword, new_password: newPassword });
   }
 
+  async clearAllVersionHistory(): Promise<string> {
+    return await invoke<string>("clear_all_version_history");
+  }
+
+  async getAppDataDir(): Promise<string> {
+    return await invoke<string>("get_app_data_dir");
+  }
+
+  async exportAllPads(destDir: string): Promise<string> {
+    return await invoke<string>("export_all_pads", { dest_dir: destDir });
+  }
+
+  async openPath(path: string): Promise<void> {
+    await invoke("plugin:opener|open", { path });
+  }
+
   // --- Window Operations ---
   async minimizeWindow(): Promise<void> {
     await getCurrentWindow().minimize();
