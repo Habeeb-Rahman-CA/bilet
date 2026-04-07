@@ -165,9 +165,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   animationSpeed = (localStorage.getItem('animationSpeed') as 'none' | 'reduced' | 'normal') || 'normal';
   activeLineIndex = 0;
   private currentCaretLine = 0;
-
-  // Idle Detection
-  private idleTimeout = 10 * 60 * 1000; // 10 minutes
+  persistentSessionEnabled = localStorage.getItem('persistentSession') === 'true';
+  autoLockEnabled = localStorage.getItem('autoLock') === 'true';
+  idleMinutes = Number(localStorage.getItem('idleMinutes')) || 10;
   private lastActivity = Date.now();
   private idleCheckInterval: any;
 
@@ -481,10 +481,29 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-
-  triggerSearchFocus() {
-    this.searchNeedsFocus = true;
+  toggleAutoLock() {
+    this.autoLockEnabled = !this.autoLockEnabled;
+    localStorage.setItem('autoLock', String(this.autoLockEnabled));
+    if (this.autoLockEnabled) {
+      this.startIdleDetection();
+    } else if (this.idleCheckInterval) {
+      clearInterval(this.idleCheckInterval);
+    }
   }
+
+  updateIdleMinutes(val: any) {
+    this.idleMinutes = Number(val);
+    localStorage.setItem('idleMinutes', String(this.idleMinutes));
+    if (this.autoLockEnabled) {
+      this.startIdleDetection();
+    }
+  }
+
+  togglePersistentSession() {
+    this.persistentSessionEnabled = !this.persistentSessionEnabled;
+    localStorage.setItem('persistentSession', String(this.persistentSessionEnabled));
+  }
+
 
   triggerPadEditorFocus() {
     this.padEditorNeedsFocus = true;
@@ -799,29 +818,31 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   startIdleDetection() {
-    // Disabled as per user request to never ask for password again after first setup.
-    /*
     if (this.idleCheckInterval) clearInterval(this.idleCheckInterval);
+    if (!this.autoLockEnabled) return;
+
     this.idleCheckInterval = setInterval(() => {
       if (this.authStatus === "Unlocked") {
         const now = Date.now();
-        if (now - this.lastActivity > this.idleTimeout) {
+        const timeoutMs = this.idleMinutes * 60 * 1000;
+        if (now - this.lastActivity > timeoutMs) {
           this.lockVault();
         }
       }
     }, 10000);
-    */
   }
 
   async unlockVault() {
     if (!this.password.trim()) return;
     try {
       this.errorMessage = "";
-      await this.tauri.unlockVault(this.password);
+      await this.tauri.unlockVault(this.password, this.persistentSessionEnabled);
       this.authStatus = "Unlocked";
       this.password = "";
-      this.lastActivity = Date.now();
-      this.startIdleDetection();
+      this.resetIdleTimer();
+      if (this.autoLockEnabled) {
+        this.startIdleDetection();
+      }
       await this.loadPads();
       this.loadSession();
       this.triggerPadEditorFocus();
@@ -831,7 +852,52 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   async lockVault() {
-    // Manual locking is disabled as per user request to 'never ask again'.
+    try {
+      await this.tauri.lockVault();
+      this.authStatus = "Locked";
+      this.pads = [];
+      this.activeTabId = null;
+      this.activePad = null;
+      this.padContent = "";
+      this.showSettings = false;
+      this.showBin = false;
+      this.showHelp = false;
+    } catch (e) {
+      console.error("Lock failed:", e);
+    }
+  }
+
+  // Backup & Password
+  oldPasswordInput = "";
+  newPasswordInput = "";
+  confirmPasswordInput = "";
+  isChangingPassword = false;
+
+  async startBackup() {
+    try {
+      const dest = await this.tauri.saveDialog({
+        defaultPath: "bilet_backup.db",
+        filters: [{ name: "Bilet Database", extensions: ["db"] }]
+      });
+      if (dest) {
+        await this.tauri.backupVault(dest);
+      }
+    } catch (err) {
+      console.error("Backup failed:", err);
+    }
+  }
+
+  async performChangePassword() {
+    if (!this.oldPasswordInput || !this.newPasswordInput || this.newPasswordInput !== this.confirmPasswordInput) return;
+    try {
+      await this.tauri.changePassword(this.oldPasswordInput, this.newPasswordInput);
+      this.isChangingPassword = false;
+      this.oldPasswordInput = "";
+      this.newPasswordInput = "";
+      this.confirmPasswordInput = "";
+    } catch (err: any) {
+      alert("Failed to change password: " + err);
+    }
   }
 
   formatDate(dateStr: string): string {

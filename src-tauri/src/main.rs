@@ -2,7 +2,7 @@
 
 use aes_gcm::{
     aead::{Aead, KeyInit},
-    Aes256Gcm, Nonce,
+    Aes256Gcm, Key, Nonce,
 };
 use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
@@ -314,15 +314,17 @@ async fn unlock_db_internal(
 #[tauri::command]
 async fn unlock_db(
     password: String,
+    persist: bool,
     state: State<'_, DbState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     let res = unlock_db_internal(password.clone(), state, app_handle.clone()).await?;
 
-    // On successful manual unlock, save it for future auto-unlock
-    let app_dir = app_handle.path().app_data_dir().unwrap();
-    let persistent_path = app_dir.join("vault_persistent.txt");
-    let _ = fs::write(persistent_path, password);
+    if persist {
+        let app_dir = app_handle.path().app_data_dir().unwrap();
+        let persistent_path = app_dir.join("vault_persistent.txt");
+        let _ = fs::write(persistent_path, password);
+    }
 
     Ok(res)
 }
@@ -780,7 +782,7 @@ fn lock_vault(state: State<'_, DbState>, app_handle: tauri::AppHandle) -> Result
     let mut db_lock = state.0.lock().unwrap();
     *db_lock = None;
 
-    // Delete persistent password on manual lock
+    // Manual lock always deletes persistence for security
     let app_dir = app_handle.path().app_data_dir().unwrap();
     let persistent_path = app_dir.join("vault_persistent.txt");
     if persistent_path.exists() {
@@ -788,6 +790,161 @@ fn lock_vault(state: State<'_, DbState>, app_handle: tauri::AppHandle) -> Result
     }
 
     Ok("Locked".to_string())
+}
+
+#[tauri::command]
+fn backup_vault(app_handle: tauri::AppHandle, dest_path: String) -> Result<String, String> {
+    let app_dir = app_handle.path().app_data_dir().unwrap();
+    let db_path = app_dir.join("notes_encrypted.db");
+
+    if !db_path.exists() {
+        return Err("Database file not found".to_string());
+    }
+
+    fs::copy(db_path, dest_path).map_err(|e| format!("Backup failed: {}", e))?;
+    Ok("Backup successful".to_string())
+}
+
+#[tauri::command]
+async fn change_password(
+    old_password: String,
+    new_password: String,
+    state: State<'_, DbState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    // 1. Verify old password
+    {
+        let app_dir = app_handle.path().app_data_dir().unwrap();
+        let master_path = app_dir.join("vault_master.txt");
+        let stored_hash = fs::read_to_string(&master_path).map_err(|e| e.to_string())?;
+        let parsed_hash = PasswordHash::new(&stored_hash).map_err(|e| e.to_string())?;
+        let argon2 = Argon2::default();
+        argon2
+            .verify_password(old_password.as_bytes(), &parsed_hash)
+            .map_err(|_| "Incorrect old password".to_string())?;
+    }
+
+    // 2. Fetch all data from DB
+    let (mut all_notes, mut all_pads, mut all_versions) = {
+        let db_lock = state.0.lock().unwrap();
+        let (conn, key) = db_lock.as_ref().ok_or("Vault is locked")?;
+        let cipher = Aes256Gcm::new(key.into());
+
+        // Helper to decrypt
+        let decrypt = |nonce_bytes: Vec<u8>, ciphertext: Vec<u8>| -> Result<String, String> {
+            let nonce = Nonce::from_slice(&nonce_bytes);
+            let dec = cipher
+                .decrypt(nonce, ciphertext.as_ref())
+                .map_err(|_| "Decryption error")?;
+            String::from_utf8(dec).map_err(|_| "UTF8 error".to_string())
+        };
+
+        let mut notes = Vec::new();
+        let mut stmt = conn.prepare("SELECT id, nonce, ciphertext FROM secure_notes").map_err(|e| e.to_string())?;
+        let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            notes.push((
+                row.get::<_, i64>(0).map_err(|e| e.to_string())?,
+                decrypt(
+                    row.get::<_, Vec<u8>>(1).map_err(|e| e.to_string())?,
+                    row.get::<_, Vec<u8>>(2).map_err(|e| e.to_string())?,
+                )?,
+            ));
+        }
+
+        let mut pads = Vec::new();
+        let mut stmt = conn.prepare("SELECT id, title_nonce, title_ciphertext, content_nonce, content_ciphertext FROM secure_pads").map_err(|e| e.to_string())?;
+        let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            pads.push((
+                row.get::<_, i64>(0).map_err(|e| e.to_string())?,
+                decrypt(
+                    row.get::<_, Vec<u8>>(1).map_err(|e| e.to_string())?,
+                    row.get::<_, Vec<u8>>(2).map_err(|e| e.to_string())?,
+                )?,
+                decrypt(
+                    row.get::<_, Vec<u8>>(3).map_err(|e| e.to_string())?,
+                    row.get::<_, Vec<u8>>(4).map_err(|e| e.to_string())?,
+                )?,
+            ));
+        }
+
+        let mut versions = Vec::new();
+        let mut stmt = conn.prepare("SELECT id, content_nonce, content_ciphertext FROM pad_versions").map_err(|e| e.to_string())?;
+        let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            versions.push((
+                row.get::<_, i64>(0).map_err(|e| e.to_string())?,
+                decrypt(
+                    row.get::<_, Vec<u8>>(1).map_err(|e| e.to_string())?,
+                    row.get::<_, Vec<u8>>(2).map_err(|e| e.to_string())?,
+                )?,
+            ));
+        }
+
+        (notes, pads, versions)
+    };
+
+    // 3. Re-encrypt with new key
+    let new_key = derive_key(&new_password, "fixed-derivation-salt-123")?;
+    let new_cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&new_key));
+
+    let encrypt = |content: String| -> Result<(Vec<u8>, Vec<u8>), String> {
+        let mut nonce_bytes = [0u8; 12];
+        OsRng.fill_bytes(&mut nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes);
+        let ct = new_cipher
+            .encrypt(nonce, content.as_bytes())
+            .map_err(|e| format!("Encryption failed: {}", e))?;
+        Ok((nonce_bytes.to_vec(), ct))
+    };
+
+    // 4. Perform atomic update in DB
+    {
+        let mut db_lock = state.0.lock().unwrap();
+        let (conn, _) = db_lock.as_mut().ok_or("Vault is locked")?;
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+        for (id, content) in all_notes {
+            let (n, ct) = encrypt(content)?;
+            tx.execute("UPDATE secure_notes SET nonce = ?1, ciphertext = ?2 WHERE id = ?3", params![n, ct, id]).map_err(|e| e.to_string())?;
+        }
+
+        for (id, title, content) in all_pads {
+            let (tn, tct) = encrypt(title)?;
+            let (cn, cct) = encrypt(content)?;
+            tx.execute("UPDATE secure_pads SET title_nonce = ?1, title_ciphertext = ?2, content_nonce = ?3, content_ciphertext = ?4 WHERE id = ?5", params![tn, tct, cn, cct, id]).map_err(|e| e.to_string())?;
+        }
+
+        for (id, content) in all_versions {
+            let (n, ct) = encrypt(content)?;
+            tx.execute("UPDATE pad_versions SET content_nonce = ?1, content_ciphertext = ?2 WHERE id = ?3", params![n, ct, id]).map_err(|e| e.to_string())?;
+        }
+
+        tx.commit().map_err(|e| e.to_string())?;
+
+        // 5. Update master hash
+        let app_dir = app_handle.path().app_data_dir().unwrap();
+        let master_path = app_dir.join("vault_master.txt");
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = Argon2::default()
+            .hash_password(new_password.as_bytes(), &salt)
+            .map_err(|e| e.to_string())?
+            .to_string();
+        fs::write(&master_path, password_hash).map_err(|e| e.to_string())?;
+
+        // 6. Update state key
+        let (actual_conn, actual_key) = db_lock.as_mut().unwrap();
+        *actual_key = new_key;
+
+        // 7. Update vault_persistent if it exists
+        let persistent_path = app_dir.join("vault_persistent.txt");
+        if persistent_path.exists() {
+            let _ = fs::write(persistent_path, new_password);
+        }
+    }
+
+    Ok("Password changed successfully".to_string())
 }
 
 #[tauri::command]
@@ -1143,7 +1300,9 @@ fn main() {
             get_pad_versions,
             delete_pad_version,
             update_version_label,
-            set_minimize_to_tray
+            set_minimize_to_tray,
+            backup_vault,
+            change_password
         ])
         .setup(|app| {
             let ctrl_shift_n =

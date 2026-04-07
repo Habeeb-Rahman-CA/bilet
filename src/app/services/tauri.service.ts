@@ -16,8 +16,12 @@ export class TauriService {
     return await invoke<AuthStatus>("check_auth_status");
   }
 
-  async unlockVault(password: string): Promise<void> {
-    await invoke("unlock_db", { password });
+  async unlockVault(password: string, persist: boolean = false): Promise<void> {
+    await invoke("unlock_db", { password, persist });
+  }
+
+  async lockVault(): Promise<void> {
+    await invoke("lock_vault");
   }
 
   // --- Pad Commands ---
@@ -99,6 +103,14 @@ export class TauriService {
 
   async deleteCustomFont(name: string): Promise<void> {
     await invoke('delete_custom_font', { name });
+  }
+
+  async backupVault(destPath: string): Promise<void> {
+    await invoke("backup_vault", { dest_path: destPath });
+  }
+
+  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    await invoke("change_password", { old_password: oldPassword, new_password: newPassword });
   }
 
   // --- Window Operations ---
