@@ -892,7 +892,7 @@ async fn change_password(
     }
 
     // 2. Fetch all data from DB
-    let (mut all_notes, mut all_pads, mut all_versions) = {
+    let (all_notes, all_pads, all_versions) = {
         let db_lock = state.0.lock().unwrap();
         let (conn, key) = db_lock.as_ref().ok_or("Vault is locked")?;
         let cipher = Aes256Gcm::new(key.into());
@@ -1001,7 +1001,7 @@ async fn change_password(
         fs::write(&master_path, password_hash).map_err(|e| e.to_string())?;
 
         // 6. Update state key
-        let (actual_conn, actual_key) = db_lock.as_mut().unwrap();
+        let (_, actual_key) = db_lock.as_mut().unwrap();
         *actual_key = new_key;
 
         // 7. Update vault_persistent if it exists

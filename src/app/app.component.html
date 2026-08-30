@@ -6,13 +6,13 @@
   </div>
 </div>
 
-<div class="titlebar">
+<div class="titlebar" data-tauri-drag-region (mousedown)="startWindowDrag($event)">
   <div class="window-controls">
     <button class="control close" (click)="close()"></button>
     <button class="control minimize" (click)="minimize()"></button>
     <button class="control maximize" (click)="maximize()"></button>
   </div>
-  <div class="title-text">bilet</div>
+  <div class="title-text" data-tauri-drag-region>bilet</div>
   <div class="header-actions">
     <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="showBin = true; loadBinItems()" title="Bin">
       <svg viewBox="0 0 24 24" fill="currentColor">
@@ -107,7 +107,6 @@
       <button class="fr-btn" (click)="prevMatch()" title="Previous Match"
         [disabled]="findMatches.length === 0">↑</button>
       <button class="fr-btn" (click)="nextMatch()" title="Next Match" [disabled]="findMatches.length === 0">↓</button>
-      <button class="fr-btn close-btn" (click)="closeFindReplace()" title="Close">×</button>
     </div>
     <div class="replace-row">
       <div class="fr-input-wrapper">
@@ -151,12 +150,6 @@
           </svg>
           <span>Version History</span>
         </div>
-        <button class="version-close-btn" (click)="closeVersionHistory()" title="Close (Esc)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
       </div>
 
 
@@ -224,12 +217,6 @@
           </svg>
           <span>Settings</span>
         </div>
-        <button class="version-close-btn" (click)="showSettings = false" title="Close (Esc)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
       </div>
 
       <div class="settings-list">
@@ -255,44 +242,15 @@
               <input type="range" min="10" max="24" [(ngModel)]="fontSize" (input)="updateFontSize($any($event.target).value)" class="settings-slider">
             </div>
           </div>
-          <div class="settings-item no-click">
-            <div class="settings-item-label">Line Height</div>
-            <div class="settings-item-action">
-              <span class="settings-value">{{ lineHeight }}</span>
-              <input type="range" min="1.2" max="2.5" step="0.1" [(ngModel)]="lineHeight" (input)="updateLineHeight($any($event.target).value)" class="settings-slider">
-            </div>
-          </div>
-          <div class="settings-item no-click">
-            <div class="settings-item-label">Accent Color</div>
-            <div class="settings-item-action">
-              <input type="color" [(ngModel)]="accentColor" (change)="updateAccentColor(accentColor)" class="settings-color-picker">
-            </div>
-          </div>
-          <div class="settings-item no-click">
-            <div class="settings-item-label">Ani. Speed</div>
-            <div class="settings-item-action">
-              <select class="settings-select" [(ngModel)]="animationSpeed" (change)="updateAnimationSpeed(animationSpeed)">
-                <option value="none">None</option>
-                <option value="reduced">Reduced</option>
-                <option value="normal">Normal</option>
-              </select>
-            </div>
-          </div>
         </div>
 
         <!-- Editor -->
         <div class="settings-section">
           <div class="settings-section-title">Editor</div>
-          <div class="settings-item" (click)="toggleStatusBar()">
-            <div class="settings-item-label">Status Bar</div>
+          <div class="settings-item" (click)="toggleWordWrap()">
+            <div class="settings-item-label">Word Wrap</div>
             <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="showStatusBar"></div>
-            </div>
-          </div>
-          <div class="settings-item" (click)="toggleSkipSplash()">
-            <div class="settings-item-label">Skip Splash</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="skipSplashScreen"></div>
+              <div class="toggle-switch" [class.on]="wordWrap"></div>
             </div>
           </div>
           <div class="settings-item" (click)="toggleSpellCheck()">
@@ -301,34 +259,10 @@
               <div class="toggle-switch" [class.on]="spellCheckEnabled"></div>
             </div>
           </div>
-          <div class="settings-item" (click)="toggleWordWrap()">
-            <div class="settings-item-label">Word Wrap</div>
+          <div class="settings-item" (click)="toggleStatusBar()">
+            <div class="settings-item-label">Status Bar</div>
             <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="wordWrap"></div>
-            </div>
-          </div>
-          <div class="settings-item no-click">
-            <div class="settings-item-label">Auto-Save Delay</div>
-            <div class="settings-item-action">
-              <span class="settings-value">{{autoSaveDelay}}ms</span>
-              <input type="range" class="settings-slider" [(ngModel)]="autoSaveDelay" min="500" max="5000" step="100" (input)="updateAutoSaveDelay($any($event.target).value)">
-            </div>
-          </div>
-          <div class="settings-item no-click">
-            <div class="settings-item-label">Ver. Retention</div>
-            <div class="settings-item-action">
-              <select class="settings-select" [(ngModel)]="versionRetention" (change)="updateVersionRetention($any($event.target).value)">
-                <option [ngValue]="20">20 vers.</option>
-                <option [ngValue]="50">50 vers.</option>
-                <option [ngValue]="100">100 vers.</option>
-              </select>
-            </div>
-          </div>
-          <div class="settings-item no-click">
-            <div class="settings-item-label">Ver. Save Int.</div>
-            <div class="settings-item-action">
-              <span class="settings-value">{{(versionAutoSaveInterval / 1000).toFixed(1)}}s</span>
-              <input type="range" class="settings-slider" [(ngModel)]="versionAutoSaveInterval" min="500" max="10000" step="500" (input)="updateVersionAutoSaveInterval($any($event.target).value)">
+              <div class="toggle-switch" [class.on]="showStatusBar"></div>
             </div>
           </div>
         </div>
@@ -356,9 +290,9 @@
           </div>
         </div>
 
-        <!-- Security -->
+        <!-- Security & Data -->
         <div class="settings-section">
-          <div class="settings-section-title">Security</div>
+          <div class="settings-section-title">Security & Data</div>
           <div class="settings-item" (click)="toggleAutoLock()">
             <div class="settings-item-label">Auto-Lock on Idle</div>
             <div class="settings-item-action">
@@ -373,54 +307,16 @@
                      class="settings-slider">
             </div>
           </div>
-          <div class="settings-item" (click)="togglePersistentSession()">
-            <div class="settings-item-label">Persistent Session</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="persistentSessionEnabled"></div>
-            </div>
-          </div>
           <div class="settings-item" (click)="isChangingPassword = true">
             <div class="settings-item-label">Change Master Password</div>
             <div class="settings-item-action">
               <button class="settings-button">Change</button>
             </div>
           </div>
-          <div class="settings-item" (click)="startBackup()">
-            <div class="settings-item-label">Export / Backup Vault</div>
-            <div class="settings-item-action">
-              <button class="settings-button">Export</button>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Data -->
-        <div class="settings-section">
-          <div class="settings-section-title">Data</div>
-          <div class="settings-item" (click)="clearAllVersionHistory()">
-            <div class="settings-item-label">Clear All Version History</div>
-            <div class="settings-item-action">
-              <button class="settings-button" [class.primary]="isConfirmingClearVersions">
-                {{ isConfirmingClearVersions ? 'Confirm?' : 'Clear' }}
-              </button>
-            </div>
-          </div>
-          <div class="settings-item" (click)="isConfirmingClearAll = true; showSettings = false; showBin = true; loadBinItems()">
-            <div class="settings-item-label">Clear Bin / Trash</div>
-            <div class="settings-item-action">
-              <button class="settings-button">Clear Now</button>
-            </div>
-          </div>
           <div class="settings-item" (click)="startBulkExport()">
-            <div class="settings-item-label">Bulk Export All Pads</div>
+            <div class="settings-item-label">Export All Notes</div>
             <div class="settings-item-action">
               <button class="settings-button">Export</button>
-            </div>
-          </div>
-          <div class="settings-item no-click">
-            <div class="settings-item-label">App Data Location</div>
-            <div class="settings-item-action" style="flex-direction: column; align-items: flex-end; gap: 4px;">
-              <span class="settings-value" style="font-size: 10px; opacity: 0.5; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" [title]="appDataDirPath">{{ appDataDirPath }}</span>
-              <button class="settings-button" (click)="openAppDataDir()">Open Folder</button>
             </div>
           </div>
         </div>
@@ -453,7 +349,6 @@
       <div class="diff-content" (click)="$event.stopPropagation()">
         <div class="diff-header">
           <h3>Changes (version → current)</h3>
-          <button class="diff-close" (click)="closeDiff()">×</button>
         </div>
         <div class="diff-body">
           <div *ngFor="let line of versionDiffLines" class="diff-line" [class.diff-same]="line.type === 'same'"
@@ -492,135 +387,207 @@
 <!-- Pad Close Confirmation Modal -->
 <div class="help-overlay save-prompt-overlay" *ngIf="isConfirmingPadCloseId"
   (click)="handlePadCloseModalAction('cancel')">
-  <div class="help-content prompt-content" (click)="$event.stopPropagation()" style="text-align: center;">
-    <h2 style="margin-top: 0; margin-bottom: 24px;">Unsaved Changes</h2>
-    <p style="margin-bottom: 24px; opacity: 0.8;">You have changes in this tab that haven't been saved to your local
-      computer yet.</p>
-    <div class="prompt-shortcuts">
-      <div class="prompt-shortcut-item"><span>Ctrl + D</span> Delete</div>
-      <div class="prompt-shortcut-item"><span>Ctrl + S</span> Save & Delete</div>
-      <div class="prompt-shortcut-item"><span>Esc</span> Close</div>
-    </div>
+  <div class="help-content prompt-content" (click)="$event.stopPropagation()">
+    <h2>Unsaved Changes</h2>
+    <p style="margin-bottom: 0;">You have changes in this tab that haven't been saved yet.</p>
   </div>
 </div>
 
 <!-- Help Modal -->
 <div class="help-overlay" *ngIf="showHelp" (click)="showHelp = false">
-  <div class="help-content" (click)="$event.stopPropagation()">
-    <div class="shortcuts-header"
-      style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-      <h2 style="margin: 0;">Keyboard Shortcuts</h2>
-      <button class="text-btn" (click)="resetAllShortcuts()"
-        style="padding: 4px 8px; font-size: 13px; cursor: pointer; border: none; background: transparent; color: var(--text-color); opacity: 0.7;">Reset
-        Defaults</button>
-    </div>
-
-    <div class="shortcuts-search" style="margin-bottom: 20px;">
-      <input class="shortcut-search-input" [(ngModel)]="shortcutSearchTerm" placeholder="Search shortcuts..."
-        style="width: 100%; padding: 4px 0px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-color); outline: none; box-sizing: border-box; font-family: inherit;" />
-    </div>
-
-    <div class="shortcut-list scrollable">
-      <div class="shortcut-group" *ngFor="let cat of shortcutCategories">
-        <div class="shortcut-group-title">{{ cat }}</div>
-        <ng-container *ngFor="let sc of getShortcutsByCategory(cat)">
-          <div class="shortcut-item editable-shortcut" [class.editing]="editingShortcutId === sc.id"
-            style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0;">
-            <span class="shortcut-label">{{ sc.label }}</span>
-            <div class="shortcut-editor"
-              style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
-              <span class="keys-display" *ngIf="editingShortcutId !== sc.id" (click)="startEditShortcut(sc)"
-                title="Click to edit"
-                style="cursor: pointer; padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace; transition: 0.2s;">{{
-                sc.currentKeyStr }}</span>
-
-              <input *ngIf="editingShortcutId === sc.id" type="text" readonly
-                [value]="capturedKeyString || 'Press keys...'" (keydown)="captureShortcut($event, sc)"
-                (blur)="cancelEditShortcut()"
-                style="width: 140px; text-align: center; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--accent-color); background: var(--bg-color); color: var(--text-color); font-family: monospace; outline: none; box-sizing: border-box;"
-                autofocus />
-            </div>
-          </div>
-        </ng-container>
+  <div class="help-content help-modal-content" (click)="$event.stopPropagation()">
+    <!-- Navigation Tabs Header -->
+    <div class="help-nav-header">
+      <div class="help-tabs">
+        <button class="help-tab-btn" [class.active]="activeHelpTab === 'guide'" (click)="activeHelpTab = 'guide'">
+          App Guide
+        </button>
+        <button class="help-tab-btn" [class.active]="activeHelpTab === 'shortcuts'" (click)="activeHelpTab = 'shortcuts'">
+          Keyboard Shortcuts
+        </button>
       </div>
 
-      <!-- Static Contextual Keys -->
-      <div class="shortcut-group" *ngIf="shortcutSearchTerm === ''">
-        <div class="shortcut-group-title">Other Contextual Navigation</div>
+      <div class="help-header-actions">
+        <button class="text-btn reset-shortcuts-btn" *ngIf="activeHelpTab === 'shortcuts'" (click)="resetAllShortcuts()">
+          Reset Defaults
+        </button>
+      </div>
+    </div>
 
-        <div class="shortcut-item editable-shortcut"
-          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
-          <span class="shortcut-label">Close Modals / Cancel</span>
-          <div class="shortcut-editor"
-            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
-            <span class="keys-display"
-              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">Esc</span>
+    <!-- TAB 1: Detailed App Guide -->
+    <div class="guide-container scrollable" *ngIf="activeHelpTab === 'guide'">
+      <div class="guide-section">
+        <div class="guide-section-header">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+          </svg>
+          <span>Notepad & Editor</span>
+        </div>
+        <div class="guide-card">
+          <div class="guide-feature">
+            <strong>Multi-Tab Workspace:</strong> Open and edit multiple notes simultaneously. Unsaved changes display a subtle status indicator on the tab.
+          </div>
+          <div class="guide-feature">
+            <strong>Line Gutter & Bookmarks:</strong> Click line numbers in the gutter to highlight and bookmark key lines.
+          </div>
+          <div class="guide-feature">
+            <strong>Search & Replace:</strong> Press <code>Ctrl + F</code> to trigger search with match counts, case sensitivity, and whole-word options.
+          </div>
+          <div class="guide-feature">
+            <strong>Live Status Bar:</strong> Track line and column numbers, total character counts, word counts, and live selection details.
           </div>
         </div>
+      </div>
 
-        <div class="shortcut-item editable-shortcut"
-          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
-          <span class="shortcut-label">Confirm Selection</span>
-          <div class="shortcut-editor"
-            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
-            <span class="keys-display"
-              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">Enter</span>
+      <div class="guide-section">
+        <div class="guide-section-header">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+            <path d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
+          </svg>
+          <span>Version History & Checkpoints</span>
+        </div>
+        <div class="guide-card">
+          <div class="guide-feature">
+            <strong>Automated Snapshots:</strong> Bilet continuously creates background snapshots as you write without interrupting your workflow.
+          </div>
+          <div class="guide-feature">
+            <strong>Custom Milestone Labels:</strong> Tag key version revisions with custom labels for easy timeline navigation.
+          </div>
+          <div class="guide-feature">
+            <strong>Restore & Diff:</strong> Open Version History to compare revisions side-by-side (Diff) or restore previous notes instantly.
           </div>
         </div>
+      </div>
 
-        <div class="shortcut-item editable-shortcut"
-          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
-          <span class="shortcut-label">Navigate Lists</span>
-          <div class="shortcut-editor"
-            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
-            <span class="keys-display"
-              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">↑ /
-              ↓</span>
+      <div class="guide-section">
+        <div class="guide-section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <span>Security & Vault Protection</span>
+        </div>
+        <div class="guide-card">
+          <div class="guide-feature">
+            <strong>Master Password Encryption:</strong> Your notes are protected with local master password AES encryption.
+          </div>
+          <div class="guide-feature">
+            <strong>Auto-Lock Timer:</strong> Configure an idle timeout in Settings to lock your vault automatically when away.
+          </div>
+          <div class="guide-feature">
+            <strong>Backup & Export:</strong> Export your vault content directly from Security settings for offline backups.
           </div>
         </div>
+      </div>
 
-        <div class="shortcut-item editable-shortcut"
-          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
-          <span class="shortcut-label">View Diff (Version History)</span>
-          <div class="shortcut-editor"
-            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
-            <span class="keys-display"
-              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">D</span>
+      <div class="guide-section">
+        <div class="guide-section-header">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+            <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+          </svg>
+          <span>History & Trash Recovery</span>
+        </div>
+        <div class="guide-card">
+          <div class="guide-feature">
+            <strong>Safe Deletion:</strong> Closed note tabs are archived in History/Trash rather than permanently deleted.
+          </div>
+          <div class="guide-feature">
+            <strong>Trash Inspection & Restore:</strong> Review deleted notes in History and restore them to your active workspace anytime.
           </div>
         </div>
+      </div>
 
-        <div class="shortcut-item editable-shortcut"
-          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
-          <span class="shortcut-label">Restore (Version History)</span>
-          <div class="shortcut-editor"
-            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
-            <span class="keys-display"
-              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">R</span>
+      <div class="guide-section">
+        <div class="guide-section-header">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.65 15.44,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.56,5.32 7.96,5.65 7.44,6.05L4.95,5.05C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.95C7.96,18.35 8.56,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.44,18.68 16.04,18.35 16.56,17.95L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+          </svg>
+          <span>Personalization & Fonts</span>
+        </div>
+        <div class="guide-card">
+          <div class="guide-feature">
+            <strong>Custom Font Upload:</strong> Import <code>.ttf</code> or <code>.otf</code> font files directly into Bilet.
+          </div>
+          <div class="guide-feature">
+            <strong>Theme & Typography:</strong> Toggle Light/Dark modes and adjust font sizes for comfortable viewing.
           </div>
         </div>
+      </div>
+    </div>
 
-        <div class="shortcut-item editable-shortcut"
-          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
-          <span class="shortcut-label">Clear Bin History</span>
-          <div class="shortcut-editor"
-            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
-            <span class="keys-display"
-              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">Ctrl
-              + Shift + C</span>
-          </div>
+    <!-- TAB 2: Keyboard Shortcuts -->
+    <div class="shortcuts-container" *ngIf="activeHelpTab === 'shortcuts'">
+      <div class="shortcuts-search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input class="shortcut-search-input" [(ngModel)]="shortcutSearchTerm" placeholder="Search shortcuts..." />
+        <button class="clear-search-btn" *ngIf="shortcutSearchTerm" (click)="shortcutSearchTerm = ''">×</button>
+      </div>
+
+      <div class="shortcut-list scrollable">
+        <div class="shortcut-group" *ngFor="let cat of shortcutCategories">
+          <div class="shortcut-group-title">{{ cat }}</div>
+          <ng-container *ngFor="let sc of getShortcutsByCategory(cat)">
+            <div class="shortcut-item editable-shortcut" [class.editing]="editingShortcutId === sc.id">
+              <span class="shortcut-label">{{ sc.label }}</span>
+              <div class="shortcut-editor">
+                <kbd class="keys-display" *ngIf="editingShortcutId !== sc.id" (click)="startEditShortcut(sc)">
+                  {{ sc.currentKeyStr }}
+                </kbd>
+                <input *ngIf="editingShortcutId === sc.id" type="text" readonly
+                  [value]="capturedKeyString || 'Press keys...'" (keydown)="captureShortcut($event, sc)"
+                  (blur)="cancelEditShortcut()" class="shortcut-rebind-input" autofocus />
+              </div>
+            </div>
+          </ng-container>
         </div>
 
-        <div class="shortcut-item editable-shortcut"
-          style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; cursor: default;">
-          <span class="shortcut-label">Restore Bin Item</span>
-          <div class="shortcut-editor"
-            style="display: flex; align-items: center; justify-content: flex-end; min-width: 120px;">
-            <span class="keys-display"
-              style="padding: 4px 8px; border-radius: 4px; background: var(--hover-color); font-family: monospace;">Ctrl
-              + R</span>
+        <!-- Static Contextual Keys -->
+        <div class="shortcut-group" *ngIf="shortcutSearchTerm === ''">
+          <div class="shortcut-group-title">Contextual & Navigation</div>
+
+          <div class="shortcut-item static-shortcut">
+            <span class="shortcut-label">Switch Help Tabs</span>
+            <div class="shortcut-editor"><kbd class="keys-display">Tab</kbd></div>
+          </div>
+
+          <div class="shortcut-item static-shortcut">
+            <span class="shortcut-label">Close Modals / Cancel</span>
+            <div class="shortcut-editor"><kbd class="keys-display">Esc</kbd></div>
+          </div>
+
+          <div class="shortcut-item static-shortcut">
+            <span class="shortcut-label">Confirm Selection</span>
+            <div class="shortcut-editor"><kbd class="keys-display">Enter</kbd></div>
+          </div>
+
+          <div class="shortcut-item static-shortcut">
+            <span class="shortcut-label">Navigate Lists</span>
+            <div class="shortcut-editor"><kbd class="keys-display">↑ / ↓</kbd></div>
+          </div>
+
+          <div class="shortcut-item static-shortcut">
+            <span class="shortcut-label">View Diff (Version History)</span>
+            <div class="shortcut-editor"><kbd class="keys-display">D</kbd></div>
+          </div>
+
+          <div class="shortcut-item static-shortcut">
+            <span class="shortcut-label">Restore (Version History)</span>
+            <div class="shortcut-editor"><kbd class="keys-display">R</kbd></div>
+          </div>
+
+          <div class="shortcut-item static-shortcut">
+            <span class="shortcut-label">Clear Bin History</span>
+            <div class="shortcut-editor"><kbd class="keys-display">Ctrl + Shift + C</kbd></div>
+          </div>
+
+          <div class="shortcut-item static-shortcut">
+            <span class="shortcut-label">Restore Bin Item</span>
+            <div class="shortcut-editor"><kbd class="keys-display">Ctrl + R</kbd></div>
           </div>
         </div>
-
       </div>
     </div>
     <div class="modal-footer">
@@ -705,13 +672,12 @@
 <!-- Reset Shortcuts Confirmation Modal -->
 <div class="help-overlay save-prompt-overlay" *ngIf="isConfirmingResetShortcuts"
   (click)="isConfirmingResetShortcuts = false" style="z-index: 2000;">
-  <div class="help-content prompt-content" (click)="$event.stopPropagation()" style="text-align: center;">
-    <h2 style="margin-top: 0; margin-bottom: 24px;">Reset Defaults</h2>
-    <p style="margin-bottom: 24px; opacity: 0.8;">Are you sure you want to revert all customized shortcuts back to their
-      default configuration?</p>
-    <div class="prompt-shortcuts">
-      <div class="prompt-shortcut-item"><span>Enter</span> Confirm</div>
-      <div class="prompt-shortcut-item"><span>Esc</span> Cancel</div>
+  <div class="help-content prompt-content" (click)="$event.stopPropagation()">
+    <h2>Reset Defaults</h2>
+    <p>Are you sure you want to revert all customized shortcuts back to their default configuration?</p>
+    <div class="prompt-modal-buttons">
+      <button class="prompt-btn primary-btn" (click)="confirmResetAllShortcuts()">Reset</button>
+      <button class="prompt-btn secondary-btn" (click)="isConfirmingResetShortcuts = false">Cancel</button>
     </div>
   </div>
 </div>
@@ -719,11 +685,11 @@
 <!-- Shortcut Conflict Modal -->
 <div class="help-overlay save-prompt-overlay" *ngIf="shortcutConflictMessage" (click)="shortcutConflictMessage = null"
   style="z-index: 2100;">
-  <div class="help-content prompt-content" (click)="$event.stopPropagation()" style="text-align: center;">
-    <h2 style="margin-top: 0; margin-bottom: 24px;">Shortcut in Use</h2>
-    <p style="margin-bottom: 24px; opacity: 0.8;">{{ shortcutConflictMessage }}</p>
-    <div class="prompt-shortcuts">
-      <div class="prompt-shortcut-item"><span>Enter</span> Ok</div>
+  <div class="help-content prompt-content" (click)="$event.stopPropagation()">
+    <h2>Shortcut in Use</h2>
+    <p>{{ shortcutConflictMessage }}</p>
+    <div class="prompt-modal-buttons">
+      <button class="prompt-btn primary-btn" (click)="shortcutConflictMessage = null">OK</button>
     </div>
   </div>
 </div>

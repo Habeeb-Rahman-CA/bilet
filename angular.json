@@ -50,7 +50,9 @@
                   "minify": true,
                   "inlineCritical": false
                 },
-                "fonts": true
+                "fonts": {
+                  "inline": false
+                }
               }
             },
             "development": {

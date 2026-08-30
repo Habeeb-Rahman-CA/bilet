@@ -130,6 +130,10 @@ export class TauriService {
   }
 
   // --- Window Operations ---
+  async startDragging(): Promise<void> {
+    await getCurrentWindow().startDragging();
+  }
+
   async minimizeWindow(): Promise<void> {
     await getCurrentWindow().minimize();
   }

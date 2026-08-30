@@ -24,6 +24,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   constructor(private tauri: TauriService) { }
   autoStartEnabled = false;
   showHelp = false;
+  activeHelpTab: 'guide' | 'shortcuts' = 'guide';
   showBin = false;
   showSettings = false;
   showSplash = true;
@@ -107,7 +108,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   password = "";
   errorMessage = "";
   isDarkMode = false;
-  appVersion = "1.2.0";
+  appVersion = "1.3.1";
   isSticky = localStorage.getItem('isSticky') === 'true';
 
   async toggleStickyMode() {
@@ -165,6 +166,32 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   skipSplashScreen = localStorage.getItem('skipSplashScreen') === 'true';
   minimizeToTray = localStorage.getItem('minimizeToTray') !== 'false';
   animationSpeed = (localStorage.getItem('animationSpeed') as 'none' | 'reduced' | 'normal') || 'normal';
+  openCustomSelect: 'animationSpeed' | 'versionRetention' | null = null;
+
+  toggleCustomSelect(name: 'animationSpeed' | 'versionRetention', event?: MouseEvent) {
+    if (event) event.stopPropagation();
+    this.openCustomSelect = this.openCustomSelect === name ? null : name;
+  }
+
+  selectAnimationSpeed(val: 'none' | 'reduced' | 'normal') {
+    this.updateAnimationSpeed(val);
+    this.openCustomSelect = null;
+  }
+
+  selectVersionRetention(val: number) {
+    this.updateVersionRetention(val);
+    this.openCustomSelect = null;
+  }
+
+  getAnimationSpeedLabel(): string {
+    if (this.animationSpeed === 'none') return 'None';
+    if (this.animationSpeed === 'reduced') return 'Reduced';
+    return 'Normal';
+  }
+
+  getVersionRetentionLabel(): string {
+    return `${this.versionRetention} vers.`;
+  }
   activeLineIndex = 0;
   private currentCaretLine = 0;
   persistentSessionEnabled = localStorage.getItem('persistentSession') === 'true';
@@ -734,6 +761,17 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     }
 
+    // Help modal Tab key switching
+    if (this.showHelp) {
+      if (event.key === "Tab") {
+        if (!this.editingShortcutId) {
+          event.preventDefault();
+          this.activeHelpTab = this.activeHelpTab === 'guide' ? 'shortcuts' : 'guide';
+          return;
+        }
+      }
+    }
+
     // Toggle Help (Ctrl + H)
     if (this.matchShortcut(event, 'app.help')) {
       event.preventDefault();
@@ -812,6 +850,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     // Escape Handler
     if (event.key === "Escape") {
+      if (this.openCustomSelect) {
+        this.openCustomSelect = null;
+        event.preventDefault();
+        return;
+      }
       if (this.showVersionHistory) {
         this.closeVersionHistory();
         event.preventDefault();
@@ -866,6 +909,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         element.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
     }, 10);
+  }
+
+  @HostListener("window:click")
+  onWindowClick() {
+    this.openCustomSelect = null;
   }
 
   @HostListener("window:mousemove")
@@ -1560,6 +1608,15 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       await this.loadBinItems();
     } catch (err) {
       console.error(err);
+    }
+  }
+
+  startWindowDrag(event: MouseEvent) {
+    if (event.button === 0) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('button') && !target.closest('input') && !target.closest('.no-drag')) {
+        this.tauri.startDragging().catch(err => console.error("Dragging failed:", err));
+      }
     }
   }
 
