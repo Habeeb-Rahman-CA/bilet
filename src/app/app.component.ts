@@ -76,6 +76,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   padContent = "";
   padText = ""; // plain-text mirror, always in sync with padEditor.innerText
   lineNumbers: number[] = [1];
+  get exactLineHeight(): number {
+    const fs = this.fontSize || 13;
+    const lh = this.lineHeight || 1.7;
+    return Math.round(fs * lh);
+  }
   selectedPadText = ""; // currently selected text in the pad editor
   private autoSaveTimer: any = null;
 
@@ -220,6 +225,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   private lastActivity = Date.now();
   private idleCheckInterval: any;
 
+  // Typewriter & Focus Mode
+  isFocusMode = localStorage.getItem('isFocusMode') === 'true';
+  isFocusDimmed = false;
+  private focusIdleTimer: any = null;
+
   // Customizable Keyboard Shortcuts
   shortcuts: AppShortcut[] = [
     { id: 'app.search', label: 'Global Search', category: 'Global Navigation', defaultKeyStr: 'Ctrl + F', currentKeyStr: 'Ctrl + F' },
@@ -232,6 +242,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     { id: 'notepad.cycle_tabs', label: 'Cycle Tabs', category: 'Notepad', defaultKeyStr: 'Ctrl + Space', currentKeyStr: 'Ctrl + Space' },
     { id: 'notepad.delete_tab', label: 'Delete Tab', category: 'Notepad', defaultKeyStr: 'Ctrl + Shift + D', currentKeyStr: 'Ctrl + Shift + D' },
     { id: 'notepad.time_travel', label: 'Version History', category: 'Notepad', defaultKeyStr: 'Ctrl + T', currentKeyStr: 'Ctrl + T' },
+    { id: 'notepad.focus_mode', label: 'Typewriter Focus Mode', category: 'Notepad', defaultKeyStr: 'Ctrl + Shift + F', currentKeyStr: 'Ctrl + Shift + F' },
     { id: 'notepad.bold', label: 'Bold', category: 'Notepad', defaultKeyStr: 'Ctrl + B', currentKeyStr: 'Ctrl + B' },
     { id: 'notepad.italic', label: 'Italic', category: 'Notepad', defaultKeyStr: 'Ctrl + I', currentKeyStr: 'Ctrl + I' },
     { id: 'notepad.underline', label: 'Underline', category: 'Notepad', defaultKeyStr: 'Ctrl + U', currentKeyStr: 'Ctrl + U' },
@@ -461,6 +472,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.animationSpeed === 'none') transitionTime = '0s';
     if (this.animationSpeed === 'reduced') transitionTime = '0.1s';
     document.documentElement.style.setProperty("--transition-speed", transitionTime);
+    setTimeout(() => this.updateLineNumbers(), 0);
   }
 
   updateFontSize(size: any) {
@@ -633,6 +645,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.matchShortcut(event, 'notepad.time_travel')) {
       event.preventDefault();
       this.toggleVersionHistory();
+      return;
+    }
+
+    if (this.matchShortcut(event, 'notepad.focus_mode')) {
+      event.preventDefault();
+      this.toggleFocusMode();
       return;
     }
 
@@ -1357,6 +1375,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.scheduleVersionSave();
       this.activeLineIndex = this.getCaretLineIndex(this.padEditor.nativeElement);
 
+      if (this.isFocusMode) {
+        this.updateFocusModeDimming(true);
+        this.typewriterScroll();
+      }
+
       if (this.showFindReplace && this.searchTerm) {
         this.updateFindMatches();
       }
@@ -1368,6 +1391,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.selectedPadText = sel ? sel.toString() : "";
     if (this.padEditor) {
       this.activeLineIndex = this.getCaretLineIndex(this.padEditor.nativeElement);
+      if (this.isFocusMode) {
+        this.updateFocusModeDimming(true);
+        this.typewriterScroll();
+      }
     }
   }
 
@@ -1396,17 +1423,28 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   get padStats(): { w: number; c: number; l: number } {
-    const trimmed = this.padText ? this.padText.replace(/\n$/, '') : '';
-    const words = trimmed.trim() ? trimmed.trim().split(/\s+/).length : 0;
-    const chars = trimmed.length;
-    const lines = trimmed ? trimmed.split('\n').length : 1;
+    const trimmed = this.padText ? this.padText.trim() : '';
+    const words = trimmed ? trimmed.split(/\s+/).length : 0;
+    const chars = this.padText ? this.padText.length : 0;
+    const lines = this.lineNumbers.length;
     return { w: words, c: chars, l: lines };
   }
 
   updateLineNumbers() {
-    // Use padText (plain-text mirror of the editor) — consistent with padStats
-    const trimmed = this.padText ? this.padText.replace(/\n$/, '') : '';
-    const count = trimmed ? trimmed.split('\n').length : 1;
+    if (!this.padEditor) {
+      this.lineNumbers = [1];
+      return;
+    }
+
+    const editor = this.padEditor.nativeElement;
+    const text = editor.innerText || '';
+    const normalized = text.replace(/\r\n/g, '\n');
+
+    let count = 1;
+    if (normalized.length > 0) {
+      count = normalized.split('\n').length;
+    }
+    count = Math.max(1, count);
     this.lineNumbers = Array.from({ length: count }, (_, i) => i + 1);
   }
 
@@ -1457,6 +1495,19 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       const dir = (event.key === "ArrowUp" || event.key === "ArrowDown") ? event.key : "ArrowDown";
       this.moveLine(dir, editor);
       return;
+    }
+
+    if (this.isFocusMode && (
+      event.key.startsWith('Arrow') ||
+      event.key === 'PageUp' ||
+      event.key === 'PageDown' ||
+      event.key === 'Home' ||
+      event.key === 'End'
+    )) {
+      setTimeout(() => {
+        this.updateFocusModeDimming(true);
+        this.typewriterScroll();
+      }, 0);
     }
   }
 
@@ -1573,11 +1624,125 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  onEditorScroll(event: Event) {
-    const editor = event.target as HTMLElement;
-    const gutter = document.querySelector(".line-gutter") as HTMLElement;
-    if (gutter) {
-      gutter.scrollTop = editor.scrollTop;
+  onEditorScroll(_event: Event) {
+    // Editor scroll handler
+  }
+
+  @HostListener('window:resize')
+  onWindowResize() {
+    this.updateLineNumbers();
+    if (this.isFocusMode) {
+      this.typewriterScroll();
+    }
+  }
+
+  toggleFocusMode() {
+    this.isFocusMode = !this.isFocusMode;
+    localStorage.setItem('isFocusMode', String(this.isFocusMode));
+    if (this.isFocusMode) {
+      this.triggerPadEditorFocus();
+      setTimeout(() => {
+        if (this.padEditor) {
+          this.updateLineNumbers();
+          this.updateFocusModeDimming(true);
+          this.typewriterScroll();
+        }
+      }, 50);
+    } else {
+      this.isFocusDimmed = false;
+      if (this.padEditor) {
+        const prev = this.padEditor.nativeElement.querySelector('.active-focus-block');
+        if (prev) prev.classList.remove('active-focus-block');
+        this.updateLineNumbers();
+      }
+    }
+  }
+
+  @HostListener('window:mousemove')
+  onWindowMouseMove() {
+    if (this.isFocusMode && this.isFocusDimmed) {
+      this.isFocusDimmed = false;
+    }
+  }
+
+  private getCaretBlock(editor: HTMLElement): HTMLElement | null {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    let node: Node | null = sel.getRangeAt(0).startContainer;
+    while (node && node.parentElement !== editor && node !== editor) {
+      node = node.parentElement;
+    }
+    if (node && node.parentElement === editor && node.nodeType === Node.ELEMENT_NODE) {
+      return node as HTMLElement;
+    }
+    return null;
+  }
+
+  updateFocusModeDimming(isTyping: boolean) {
+    if (!this.isFocusMode || !this.padEditor) return;
+    const editor = this.padEditor.nativeElement;
+
+    if (!isTyping) {
+      this.isFocusDimmed = false;
+      return;
+    }
+
+    this.isFocusDimmed = true;
+
+    const prevActive = editor.querySelector('.active-focus-block');
+    const currBlock = this.getCaretBlock(editor);
+
+    if (prevActive && prevActive !== currBlock) {
+      prevActive.classList.remove('active-focus-block');
+    }
+    if (currBlock) {
+      currBlock.classList.add('active-focus-block');
+    }
+
+    if (this.focusIdleTimer) clearTimeout(this.focusIdleTimer);
+    this.focusIdleTimer = setTimeout(() => {
+      this.isFocusDimmed = false;
+    }, 2500);
+  }
+
+  typewriterScroll() {
+    if (!this.isFocusMode || !this.padEditor) return;
+    const editor = this.padEditor.nativeElement;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+
+    const range = sel.getRangeAt(0);
+    let caretTop = 0;
+    let caretHeight = 24;
+
+    const rects = range.getClientRects();
+    if (rects.length > 0) {
+      caretTop = rects[0].top;
+      caretHeight = rects[0].height;
+    } else {
+      const rect = range.getBoundingClientRect();
+      if (rect.top > 0) {
+        caretTop = rect.top;
+        caretHeight = rect.height;
+      } else {
+        const block = this.getCaretBlock(editor);
+        if (block) {
+          const bRect = block.getBoundingClientRect();
+          caretTop = bRect.top;
+          caretHeight = bRect.height;
+        } else {
+          return;
+        }
+      }
+    }
+
+    const editorRect = editor.getBoundingClientRect();
+    const targetCenterY = editorRect.top + editorRect.height / 2;
+    const currentCaretCenter = caretTop + caretHeight / 2;
+    const delta = currentCaretCenter - targetCenterY;
+
+    if (Math.abs(delta) > 3) {
+      editor.scrollTop += delta;
     }
   }
 

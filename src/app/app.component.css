@@ -1399,40 +1399,11 @@ button.primary:hover {
   opacity: 0.8;
 }
 
-/* Editor Area with Line Numbers */
+/* Editor Area */
 .editor-area {
   display: flex;
   flex-grow: 1;
   overflow: hidden;
-}
-
-.line-gutter {
-  width: 50px;
-  text-align: right;
-  padding: 18px 12px 160px 0;
-  /* Padding-top matches editor EXACTLY */
-  color: var(--text-color);
-  opacity: 0.15;
-  user-select: none;
-  flex-shrink: 0;
-  overflow-y: hidden;
-  font-family: var(--main-font, monospace);
-  transition: opacity 0.2s;
-  background: rgba(0, 0, 0, 0.05);
-  /* Pro gutter shade */
-  font-variant-numeric: tabular-nums;
-  border-right: 1px solid var(--border-color);
-}
-
-.gutter-line {
-  display: block;
-  font-size: var(--editor-font-size, 13px);
-  line-height: var(--editor-line-height-exact, 24px);
-  height: var(--editor-line-height-exact, 24px);
-  cursor: pointer;
-  padding-right: 2px;
-  transition: all 0.2s;
-  box-sizing: border-box;
 }
 
 .pad-content-editor {
@@ -1445,8 +1416,7 @@ button.primary:hover {
   font-family: var(--main-font, monospace);
   resize: none;
   line-height: var(--editor-line-height-exact, 24px);
-  padding: 18px 20px 40px 15px;
-  /* Shared padding-top */
+  padding: 18px 24px 40px 24px;
   overflow-y: auto;
   scrollbar-width: none;
   tab-size: 4;
@@ -1462,6 +1432,25 @@ button.primary:hover {
 .pad-content-editor::placeholder {
   color: var(--text-color);
   opacity: 0.15;
+}
+
+/* Focus Mode & Typewriter Scrolling */
+.pad-content-editor.focus-mode {
+  --focus-opacity: 0.25;
+  padding-top: calc(50vh - 48px);
+  padding-bottom: calc(50vh - 48px);
+}
+
+.pad-content-editor.focus-mode > * {
+  transition: opacity 0.25s ease;
+}
+
+.pad-content-editor.focus-mode.focus-dimmed > * {
+  opacity: var(--focus-opacity, 0.25);
+}
+
+.pad-content-editor.focus-mode.focus-dimmed > *.active-focus-block {
+  opacity: 1 !important;
 }
 
 /* Editor Empty State */

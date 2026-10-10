@@ -130,16 +130,10 @@
     </div>
   </div>
 
-  <!-- Editor with Line Numbers -->
+  <!-- Editor -->
   <div class="editor-wrapper" [class.history-open]="showVersionHistory" [class.settings-open]="showSettings">
     <div class="editor-area" *ngIf="activePad">
-      <div class="line-gutter">
-        <span *ngFor="let num of lineNumbers" class="gutter-line" [class.marked]="isLineMarked(num)"
-          (click)="toggleLineMark(num)">
-          {{ num }}
-        </span>
-      </div>
-      <div #padEditor class="pad-content-editor" contenteditable="true" (input)="onPadInput()"
+      <div #padEditor class="pad-content-editor" [class.focus-mode]="isFocusMode" [class.focus-dimmed]="isFocusDimmed" contenteditable="true" (input)="onPadInput()"
         (keydown)="handlePadKeyDown($event, padEditor)" (scroll)="onEditorScroll($event)" (mouseup)="onPadSelect()"
         (keyup)="onPadSelect()" (paste)="handlePadPaste($event)" placeholder="Start writing..."
         [attr.spellcheck]="spellCheckEnabled"></div>
@@ -273,6 +267,12 @@
         <!-- Editor -->
         <div class="settings-section">
           <div class="settings-section-title">Editor</div>
+          <div class="settings-item" (click)="toggleFocusMode()">
+            <div class="settings-item-label">Typewriter & Focus Mode</div>
+            <div class="settings-item-action">
+              <div class="toggle-switch" [class.on]="isFocusMode"></div>
+            </div>
+          </div>
           <div class="settings-item" (click)="toggleWordWrap()">
             <div class="settings-item-label">Word Wrap</div>
             <div class="settings-item-action">
@@ -483,7 +483,7 @@
             <strong>Multi-Tab Workspace:</strong> Open and edit multiple notes simultaneously. Unsaved changes display a subtle status indicator on the tab.
           </div>
           <div class="guide-feature">
-            <strong>Line Gutter & Bookmarks:</strong> Click line numbers in the gutter to highlight and bookmark key lines.
+            <strong>Typewriter & Focus Mode:</strong> Toggle with <code>Ctrl + Shift + F</code> to keep your active line centered and dim surrounding text while writing.
           </div>
           <div class="guide-feature">
             <strong>Search & Replace:</strong> Press <code>Ctrl + F</code> to trigger search with match counts, case sensitivity, and whole-word options.
