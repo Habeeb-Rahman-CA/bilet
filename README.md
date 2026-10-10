@@ -18,50 +18,41 @@
 
 ## Features
 
-### Tasks and Quick Notes
-- **Organization**: Pin urgent tasks for immediate visibility and organized management.
-- **Rich Formatting**: Support for standard formatting shortcuts including bold, italic, and underline.
-- **Instant Search**: Efficient local search functionality accessible via `Ctrl + F`.
-- **Data Recovery**: A dedicated Bin for deleted tasks allows for secure recovery.
+### Rich Notepad & Document Management
+- **Tabbed Workspace**: Multi-document interface with a streamlined tab bar and Document Drawer (`Ctrl + O`) for opening closed pads.
+- **Line Editing**: Advanced editor functionality including line numbering, caret tracking, and IDE-style line move/duplication (`Alt + ↑/↓`, `Alt + Shift + ↑/↓`).
+- **Rich Text & Code Formatting**: Support for bold, italic, underline annotations alongside uncorrupted code snippet editing (`<T>`, `a < b`).
+- **Instant Find & Replace**: Full-text find and replace within active notes (`Ctrl + F`).
+- **Version History & Checkpoints**: Automatic background snapshots and manual checkpoints with line-by-line diff viewing and one-click restoration.
+- **Trash Bin**: Safe note deletion to Trash Bin with full recovery capability (`Ctrl + Shift + B`).
 
-### Rich Notepad
-- **Tabbed Management**: A multi-document interface with a streamlined tab bar for efficient document handling.
-- **Advanced Navigation**: Features include line numbering, bookmarking, and IDE-style line manipulation.
-- **Persistence**: Automatic saving ensures document state, including tab positions and cursor location, is restored upon relaunch.
-- **Export Options**: Support for saving individual tabs directly to the local filesystem.
-
-### Design and Aesthetics
-- **Professional UI**: A high-fidelity interface featuring minimalist design elements and smooth visual transitions.
-- **Enhanced Readability**: A clean, high-contrast palette designed to minimize distractions and improve focus.
-- **Custom Typography**: Support for industry-standard monospaced fonts and custom font uploads.
-- **Optimized Performance**: Built for native performance with a seamless, frameless window architecture.
-
-### Productivity Workflow
-- **Global Access**: Quickly toggle application visibility from any context using a global shortcut.
-- **Keyboard-Centric Design**: Optimized for full functionality through keyboard interaction.
-- **System Integration**: Tray integration and optional auto-start support for streamlined access.
+### Security & Privacy
+- **End-to-End Encryption**: All notes and version snapshots are encrypted at rest using AES-256-GCM.
+- **Zero-Trust Master Vault**: Access protected by Master Password hashed with Argon2id and per-installation random salt.
+- **In-Memory Zeroization**: Cryptographic keys and passphrases are zeroized in RAM immediately upon locking or dropping locks.
+- **Idle Auto-Lock**: Configurable automatic inactivity locking with pre-lock in-flight edit persistence.
+- **100% Local Privacy**: Stored in a local encrypted SQLite database with zero external CDN dependencies or cloud telemetry.
 
 ---
 
 ## Keyboard Shortcuts
 
-### Navigation and Global
+### Application & Navigation
 | Shortcut | Action |
 |:---:|---|
-| `Ctrl + Shift + Space` | Toggle between Tasks and Notepad |
 | `Ctrl + Shift + N` | Toggle Application Visibility (Global) |
-| `Ctrl + F` | Global Search |
-| `Ctrl + Shift + B` | Open History / Bin |
-| `Ctrl + H` | Help & Documentation |
+| `Ctrl + O` | Open Document Drawer |
+| `Ctrl + F` | Find & Replace |
+| `Ctrl + Shift + B` | Open Trash Bin |
 | `Esc` | Close Modals / Exit Context |
 
 ### Notepad Editor
 | Shortcut | Action |
 |:---:|---|
 | `Ctrl + N` | Create New Tab |
-| `Ctrl + S` | Save Current Content to File |
+| `Ctrl + S` | Save Current Content |
 | `Ctrl + Space` | Cycle through Open Tabs |
-| `Ctrl + Shift + D` | Delete Current Tab |
+| `Ctrl + Shift + D` | Close Current Tab |
 | `Alt + ↑ / ↓` | Move Current Line Up or Down |
 | `Alt + Shift + ↑ / ↓` | Duplicate Current Line |
 

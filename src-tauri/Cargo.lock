@@ -304,9 +304,7 @@ version = "1.3.1"
 dependencies = [
  "aes-gcm",
  "argon2",
- "base64 0.22.1",
  "hex",
- "once_cell",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rusqlite",
@@ -320,7 +318,6 @@ dependencies = [
  "tauri-plugin-global-shortcut",
  "tauri-plugin-opener",
  "tauri-plugin-updater",
- "thiserror 1.0.69",
  "zeroize",
 ]
 

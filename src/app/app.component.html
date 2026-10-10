@@ -62,6 +62,11 @@
       </button>
     </div>
 
+    <div class="vault-remember-option" (click)="togglePersistentSession()" style="margin-top: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; opacity: 0.85;">
+      <div class="toggle-switch" [class.on]="persistentSessionEnabled" style="transform: scale(0.8);"></div>
+      <span>Remember Password (Persistent Session)</span>
+    </div>
+
     <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
 
     <div class="vault-footer">
@@ -80,7 +85,7 @@
     <div class="tab" *ngFor="let pad of openOrderedTabs" (click)="switchTab(pad.id)"
       [class.active]="activeTabId === pad.id">
       <div class="tab-title-wrapper">
-        <span class="tab-title" [innerHTML]="formatContent(pad.title || 'Untitled')"></span>
+        <span class="tab-title" [innerHTML]="(pad.title || 'Untitled') | formatContent"></span>
         <span class="dirty-indicator" *ngIf="pad.isDirty"></span>
       </div>
       <button class="tab-close" (click)="closeTab(pad.id, $event)">
@@ -91,6 +96,11 @@
       </button>
     </div>
     <button class="tab-add" (click)="createPad()" title="New tab">+</button>
+    <button class="tab-add drawer-btn" (click)="toggleDocumentDrawer()" title="All Notes / Re-open Tab">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+        <path d="M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H20V6H4Z" />
+      </svg>
+    </button>
   </div>
 
   <!-- Find & Replace Widget -->
@@ -144,15 +154,27 @@
     <div class="version-panel" *ngIf="showVersionHistory">
       <div class="version-panel-header">
         <div class="version-panel-title">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
             <path
               d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
           </svg>
-          <span>Version History</span>
+          <span>Versions</span>
+        </div>
+        <div class="version-header-actions">
+          <button class="checkpoint-btn" (click)="createCheckpoint()" title="Create Checkpoint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+              <line x1="4" y1="22" x2="4" y2="15"></line>
+            </svg>
+          </button>
+          <button class="version-close-btn" (click)="closeVersionHistory()" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
       </div>
-
-
 
       <!-- Version Timeline -->
       <div class="version-list" *ngIf="padVersions.length > 0">
@@ -166,20 +188,24 @@
             <!-- Label display / edit -->
             <ng-container *ngIf="editingLabelId !== ver.id">
               <div class="version-label" *ngIf="ver.label">
-                <span>{{ ver.label }}</span>
-                <button class="version-label-edit" (click)="startEditLabel(ver, $event)" title="Edit label">
+                <span class="version-label-text" (click)="startEditLabel(ver, $event)" title="Click to rename">{{ ver.label }}</span>
+                <button class="version-remove-checkpoint-btn" (click)="removeCheckpoint(ver, $event)" title="Remove checkpoint">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
                   </svg>
                 </button>
               </div>
             </ng-container>
             <ng-container *ngIf="editingLabelId === ver.id">
-              <div class="version-label-edit-row">
-                <input class="version-label-input" [(ngModel)]="editingLabelText" placeholder="Label..."
-                  (keyup.enter)="saveLabel(ver)" (keyup.escape)="cancelEditLabel()" autofocus />
-                <button class="version-label-save" (click)="saveLabel(ver)">✓</button>
+              <div class="version-label-edit-row" (click)="$event.stopPropagation()">
+                <input class="version-label-input" [(ngModel)]="editingLabelText" placeholder="Checkpoint name..."
+                  (keyup.enter)="saveLabel(ver)" (keyup.escape)="cancelEditLabel()" (blur)="saveLabel(ver)" />
+                <button class="version-label-save" (click)="saveLabel(ver)" title="Save name">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </button>
               </div>
             </ng-container>
             <div class="version-time">{{ timeAgo(ver.timestamp) }}</div>
@@ -293,6 +319,12 @@
         <!-- Security & Data -->
         <div class="settings-section">
           <div class="settings-section-title">Security & Data</div>
+          <div class="settings-item" (click)="togglePersistentSession()">
+            <div class="settings-item-label">Remember Password (Persistent Login)</div>
+            <div class="settings-item-action">
+              <div class="toggle-switch" [class.on]="persistentSessionEnabled"></div>
+            </div>
+          </div>
           <div class="settings-item" (click)="toggleAutoLock()">
             <div class="settings-item-label">Auto-Lock on Idle</div>
             <div class="settings-item-action">
@@ -313,10 +345,22 @@
               <button class="settings-button">Change</button>
             </div>
           </div>
+          <div class="settings-item" (click)="startBackup()">
+            <div class="settings-item-label">Backup Vault Database</div>
+            <div class="settings-item-action">
+              <button class="settings-button">Backup</button>
+            </div>
+          </div>
           <div class="settings-item" (click)="startBulkExport()">
             <div class="settings-item-label">Export All Notes</div>
             <div class="settings-item-action">
               <button class="settings-button">Export</button>
+            </div>
+          </div>
+          <div class="settings-item" (click)="clearAllVersionHistory()">
+            <div class="settings-item-label">Purge Version History</div>
+            <div class="settings-item-action">
+              <button class="settings-button" [style.background-color]="isConfirmingClearVersions ? '#e74c3c' : ''">{{ isConfirmingClearVersions ? 'Confirm Purge' : 'Purge All' }}</button>
             </div>
           </div>
         </div>
@@ -328,6 +372,12 @@
             <div class="settings-item-label">App Version</div>
             <div class="settings-item-action">
               <span class="settings-value">v{{ appVersion }}</span>
+            </div>
+          </div>
+          <div class="settings-item" (click)="openAppDataDir()">
+            <div class="settings-item-label">App Data Location</div>
+            <div class="settings-item-action">
+              <button class="settings-button">Open Folder</button>
             </div>
           </div>
           <div class="settings-item" (click)="checkForUpdates()">
@@ -389,7 +439,12 @@
   (click)="handlePadCloseModalAction('cancel')">
   <div class="help-content prompt-content" (click)="$event.stopPropagation()">
     <h2>Unsaved Changes</h2>
-    <p style="margin-bottom: 0;">You have changes in this tab that haven't been saved yet.</p>
+    <p>You have changes in this tab that haven't been saved yet.</p>
+    <div class="prompt-modal-buttons">
+      <button class="prompt-btn primary-btn" (click)="handlePadCloseModalAction('saveAndDelete')">Save & Close</button>
+      <button class="prompt-btn danger-btn" (click)="handlePadCloseModalAction('delete')">Discard</button>
+      <button class="prompt-btn secondary-btn" (click)="handlePadCloseModalAction('cancel')">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -637,6 +692,30 @@
 
     <div class="empty-state" *ngIf="binItems.length === 0">
       <p>Bilet history is empty.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Document Drawer Modal (All Notes) -->
+<div class="help-overlay bin-overlay" *ngIf="showDrawer" (click)="showDrawer = false">
+  <div class="help-content bin-content" (click)="$event.stopPropagation()">
+    <div class="bin-header">
+      <h2>All Vault Documents</h2>
+    </div>
+
+    <div class="search-results scrollable" *ngIf="allNonDeletedPads.length > 0">
+      <div class="bin-item" *ngFor="let item of allNonDeletedPads" (click)="reopenPadFromDrawer(item.id)">
+        <div class="bin-item-content">
+          <p class="bin-text" [innerHTML]="formatContent(item.title || 'Untitled')"></p>
+          <span class="bin-date">
+            {{ item.is_open ? 'Open Tab' : 'Closed Tab' }} &bull; Updated {{ formatDate(item.updated_at) }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="empty-state" *ngIf="allNonDeletedPads.length === 0">
+      <p>No documents found in vault.</p>
     </div>
   </div>
 </div>

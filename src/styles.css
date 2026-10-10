@@ -1,7 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
-@import url('https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code@5.0.1/index.min.css');
-
 :root {
   --bg-color: #ffffff;
   --bg-rgb: 255, 255, 255;
@@ -10,7 +6,7 @@
   --accent-color: #000000;
   --hover-color: #f8f8f8;
   --titlebar-bg: #ffffff;
-  --main-font: 'Cascadia Code', monospace;
+  --main-font: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   --transition-speed: 0.3s;
   --selection-bg: transparent;
   --selection-color: #cacaca;

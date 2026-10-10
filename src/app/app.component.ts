@@ -6,6 +6,8 @@ import {
   AfterViewChecked,
   OnInit,
   OnDestroy,
+  Pipe,
+  PipeTransform,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { RouterOutlet } from "@angular/router";
@@ -13,10 +15,28 @@ import { FormsModule } from "@angular/forms";
 import { TauriService } from "./services/tauri.service";
 import { Pad, PadVersion, AuthStatus, AppShortcut, BinItem } from "./models/app.models";
 
+@Pipe({
+  name: "formatContent",
+  standalone: true,
+  pure: true,
+})
+export class FormatContentPipe implements PipeTransform {
+  transform(content: string): string {
+    if (!content) return "";
+    let result = content;
+    result = result.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+    result = result.replace(/\*(.*?)\*/g, "<i>$1</i>");
+    if (!result.includes("<br>") && !result.includes("<div>")) {
+      result = result.replace(/\n/g, "<br>");
+    }
+    return result;
+  }
+}
+
 @Component({
   selector: "app-root",
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FormatContentPipe],
   templateUrl: "./app.component.html",
   styleUrl: "./app.component.css",
 })
@@ -308,6 +328,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.showSettings) {
       this.showVersionHistory = false;
       this.isConfirmingClearVersions = false;
+      this.loadAppDataPath();
     }
   }
 
@@ -927,12 +948,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.idleCheckInterval) clearInterval(this.idleCheckInterval);
     if (!this.autoLockEnabled) return;
 
-    this.idleCheckInterval = setInterval(() => {
+    this.idleCheckInterval = setInterval(async () => {
       if (this.authStatus === "Unlocked") {
         const now = Date.now();
         const timeoutMs = this.idleMinutes * 60 * 1000;
         if (now - this.lastActivity > timeoutMs) {
-          this.lockVault();
+          await this.lockVault();
         }
       }
     }, 10000);
@@ -959,6 +980,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   async lockVault() {
     try {
+      if (this.activePad) {
+        await this.savePadNow();
+      }
+      if (this.autoSaveTimer) {
+        clearTimeout(this.autoSaveTimer);
+        this.autoSaveTimer = null;
+      }
       await this.tauri.lockVault();
       this.authStatus = "Locked";
       this.pads = [];
@@ -1063,6 +1091,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
           isDirty: existing ? existing.isDirty : false
         };
       });
+      this.updateOpenOrderedTabs();
     } catch (err) {
       console.error(err);
     }
@@ -1095,13 +1124,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
       const padToDelete = this.pads.find(p => p.id === padId);
       if (padToDelete && padToDelete.is_open) {
-        this.forceCloseTabUI(padId);
+        await this.forceCloseTabUI(padId);
       } else {
         await this.loadPads();
       }
 
       if (this.showBin) {
-        this.loadBinItems();
+        await this.loadBinItems();
       }
     } catch (err) {
       console.error(err);
@@ -1132,10 +1161,27 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     });
   }
 
-  get openOrderedTabs(): Pad[] {
-    return this.pads
+  openOrderedTabs: Pad[] = [];
+
+  updateOpenOrderedTabs() {
+    this.openOrderedTabs = this.pads
       .filter((p) => p.is_open && !p.is_deleted)
       .sort((a, b) => a.tab_index - b.tab_index);
+  }
+
+  showDrawer = false;
+
+  toggleDocumentDrawer() {
+    this.showDrawer = !this.showDrawer;
+  }
+
+  get allNonDeletedPads(): Pad[] {
+    return this.pads.filter(p => !p.is_deleted);
+  }
+
+  async reopenPadFromDrawer(padId: number) {
+    this.showDrawer = false;
+    await this.openTab(padId);
   }
 
   async closeTab(padId: number, event?: MouseEvent) {
@@ -1146,8 +1192,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       // Has unsaved changes — ask if they want to save to file first
       this.isConfirmingPadCloseId = padId;
     } else {
-      // Clean — move directly to bin (same as old behavior)
-      await this.deletePad(padId);
+      // Clean — close tab view without deleting document to bin
+      await this._closeTabInternal(padId);
     }
   }
 
@@ -1161,15 +1207,15 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
 
     if (action === 'delete') {
-      // Move to bin without saving to file
+      // Discard unsaved changes and close tab view
       this.isConfirmingPadCloseId = null;
-      await this.deletePad(padId);
+      await this._closeTabInternal(padId);
     } else if (action === 'saveAndDelete') {
-      // Save to file first, then move to bin
+      // Save to file first, then close tab view
       const success = await this.savePadToFile(padId);
       if (success) {
         this.isConfirmingPadCloseId = null;
-        await this.deletePad(padId);
+        await this._closeTabInternal(padId);
       }
     }
   }
@@ -1460,19 +1506,45 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  duplicateLine(direction: string, editor: HTMLElement) {
-    const text = editor.innerText;
-    const lines = text.split('\n');
-    const currentLine = this.getCaretLineIndex(editor);
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
-    if (direction === 'ArrowDown') {
-      lines.splice(currentLine + 1, 0, lines[currentLine]);
-    } else {
-      lines.splice(currentLine, 0, lines[currentLine]);
+  private getEditorLineHtmls(editor: HTMLElement): string[] {
+    const children = Array.from(editor.childNodes);
+    if (children.length > 0 && children.some(n => n.nodeType === Node.ELEMENT_NODE && (n.nodeName === 'DIV' || n.nodeName === 'P'))) {
+      return children.map(n => {
+        if (n.nodeType === Node.ELEMENT_NODE) {
+          return (n as HTMLElement).outerHTML;
+        } else {
+          return `<div>${this.escapeHtml(n.textContent || '')}</div>`;
+        }
+      });
     }
 
-    this.padContent = lines.join('\n');
-    editor.innerHTML = this.padContent;
+    const text = editor.innerText || '';
+    const lines = text.split('\n');
+    return lines.map(line => `<div>${this.escapeHtml(line)}</div>`);
+  }
+
+  duplicateLine(direction: string, editor: HTMLElement) {
+    const lineHtmls = this.getEditorLineHtmls(editor);
+    const currentLine = Math.min(this.getCaretLineIndex(editor), lineHtmls.length - 1);
+    if (currentLine < 0) return;
+
+    if (direction === 'ArrowDown') {
+      lineHtmls.splice(currentLine + 1, 0, lineHtmls[currentLine]);
+    } else {
+      lineHtmls.splice(currentLine, 0, lineHtmls[currentLine]);
+    }
+
+    editor.innerHTML = lineHtmls.join('');
+    this.padContent = editor.innerHTML;
     this.onPadContentChange();
 
     const targetLine = direction === 'ArrowDown' ? currentLine + 1 : currentLine;
@@ -1480,24 +1552,22 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   moveLine(direction: string, editor: HTMLElement) {
-    const text = editor.innerText;
-    const lines = text.split('\n');
-    const currentLine = this.getCaretLineIndex(editor);
+    const lineHtmls = this.getEditorLineHtmls(editor);
+    const currentLine = Math.min(this.getCaretLineIndex(editor), lineHtmls.length - 1);
+    if (currentLine < 0) return;
 
     if (direction === 'ArrowUp') {
       if (currentLine === 0) return;
-      // Swap current line with the one above
-      [lines[currentLine - 1], lines[currentLine]] = [lines[currentLine], lines[currentLine - 1]];
-      this.padContent = lines.join('\n');
-      editor.innerHTML = this.padContent;
+      [lineHtmls[currentLine - 1], lineHtmls[currentLine]] = [lineHtmls[currentLine], lineHtmls[currentLine - 1]];
+      editor.innerHTML = lineHtmls.join('');
+      this.padContent = editor.innerHTML;
       this.onPadContentChange();
       setTimeout(() => this.setCaretToLine(editor, currentLine - 1));
     } else {
-      if (currentLine >= lines.length - 1) return;
-      // Swap current line with the one below
-      [lines[currentLine], lines[currentLine + 1]] = [lines[currentLine + 1], lines[currentLine]];
-      this.padContent = lines.join('\n');
-      editor.innerHTML = this.padContent;
+      if (currentLine >= lineHtmls.length - 1) return;
+      [lineHtmls[currentLine], lineHtmls[currentLine + 1]] = [lineHtmls[currentLine + 1], lineHtmls[currentLine]];
+      editor.innerHTML = lineHtmls.join('');
+      this.padContent = editor.innerHTML;
       this.onPadContentChange();
       setTimeout(() => this.setCaretToLine(editor, currentLine + 1));
     }
@@ -2031,9 +2101,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   private scheduleVersionSave() {
     if (this.versionSaveTimer) clearTimeout(this.versionSaveTimer);
     this.versionSaveTimer = setTimeout(() => {
-      if (this.activeTabId) {
-        this.tauri.savePadVersion(this.activeTabId, this.padContent, null, this.versionRetention).catch(e => console.error("Version save failed:", e));
-      }
+      this.autoSaveVersion();
     }, this.versionAutoSaveInterval);
   }
 
@@ -2045,7 +2113,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (plainText === this.lastVersionContent) return;
 
     try {
-      const result = await this.tauri.savePadVersion(this.activePad.id, plainText, null);
+      const result = await this.tauri.savePadVersion(this.activePad.id, plainText, null, this.versionRetention);
       if (result !== -1) {
         this.lastVersionContent = plainText;
         // Refresh if panel is open
@@ -2063,12 +2131,21 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     const plainText = this.padEditor.nativeElement.innerText || '';
     if (!plainText.trim()) return;
 
-    const label = prompt('Checkpoint name (optional):') || 'Checkpoint';
     try {
-      await this.tauri.savePadVersion(this.activePad.id, plainText, label);
+      const savedId = await this.tauri.savePadVersion(this.activePad.id, plainText, 'Checkpoint', this.versionRetention);
       this.lastVersionContent = plainText;
       if (this.activeTabId) {
         await this.loadVersions(this.activeTabId);
+        if (savedId && savedId !== -1) {
+          const matched = this.padVersions.find(v => v.id === savedId);
+          if (matched) {
+            this.selectVersion(matched);
+          } else if (this.padVersions.length > 0) {
+            this.selectVersion(this.padVersions[0]);
+          }
+        } else if (this.padVersions.length > 0) {
+          this.selectVersion(this.padVersions[0]);
+        }
       }
     } catch (err) {
       console.error('Failed to create checkpoint:', err);
@@ -2085,10 +2162,17 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (!this.padEditor || !this.activePad) return;
     const el = this.padEditor.nativeElement;
 
+    let textContent = version.content || '';
+    if (textContent.includes('<div>') || textContent.includes('<p>') || textContent.includes('<br>')) {
+      const tempEl = document.createElement('div');
+      tempEl.innerHTML = textContent;
+      textContent = tempEl.innerText || '';
+    }
+
     // Rebuild innerHTML with one <div> per line
-    const lines = version.content.split('\n');
+    const lines = textContent.split('\n');
     el.innerHTML = lines
-      .map((line: string) => `<div>${this.htmlEscape(line) || '<br>'}</div>`)
+      .map((line: string) => `<div>${this.escapeHtml(line) || '<br>'}</div>`)
       .join('');
 
     this.padContent = el.innerHTML;
@@ -2109,8 +2193,14 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   showDiff(version: PadVersion) {
     if (!this.padEditor) return;
+    let versionText = version.content || '';
+    if (versionText.includes('<div>') || versionText.includes('<p>') || versionText.includes('<br>')) {
+      const tempEl = document.createElement('div');
+      tempEl.innerHTML = versionText;
+      versionText = tempEl.innerText || '';
+    }
     const currentText = this.padEditor.nativeElement.innerText || '';
-    this.versionDiffLines = this.computeDiff(version.content, currentText);
+    this.versionDiffLines = this.computeDiff(versionText, currentText);
     this.showVersionDiff = true;
   }
 
@@ -2125,40 +2215,96 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   ): { type: 'same' | 'added' | 'removed'; text: string }[] {
     const oldLines = oldText.split('\n');
     const newLines = newText.replace(/\n$/, '').split('\n');
-    const result: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
 
-    // Simple LCS-based diff
-    const m = oldLines.length;
-    const n = newLines.length;
-    const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+    let start = 0;
+    while (
+      start < oldLines.length &&
+      start < newLines.length &&
+      oldLines[start] === newLines[start]
+    ) {
+      start++;
+    }
 
-    for (let i = 1; i <= m; i++) {
-      for (let j = 1; j <= n; j++) {
-        if (oldLines[i - 1] === newLines[j - 1]) {
-          dp[i][j] = dp[i - 1][j - 1] + 1;
-        } else {
-          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+    let oldEnd = oldLines.length - 1;
+    let newEnd = newLines.length - 1;
+    while (
+      oldEnd >= start &&
+      newEnd >= start &&
+      oldLines[oldEnd] === newLines[newEnd]
+    ) {
+      oldEnd--;
+      newEnd--;
+    }
+
+    const prefix: { type: 'same'; text: string }[] = [];
+    for (let k = 0; k < start; k++) {
+      prefix.push({ type: 'same', text: oldLines[k] });
+    }
+
+    const suffix: { type: 'same'; text: string }[] = [];
+    for (let k = oldEnd + 1; k < oldLines.length; k++) {
+      suffix.push({ type: 'same', text: oldLines[k] });
+    }
+
+    const midOld = oldLines.slice(start, oldEnd + 1);
+    const midNew = newLines.slice(start, newEnd + 1);
+
+    const m = midOld.length;
+    const n = midNew.length;
+
+    let midResult: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
+
+    if (m * n > 250000 || m > 1000 || n > 1000) {
+      for (const line of midOld) {
+        midResult.push({ type: 'removed', text: line });
+      }
+      for (const line of midNew) {
+        midResult.push({ type: 'added', text: line });
+      }
+    } else if (m === 0) {
+      for (const line of midNew) {
+        midResult.push({ type: 'added', text: line });
+      }
+    } else if (n === 0) {
+      for (const line of midOld) {
+        midResult.push({ type: 'removed', text: line });
+      }
+    } else {
+      const dp = new Int32Array((m + 1) * (n + 1));
+      const getDp = (r: number, c: number) => dp[r * (n + 1) + c];
+      const setDp = (r: number, c: number, v: number) => { dp[r * (n + 1) + c] = v; };
+
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          if (midOld[i - 1] === midNew[j - 1]) {
+            setDp(i, j, getDp(i - 1, j - 1) + 1);
+          } else {
+            const top = getDp(i - 1, j);
+            const left = getDp(i, j - 1);
+            setDp(i, j, top > left ? top : left);
+          }
         }
       }
+
+      let i = m, j = n;
+      const stack: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
+      while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && midOld[i - 1] === midNew[j - 1]) {
+          stack.push({ type: 'same', text: midOld[i - 1] });
+          i--; j--;
+        } else if (j > 0 && (i === 0 || getDp(i, j - 1) >= getDp(i - 1, j))) {
+          stack.push({ type: 'added', text: midNew[j - 1] });
+          j--;
+        } else {
+          stack.push({ type: 'removed', text: midOld[i - 1] });
+          i--;
+        }
+      }
+      stack.reverse();
+      midResult = stack;
     }
 
-    // Backtrack
-    let i = m, j = n;
-    const stack: { type: 'same' | 'added' | 'removed'; text: string }[] = [];
-    while (i > 0 || j > 0) {
-      if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
-        stack.push({ type: 'same', text: oldLines[i - 1] });
-        i--; j--;
-      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-        stack.push({ type: 'added', text: newLines[j - 1] });
-        j--;
-      } else {
-        stack.push({ type: 'removed', text: oldLines[i - 1] });
-        i--;
-      }
-    }
-    stack.reverse();
-    return stack;
+    return [...prefix, ...midResult, ...suffix];
   }
 
   async deleteVersion(version: PadVersion, event: MouseEvent) {
@@ -2180,17 +2326,39 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   startEditLabel(version: PadVersion, event: MouseEvent) {
     event.stopPropagation();
     this.editingLabelId = version.id;
-    this.editingLabelText = version.label || '';
+    this.editingLabelText = version.label || 'Checkpoint';
+    setTimeout(() => {
+      const input = document.querySelector('.version-label-input') as HTMLInputElement;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 50);
   }
 
   async saveLabel(version: PadVersion) {
+    if (this.editingLabelId !== version.id) return;
     try {
-      const label = this.editingLabelText.trim() || null;
+      const trimmed = this.editingLabelText.trim();
+      const label = trimmed.length > 0 ? trimmed : 'Checkpoint';
       await this.tauri.updateVersionLabel(version.id, label);
       version.label = label;
       this.editingLabelId = null;
     } catch (err) {
       console.error('Failed to update label:', err);
+    }
+  }
+
+  async removeCheckpoint(version: PadVersion, event: MouseEvent) {
+    event.stopPropagation();
+    try {
+      await this.tauri.updateVersionLabel(version.id, null);
+      version.label = null;
+      if (this.editingLabelId === version.id) {
+        this.editingLabelId = null;
+      }
+    } catch (err) {
+      console.error('Failed to remove checkpoint:', err);
     }
   }
 

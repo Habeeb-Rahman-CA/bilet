@@ -24,6 +24,10 @@ export class TauriService {
     await invoke("lock_vault");
   }
 
+  async clearPersistentSession(): Promise<void> {
+    await invoke("clear_persistent_session");
+  }
+
   // --- Pad Commands ---
   async getPads(): Promise<Pad[]> {
     return await invoke<Pad[]>("get_pads");
@@ -67,7 +71,7 @@ export class TauriService {
   }
 
   async clearBin(): Promise<void> {
-    await invoke("clear_bin");
+    await invoke("clear_pad_bin");
   }
 
   // --- Version Commands ---

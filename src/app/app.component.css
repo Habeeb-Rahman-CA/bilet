@@ -1714,17 +1714,53 @@ button.primary:hover {
   .version-panel-title {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: var(--text-color);
   }
 
   .version-panel-title svg {
-    color: var(--accent-color);
-    filter: drop-shadow(0 0 5px rgba(39, 201, 63, 0.2));
+    color: var(--text-color);
+    opacity: 0.6;
     width: 14px;
     height: 14px;
+  }
+
+  .version-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .checkpoint-btn {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    opacity: 0.4;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .checkpoint-btn:hover {
+    opacity: 1;
+    background: var(--hover-color);
+  }
+
+  .checkpoint-btn:active {
+    transform: scale(0.95);
+  }
+
+  .checkpoint-btn svg {
+    opacity: 0.85;
   }
 
   .version-close-btn {
@@ -1737,6 +1773,7 @@ button.primary:hover {
     border-radius: 4px;
     display: flex;
     align-items: center;
+    justify-content: center;
     transition: all 0.2s;
   }
 
@@ -1786,14 +1823,14 @@ button.primary:hover {
   }
 
   .version-timeline-dot .dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: var(--text-color);
-    opacity: 0.2;
+    opacity: 0.22;
     flex-shrink: 0;
-    margin-top: 4px;
-    transition: all 0.2s;
+    margin-top: 5px;
+    transition: all 0.2s ease;
     position: relative;
     z-index: 1;
   }
@@ -1801,30 +1838,32 @@ button.primary:hover {
   .version-item:hover .dot,
   .version-item.selected .dot {
     opacity: 0.6;
-    transform: scale(1.2);
+    transform: scale(1.15);
   }
 
   .version-timeline-dot .dot.checkpoint {
-    background: var(--accent-color, #27c93f);
-    opacity: 0.8;
-    width: 10px;
-    height: 10px;
-    margin-top: 3px;
+    background: var(--bg-color);
+    border: 1.5px solid var(--text-color);
+    opacity: 0.85;
+    width: 8px;
+    height: 8px;
+    margin-top: 9px;
   }
 
   .version-item:hover .dot.checkpoint,
   .version-item.selected .dot.checkpoint {
     opacity: 1;
-    transform: scale(1.3);
+    background: var(--text-color);
+    transform: scale(1.15);
   }
 
   .timeline-line {
     width: 1px;
     flex-grow: 1;
-    min-height: 12px;
+    min-height: 42px;
     background: var(--text-color);
     opacity: 0.08;
-    margin-top: 4px;
+    margin-top: 0;
   }
 
   /* Version info */
@@ -1835,20 +1874,30 @@ button.primary:hover {
   }
 
   .version-label {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 4px;
     margin-bottom: 2px;
   }
 
-  .version-label span {
+  .version-label-text {
     font-size: 11px;
-    font-weight: 700;
-    color: var(--accent-color, #27c93f);
-    letter-spacing: 0.3px;
+    font-weight: 600;
+    color: var(--text-color);
+    opacity: 0.9;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    padding: 1px 3px;
+    border-radius: 3px;
+    transition: all 0.15s ease;
   }
 
-  .version-label-edit {
+  .version-label-text:hover {
+    opacity: 1;
+    background: var(--hover-color);
+  }
+
+  .version-remove-checkpoint-btn {
     background: none;
     border: none;
     color: var(--text-color);
@@ -1856,48 +1905,61 @@ button.primary:hover {
     cursor: pointer;
     padding: 2px;
     display: flex;
-    transition: opacity 0.2s;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s, background 0.2s;
+    border-radius: 3px;
   }
 
-  .version-item:hover .version-label-edit {
-    opacity: 0.4;
+  .version-item:hover .version-remove-checkpoint-btn {
+    opacity: 0.35;
   }
 
-  .version-label-edit:hover {
+  .version-remove-checkpoint-btn:hover {
     opacity: 1 !important;
+    background: var(--hover-color);
   }
 
   .version-label-edit-row {
     display: flex;
     align-items: center;
     gap: 4px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
 
   .version-label-input {
     flex-grow: 1;
-    background: var(--hover-color);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+    background: var(--hover-color) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 3px;
     padding: 2px 6px;
     font-size: 11px;
     color: var(--text-color);
-    outline: none;
-    font-family: inherit;
+    outline: none !important;
+    font-family: var(--main-font);
+    transition: border-color 0.2s ease;
   }
 
   .version-label-input:focus {
-    border-color: var(--accent-color, #27c93f);
+    border-color: var(--text-color) !important;
   }
 
   .version-label-save {
     background: none;
     border: none;
-    color: var(--accent-color, #27c93f);
+    color: var(--text-color);
     cursor: pointer;
-    font-size: 14px;
-    padding: 0 4px;
-    font-weight: 700;
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
+    opacity: 0.45;
+    transition: opacity 0.2s;
+    border-radius: 3px;
+  }
+
+  .version-label-save:hover {
+    opacity: 1;
+    background: var(--hover-color);
   }
 
   .version-time {
