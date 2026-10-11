@@ -1,67 +1,111 @@
 <div align="center">
   <img src="./src-tauri/icons/bilet-icon.png" width="128" height="128" alt="bilet icon">
   <h1>bilet</h1>
-  <p><strong>A secure, privacy-focused desktop productivity suite for managing thoughts and tasks.</strong></p>
+  <p><strong>A clean, distraction-free desktop notepad and code scratchpad.</strong></p>
 </div>
 
 ---
 
-## Privacy at its Core
-**bilet** is developed with a zero-trust philosophy. All data is processed locally, ensuring user information remains private and secure.
+## Overview
 
-- **End-to-End Encryption**: All notes and documents are encrypted at rest using AES-256-GCM.
-- **Secure Vault**: Access is protected by a master password, verified using the Argon2id password hashing standard.
-- **Inactivity Protection**: The application includes an automatic locking mechanism to secure data during periods of inactivity.
-- **Local Storage**: Data is stored in a local SQLite database. There is no cloud synchronization, tracking, or telemetry.
+Bilet is a minimalist desktop editor designed for focused writing and coding. Built with a zero-distraction philosophy, it provides a quiet workspace with instant startup, pure monochromatic aesthetics, and keyboard-centric navigation.
+
+All notes and history remain strictly on your local machine. There are no cloud accounts, no third-party telemetry, and no external network calls.
 
 ---
 
-## Features
+## Key Highlights
 
-### Rich Notepad & Document Management
-- **Tabbed Workspace**: Multi-document interface with a streamlined tab bar and Document Drawer (`Ctrl + O`) for opening closed pads.
-- **Line Editing**: Advanced editor functionality including line numbering, caret tracking, and IDE-style line move/duplication (`Alt + ↑/↓`, `Alt + Shift + ↑/↓`).
-- **Rich Text & Code Formatting**: Support for bold, italic, underline annotations alongside uncorrupted code snippet editing (`<T>`, `a < b`).
-- **Instant Find & Replace**: Full-text find and replace within active notes (`Ctrl + F`).
-- **Version History & Checkpoints**: Automatic background snapshots and manual checkpoints with line-by-line diff viewing and one-click restoration.
-- **Trash Bin**: Safe note deletion to Trash Bin with full recovery capability (`Ctrl + Shift + B`).
+### Focused Writing and Code Editing
+- Monochromatic interface designed for high focus in both light and dark themes.
+- Bundled offline developer typefaces: Cascadia Code, Fira Code, and JetBrains Mono.
+- Support for uploading custom font files (.ttf and .otf) directly from disk.
+- Fixed-width tabular line numbers that never cause horizontal editor jitter.
+- High-contrast text selection with clear word match highlights.
+- Line manipulation shortcuts for moving and duplicating lines without a mouse.
+- Instant Find and Replace with match counts, case sensitivity, and whole-word matching.
 
-### Security & Privacy
-- **End-to-End Encryption**: All notes and version snapshots are encrypted at rest using AES-256-GCM.
-- **Zero-Trust Master Vault**: Access protected by Master Password hashed with Argon2id and per-installation random salt.
-- **In-Memory Zeroization**: Cryptographic keys and passphrases are zeroized in RAM immediately upon locking or dropping locks.
-- **Idle Auto-Lock**: Configurable automatic inactivity locking with pre-lock in-flight edit persistence.
-- **100% Local Privacy**: Stored in a local encrypted SQLite database with zero external CDN dependencies or cloud telemetry.
+### Multi-Tab Workspace
+- Multi-tab management for switching between active drafts.
+- Unsaved change indicator on tabs to track pending edits.
+- All Workspace Notes drawer (Ctrl + O) to quickly search and switch between active documents.
+- Fast tab cycling and keyboard shortcuts to open, save, or close notes.
+
+### Version History and Milestones
+- Automatic background snapshots recorded continuously as you write.
+- Named milestone checkpoints for tagging major revisions.
+- Visual line-by-line diff comparison to review exact additions and removals.
+- One-click version restoration to roll back to any past state.
+- Floating overlay drawer that opens without resizing or shifting the editor.
+
+### Safety and History Archival
+- Closed tabs are safely archived in History instead of being permanently erased.
+- Clean search and chronological list for archived notes.
+- One-click note restoration back to active tabs.
+- Option to permanently delete or clear history at any time.
+
+### Fully Offline and Private
+- Local-first architecture: all data is stored on your machine.
+- Zero network dependencies, tracking, analytics, or third-party sync services.
+- Bulk export feature to back up all workspace notes to your local filesystem.
 
 ---
 
 ## Keyboard Shortcuts
 
-### Application & Navigation
-| Shortcut | Action |
-|:---:|---|
-| `Ctrl + Shift + N` | Toggle Application Visibility (Global) |
-| `Ctrl + O` | Open Document Drawer |
-| `Ctrl + F` | Find & Replace |
-| `Ctrl + Shift + B` | Open Trash Bin |
-| `Esc` | Close Modals / Exit Context |
+Bilet is designed for keyboard-driven navigation. Every shortcut can be customized via the Help and Shortcuts modal (`Ctrl + H`).
 
-### Notepad Editor
+### Global and Navigation
 | Shortcut | Action |
-|:---:|---|
-| `Ctrl + N` | Create New Tab |
-| `Ctrl + S` | Save Current Content |
-| `Ctrl + Space` | Cycle through Open Tabs |
+|:---|:---|
+| `Ctrl + O` | Open All Workspace Notes |
+| `Ctrl + F` | Toggle Find and Replace |
+| `Ctrl + Shift + B` | Open History and Archive |
+| `Ctrl + H` | Open Help and Keyboard Shortcuts |
+| `Alt + Shift + P` | Toggle Always on Top (Sticky Window) |
+| `Esc` | Close Active Modal or Drawer |
+
+### Editor and Tabs
+| Shortcut | Action |
+|:---|:---|
+| `Ctrl + N` | Create New Note Tab |
+| `Ctrl + S` | Save Current Note to Disk |
+| `Ctrl + Space` | Cycle to Next Open Tab |
 | `Ctrl + Shift + D` | Close Current Tab |
+| `Ctrl + T` | Toggle Version History Drawer |
 | `Alt + ↑ / ↓` | Move Current Line Up or Down |
-| `Alt + Shift + ↑ / ↓` | Duplicate Current Line |
+| `Alt + Shift + ↑ / ↓` | Duplicate Current Line Up or Down |
+| `Ctrl + B` | Format Selection Bold |
+| `Ctrl + I` | Format Selection Italic |
+| `Ctrl + U` | Format Selection Underline |
+
+### Timeline and Modal Navigation
+| Shortcut | Action |
+|:---|:---|
+| `↑ / ↓` | Navigate Lists (Fonts, History, Versions) |
+| `Enter` | Confirm Selection |
+| `D` | Toggle Line Diff (in Version History) |
+| `R` | Restore Selected Version (in Version History) |
+| `Ctrl + R` | Restore Archived Note (in History) |
+| `Ctrl + Shift + C` | Clear All History (in History) |
+| `Tab` | Switch Tabs (in Help Modal) |
+
+---
+
+## Configuration and Preferences
+
+Access the Settings drawer by clicking the gear icon in the top header:
+- **Theme**: Toggle between Dark Mode and Light Mode.
+- **Typography**: Select between bundled monospace typefaces or your custom uploaded fonts.
+- **Font Sizing**: Adjust editor text size from 11px to 22px with live preview.
+- **Editor Behavior**: Toggle Word Wrap, the bottom Status Bar (word, character, and line metrics), and Always on Top mode.
+- **Storage**: Export all workspace notes locally or purge historical version checkpoints.
 
 ---
 
 ## Author
 
 **Habrmnc** — [habrhmnc.dev](https://habrhmnc.dev)
-*Precision-crafted tools for private productivity.*
 
 ---
 
