@@ -36,11 +36,10 @@
       let family = "'Cascadia Code', monospace";
       if (savedFont === "Fira Code") family = "'Fira Code', monospace";
       else if (savedFont === "JetBrains Mono") family = "'JetBrains Mono', monospace";
-      else if (savedFont.startsWith("Custom-")) family = `"${savedFont}", monospace`;
-      else if (savedFont.startsWith("CustomFont")) family = `"${savedFont}", monospace`;
-      else if (savedFont && !['Cascadia Code', 'Fira Code', 'JetBrains Mono'].includes(savedFont)) {
-        family = `"Custom-${savedFont}", monospace`;
-      }
+      else if (savedFont === "Cascadia Code") family = "'Cascadia Code', monospace";
+      else if (savedFont && savedFont.startsWith("Custom-")) family = `"${savedFont}", monospace`;
+      else if (savedFont && savedFont.startsWith("CustomFont")) family = `"${savedFont}", monospace`;
+      else if (savedFont) family = `"Custom-${savedFont}", monospace`;
 
       document.documentElement.style.setProperty("--main-font", family);
     }

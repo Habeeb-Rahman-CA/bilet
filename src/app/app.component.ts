@@ -15,6 +15,33 @@ import { FormsModule } from "@angular/forms";
 import { TauriService } from "./services/tauri.service";
 import { Pad, PadVersion, AuthStatus, AppShortcut, BinItem } from "./models/app.models";
 
+import { EditorState, Compartment, EditorSelection } from "@codemirror/state";
+import {
+  EditorView,
+  lineNumbers as cmLineNumbers,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  drawSelection,
+  dropCursor,
+  rectangularSelection,
+  crosshairCursor,
+  highlightActiveLine,
+  keymap,
+  placeholder as cmPlaceholder,
+} from "@codemirror/view";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+  copyLineUp,
+  copyLineDown,
+  moveLineUp,
+  moveLineDown,
+} from "@codemirror/commands";
+import { markdown } from "@codemirror/lang-markdown";
+import { oneDark } from "@codemirror/theme-one-dark";
+
 @Pipe({
   name: "formatContent",
   standalone: true,
@@ -47,7 +74,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   activeHelpTab: 'guide' | 'shortcuts' = 'guide';
   showBin = false;
   showSettings = false;
-  showSplash = true;
+  skipSplashScreen = localStorage.getItem('skipSplashScreen') === 'true';
+  showSplash = localStorage.getItem('skipSplashScreen') !== 'true';
   splashFading = false;
   binItems: {
     id: number;
@@ -60,10 +88,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   isConfirmingRestoreId: { id: number; type: "pad" } | null = null;
   isConfirmingClearAll = false;
   @ViewChild("searchInput") searchInput?: ElementRef;
-  @ViewChild("padEditor") padEditor?: ElementRef<HTMLDivElement>;
+  @ViewChild("cmEditorContainer") cmEditorContainer?: ElementRef<HTMLDivElement>;
   private searchNeedsFocus = false;
-  private padEditorNeedsFocus = false;
-  private padEditorNeedsContent = false;
+  private cmEditorView?: EditorView;
+  private cmThemeCompartment = new Compartment();
+  private cmWrapCompartment = new Compartment();
+  private cmFontCompartment = new Compartment();
+  private isUpdatingEditorFromApp = false;
   isConfirmingPadCloseId: number | null = null;
   isConfirmingClearVersions = false;
   appDataDirPath = '';
@@ -102,7 +133,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   replaceTerm = '';
   matchCase = false;
   matchWholeWord = false;
-  findMatches: { start: number; end: number; range: Range }[] = [];
+  findMatches: { start: number; end: number }[] = [];
   currentFindIndex = 0;
   @ViewChild('findInputRef') findInputRef?: ElementRef<HTMLInputElement>;
 
@@ -129,8 +160,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   // Vault Status
-  authStatus: AuthStatus = "Checking";
-  password = "";
+  authStatus: AuthStatus = "Unlocked";
   errorMessage = "";
   isDarkMode = false;
   appVersion = "1.3.1";
@@ -174,7 +204,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     { name: "Fira Code", family: "'Fira Code', monospace" },
     { name: "JetBrains Mono", family: "'JetBrains Mono', monospace" },
   ];
-  selectedFont = "Cascadia Code";
+  selectedFont = localStorage.getItem('selectedFont') || "Cascadia Code";
   showFontSettings = false;
   focusedFontIndex = 0;
   spellCheckEnabled = localStorage.getItem('spellcheck') === 'true';
@@ -188,7 +218,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   // New Appearance & Editor settings
   accentColor = localStorage.getItem('accentColor') || '#ffffffff';
   showStatusBar = localStorage.getItem('showStatusBar') !== 'false';
-  skipSplashScreen = localStorage.getItem('skipSplashScreen') === 'true';
   minimizeToTray = localStorage.getItem('minimizeToTray') !== 'false';
   animationSpeed = (localStorage.getItem('animationSpeed') as 'none' | 'reduced' | 'normal') || 'normal';
   openCustomSelect: 'animationSpeed' | 'versionRetention' | null = null;
@@ -219,30 +248,21 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
   activeLineIndex = 0;
   private currentCaretLine = 0;
-  persistentSessionEnabled = localStorage.getItem('persistentSession') === 'true';
-  autoLockEnabled = localStorage.getItem('autoLock') === 'true';
-  idleMinutes = Number(localStorage.getItem('idleMinutes')) || 10;
-  private lastActivity = Date.now();
-  private idleCheckInterval: any;
 
-  // Typewriter & Focus Mode
-  isFocusMode = localStorage.getItem('isFocusMode') === 'true';
-  isFocusDimmed = false;
-  private focusIdleTimer: any = null;
 
   // Customizable Keyboard Shortcuts
   shortcuts: AppShortcut[] = [
+    { id: 'app.workspace_notes', label: 'All Workspace Notes', category: 'Global Navigation', defaultKeyStr: 'Ctrl + O', currentKeyStr: 'Ctrl + O' },
     { id: 'app.search', label: 'Global Search', category: 'Global Navigation', defaultKeyStr: 'Ctrl + F', currentKeyStr: 'Ctrl + F' },
     { id: 'app.history', label: 'History / Bin', category: 'Global Navigation', defaultKeyStr: 'Ctrl + Shift + B', currentKeyStr: 'Ctrl + Shift + B' },
     { id: 'app.help', label: 'Keyboard Shortcuts', category: 'Global Navigation', defaultKeyStr: 'Ctrl + H', currentKeyStr: 'Ctrl + H' },
-    { id: 'app.toggle_sticky', label: 'Toggle Always on Top', category: 'Global Navigation', defaultKeyStr: 'Ctrl + Shift + P', currentKeyStr: 'Ctrl + Shift + P' },
+    { id: 'app.toggle_sticky', label: 'Toggle Always on Top', category: 'Global Navigation', defaultKeyStr: 'Alt + Shift + P', currentKeyStr: 'Alt + Shift + P' },
 
     { id: 'notepad.new_tab', label: 'New Tab', category: 'Notepad', defaultKeyStr: 'Ctrl + N', currentKeyStr: 'Ctrl + N' },
     { id: 'notepad.save', label: 'Save Tab', category: 'Notepad', defaultKeyStr: 'Ctrl + S', currentKeyStr: 'Ctrl + S' },
     { id: 'notepad.cycle_tabs', label: 'Cycle Tabs', category: 'Notepad', defaultKeyStr: 'Ctrl + Space', currentKeyStr: 'Ctrl + Space' },
     { id: 'notepad.delete_tab', label: 'Delete Tab', category: 'Notepad', defaultKeyStr: 'Ctrl + Shift + D', currentKeyStr: 'Ctrl + Shift + D' },
     { id: 'notepad.time_travel', label: 'Version History', category: 'Notepad', defaultKeyStr: 'Ctrl + T', currentKeyStr: 'Ctrl + T' },
-    { id: 'notepad.focus_mode', label: 'Typewriter Focus Mode', category: 'Notepad', defaultKeyStr: 'Ctrl + Shift + F', currentKeyStr: 'Ctrl + Shift + F' },
     { id: 'notepad.bold', label: 'Bold', category: 'Notepad', defaultKeyStr: 'Ctrl + B', currentKeyStr: 'Ctrl + B' },
     { id: 'notepad.italic', label: 'Italic', category: 'Notepad', defaultKeyStr: 'Ctrl + I', currentKeyStr: 'Ctrl + I' },
     { id: 'notepad.underline', label: 'Underline', category: 'Notepad', defaultKeyStr: 'Ctrl + U', currentKeyStr: 'Ctrl + U' },
@@ -256,6 +276,20 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   shortcutConflictMessage: string | null = null;
 
   async ngOnInit() {
+    this.dismissSplashScreen();
+
+    // Intercept Ctrl+P / Cmd+P in capture phase so browser default Print never steals it
+    window.addEventListener(
+      'keydown',
+      (e: KeyboardEvent) => {
+        const isP = e.key.toLowerCase() === 'p' || e.code === 'KeyP';
+        if ((e.ctrlKey || e.metaKey) && isP && !e.altKey) {
+          e.preventDefault();
+        }
+      },
+      { capture: true }
+    );
+
     await this.loadCustomFonts();
     this.loadShortcuts();
     try {
@@ -266,26 +300,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     try {
       this.authStatus = await this.tauri.checkAuthStatus();
-
-      if (this.authStatus === "Unlocked") {
-        await this.loadPads();
-        this.loadSession();
-        this.triggerPadEditorFocus();
-      }
-
-      // Dismiss splash screen
-      if (this.skipSplashScreen) {
-        this.showSplash = false;
-      } else {
-        setTimeout(() => {
-          this.splashFading = true;
-          setTimeout(() => {
-            this.showSplash = false;
-          }, 600);
-        }, 1400);
-      }
-
-      this.startIdleDetection();
+      await this.loadPads();
+      this.loadSession();
+      this.triggerPadEditorFocus();
 
       const win = this.tauri.getWindow();
 
@@ -323,7 +340,10 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       clearTimeout(this.autoSaveTimer);
       this.savePadNow();
     }
-    if (this.idleCheckInterval) clearInterval(this.idleCheckInterval);
+    if (this.cmEditorView) {
+      this.cmEditorView.destroy();
+      this.cmEditorView = undefined;
+    }
     this.saveSession();
   }
 
@@ -340,6 +360,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       this.showVersionHistory = false;
       this.isConfirmingClearVersions = false;
       this.loadAppDataPath();
+    } else {
+      this.triggerPadEditorFocus();
     }
   }
 
@@ -351,45 +373,21 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     this.selectedFont = "Cascadia Code";
     localStorage.setItem("selectedFont", "Cascadia Code");
-    document.documentElement.style.setProperty("--main-font", "'Cascadia Code', monospace");
+    this.setFont("Cascadia Code");
 
     this.fontSize = 13;
-    this.lineHeight = 1.7;
     localStorage.removeItem('fontSize');
-    localStorage.removeItem('lineHeight');
 
     // 2. Reset Editor
-    this.spellCheckEnabled = false;
-    localStorage.setItem('spellcheck', 'false');
-
     this.wordWrap = true;
-    this.autoSaveDelay = 500;
-    this.versionRetention = 50;
-    this.versionAutoSaveInterval = 1000;
-    this.accentColor = '#ffffffff';
     this.showStatusBar = true;
-    this.skipSplashScreen = false;
-    this.minimizeToTray = true;
-    this.animationSpeed = 'normal';
-
     localStorage.removeItem('wordWrap');
-    localStorage.removeItem('autoSaveDelay');
-    localStorage.removeItem('versionRetention');
-    localStorage.removeItem('versionAutoSaveInterval');
-    localStorage.removeItem('accentColor');
     localStorage.removeItem('showStatusBar');
-    localStorage.removeItem('skipSplashScreen');
-    localStorage.removeItem('minimizeToTray');
-    localStorage.removeItem('animationSpeed');
 
     // 3. Reset Window
     this.isSticky = false;
     localStorage.setItem('isSticky', 'false');
     await this.tauri.setAlwaysOnTop(false);
-
-    if (this.autoStartEnabled) {
-      await this.toggleAutoStart();
-    }
 
     this.applyEditorSettings();
   }
@@ -406,19 +404,57 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
   loadFont() {
     const saved = localStorage.getItem("selectedFont");
-    if (saved) {
+    if (saved && (this.availableFonts.some(f => f.name === saved) || saved.startsWith('Custom-'))) {
       this.setFont(saved);
     } else {
       this.setFont("Cascadia Code");
     }
   }
 
+  getCurrentFontFamily(): string {
+    const font = this.availableFonts.find((f) => f.name === this.selectedFont);
+    return font ? font.family : `'${this.selectedFont}', monospace`;
+  }
+
+  getFontTheme(family: string) {
+    return EditorView.theme({
+      "&": {
+        fontFamily: `${family} !important`
+      },
+      ".cm-scroller": {
+        fontFamily: `${family} !important`
+      },
+      ".cm-content": {
+        fontFamily: `${family} !important`
+      },
+      ".cm-line": {
+        fontFamily: `${family} !important`
+      },
+      ".cm-gutters": {
+        fontFamily: `${family} !important`
+      },
+      ".cm-gutterElement": {
+        fontFamily: `${family} !important`
+      }
+    });
+  }
+
   setFont(fontName: string) {
     this.selectedFont = fontName;
     localStorage.setItem("selectedFont", fontName);
     const font = this.availableFonts.find((f) => f.name === fontName);
-    if (font) {
-      document.documentElement.style.setProperty("--main-font", font.family);
+    const family = font ? font.family : `'${fontName}', monospace`;
+    document.documentElement.style.setProperty("--main-font", family);
+    document.body.style.setProperty("--main-font", family);
+    if (this.cmEditorContainer?.nativeElement) {
+      this.cmEditorContainer.nativeElement.style.setProperty("--main-font", family);
+      this.cmEditorContainer.nativeElement.style.fontFamily = family;
+    }
+    if (this.cmEditorView) {
+      this.cmEditorView.dispatch({
+        effects: this.cmFontCompartment.reconfigure(this.getFontTheme(family))
+      });
+      this.cmEditorView.requestMeasure();
     }
   }
 
@@ -438,22 +474,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     } else {
       document.documentElement.classList.remove("dark-mode");
     }
+    this.updateCodeMirrorTheme();
   }
 
   ngAfterViewChecked() {
     if (this.searchNeedsFocus && this.searchInput) {
       this.searchInput.nativeElement.focus();
       this.searchNeedsFocus = false;
-    }
-    if (this.padEditorNeedsContent && this.padEditor) {
-      this.padEditor.nativeElement.innerHTML = this.padContent;
-      this.padText = this.padEditor.nativeElement.innerText || '';
-      this.updateLineNumbers();
-      this.padEditorNeedsContent = false;
-    }
-    if (this.padEditorNeedsFocus && this.padEditor) {
-      this.padEditor.nativeElement.focus();
-      this.padEditorNeedsFocus = false;
     }
   }
 
@@ -491,6 +518,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.wordWrap = !this.wordWrap;
     localStorage.setItem('wordWrap', String(this.wordWrap));
     this.applyEditorSettings();
+    this.updateCodeMirrorWordWrap();
   }
 
   updateAutoSaveDelay(ms: any) {
@@ -524,6 +552,28 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     localStorage.setItem('skipSplashScreen', String(this.skipSplashScreen));
   }
 
+  dismissSplashScreen() {
+    if (this.skipSplashScreen || !this.showSplash) {
+      this.showSplash = false;
+      this.splashFading = false;
+      return;
+    }
+
+    setTimeout(() => {
+      this.splashFading = true;
+      setTimeout(() => {
+        this.showSplash = false;
+      }, 500);
+    }, 700);
+  }
+
+  dismissSplashScreenImmediately() {
+    this.splashFading = true;
+    setTimeout(() => {
+      this.showSplash = false;
+    }, 150);
+  }
+
   updateAnimationSpeed(speed: any) {
     this.animationSpeed = speed;
     localStorage.setItem('animationSpeed', speed);
@@ -544,28 +594,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     }
   }
 
-  toggleAutoLock() {
-    this.autoLockEnabled = !this.autoLockEnabled;
-    localStorage.setItem('autoLock', String(this.autoLockEnabled));
-    if (this.autoLockEnabled) {
-      this.startIdleDetection();
-    } else if (this.idleCheckInterval) {
-      clearInterval(this.idleCheckInterval);
-    }
-  }
 
-  updateIdleMinutes(val: any) {
-    this.idleMinutes = Number(val);
-    localStorage.setItem('idleMinutes', String(this.idleMinutes));
-    if (this.autoLockEnabled) {
-      this.startIdleDetection();
-    }
-  }
-
-  togglePersistentSession() {
-    this.persistentSessionEnabled = !this.persistentSessionEnabled;
-    localStorage.setItem('persistentSession', String(this.persistentSessionEnabled));
-  }
 
   // --- Data Management Methods ---
   async loadAppDataPath() {
@@ -624,15 +653,205 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
 
   triggerPadEditorFocus() {
-    this.padEditorNeedsFocus = true;
+    setTimeout(() => {
+      if (this.cmEditorView) {
+        this.cmEditorView.focus();
+      }
+    }, 0);
+  }
+
+  clearHighlights() {
+    this.findMatches = [];
+  }
+
+  getCleanPlainText(content: string): string {
+    if (!content) return '';
+    if (content.includes('<div>') || content.includes('<p>') || content.includes('<br>')) {
+      const temp = document.createElement('div');
+      temp.innerHTML = content;
+      return (temp.innerText || temp.textContent || '').replace(/\r\n/g, '\n');
+    }
+    return content;
+  }
+
+  initCodeMirrorEditor() {
+    if (!this.cmEditorContainer || !this.cmEditorContainer.nativeElement) return;
+    const parentEl = this.cmEditorContainer.nativeElement;
+
+    if (this.cmEditorView) {
+      this.cmEditorView.destroy();
+      this.cmEditorView = undefined;
+    }
+
+    const initialText = this.getCleanPlainText(this.padContent);
+    this.padText = initialText;
+
+    const baseTheme = EditorView.theme({
+      "&": {
+        height: "100%",
+        fontSize: "var(--editor-font-size, 13px)",
+        fontFamily: "var(--main-font, monospace)",
+        backgroundColor: "var(--bg-color, #0d0d0d)",
+        color: "var(--text-color, #f0f0f0)"
+      },
+      "&.cm-focused": {
+        outline: "none"
+      },
+      ".cm-scroller": {
+        fontFamily: "inherit",
+        lineHeight: "var(--editor-line-height-exact, 24px)"
+      },
+      ".cm-content": {
+        fontFamily: "inherit",
+        padding: "16px 24px 60px 24px",
+        caretColor: "var(--text-color, #f0f0f0)"
+      },
+      ".cm-line": {
+        fontFamily: "inherit"
+      },
+      ".cm-gutters": {
+        backgroundColor: "#000000 !important",
+        color: "#ffffff !important",
+        borderRight: "1px solid var(--border-color, #1e1e1e) !important",
+        minWidth: "44px !important",
+        flexShrink: "0 !important"
+      },
+      ".cm-lineNumbers": {
+        minWidth: "44px !important"
+      },
+      ".cm-gutterElement": {
+        color: "#ffffff !important",
+        opacity: "0.85",
+        fontFamily: "inherit",
+        minWidth: "38px !important",
+        textAlign: "right !important",
+        padding: "0 10px 0 6px !important",
+        boxSizing: "border-box !important",
+        fontVariantNumeric: "tabular-nums !important"
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: "transparent !important",
+        color: "#ffffff !important",
+        opacity: "1 !important",
+        fontWeight: "700"
+      },
+      ".cm-activeLine": {
+        backgroundColor: "transparent !important"
+      },
+      "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+        backgroundColor: "var(--selection-bg, rgba(255, 255, 255, 0.22)) !important"
+      },
+      ".cm-selectionMatch": {
+        backgroundColor: "var(--selection-match-bg, rgba(255, 255, 255, 0.12)) !important"
+      },
+      ".cm-content ::selection, .cm-line ::selection": {
+        backgroundColor: "transparent !important",
+        color: "var(--selection-color, #ffffff) !important"
+      }
+    });
+
+    const updateListener = EditorView.updateListener.of((update) => {
+      if (update.docChanged && !this.isUpdatingEditorFromApp) {
+        const newText = update.state.doc.toString();
+        this.padText = newText;
+        this.padContent = newText;
+
+        const pad = this.pads.find(p => p.id === this.activeTabId);
+        if (pad) pad.isDirty = true;
+        if (this.activePad) this.activePad.isDirty = true;
+
+        this.onPadContentChange();
+        this.scheduleVersionSave();
+
+        if (this.showFindReplace && this.searchTerm) {
+          this.updateFindMatches();
+        }
+      }
+
+      if (update.selectionSet) {
+        const ranges = update.state.selection.ranges;
+        if (ranges && ranges.length > 0) {
+          const main = ranges[0];
+          this.selectedPadText = update.state.sliceDoc(main.from, main.to);
+          const line = update.state.doc.lineAt(main.head);
+          this.activeLineIndex = line.number - 1;
+        }
+      }
+    });
+
+    const startState = EditorState.create({
+      doc: initialText,
+      extensions: [
+        cmLineNumbers(),
+        highlightActiveLineGutter(),
+        highlightSpecialChars(),
+        history(),
+        drawSelection(),
+        dropCursor(),
+        rectangularSelection(),
+        crosshairCursor(),
+        highlightActiveLine(),
+        markdown(),
+        cmPlaceholder("Start writing notes, thoughts, or code..."),
+        keymap.of([
+          ...defaultKeymap,
+          ...historyKeymap,
+          indentWithTab,
+          { key: "Alt-ArrowUp", run: moveLineUp },
+          { key: "Alt-ArrowDown", run: moveLineDown },
+          { key: "Shift-Alt-ArrowUp", run: copyLineUp },
+          { key: "Shift-Alt-ArrowDown", run: copyLineDown },
+          { key: "Mod-b", run: () => this.toggleMarkdownWrap("**") },
+          { key: "Mod-i", run: () => this.toggleMarkdownWrap("*") },
+          { key: "Mod-u", run: () => this.toggleMarkdownWrap("<u>", "</u>") },
+        ]),
+        this.cmThemeCompartment.of(this.isDarkMode ? oneDark : []),
+        this.cmWrapCompartment.of(this.wordWrap ? EditorView.lineWrapping : []),
+        this.cmFontCompartment.of(this.getFontTheme(this.getCurrentFontFamily())),
+        baseTheme,
+        updateListener
+      ]
+    });
+
+    this.cmEditorView = new EditorView({
+      state: startState,
+      parent: parentEl
+    });
+
+    this.updateLineNumbers();
+  }
+
+  updateCodeMirrorEditorContent(newText: string) {
+    if (!this.cmEditorView) return;
+    const currentDoc = this.cmEditorView.state.doc.toString();
+    if (currentDoc === newText) return;
+
+    this.isUpdatingEditorFromApp = true;
+    this.cmEditorView.dispatch({
+      changes: { from: 0, to: currentDoc.length, insert: newText }
+    });
+    this.isUpdatingEditorFromApp = false;
+    this.padText = newText;
+    this.padContent = newText;
+    this.updateLineNumbers();
+  }
+
+  updateCodeMirrorTheme() {
+    if (!this.cmEditorView) return;
+    this.cmEditorView.dispatch({
+      effects: this.cmThemeCompartment.reconfigure(this.isDarkMode ? oneDark : [])
+    });
+  }
+
+  updateCodeMirrorWordWrap() {
+    if (!this.cmEditorView) return;
+    this.cmEditorView.dispatch({
+      effects: this.cmWrapCompartment.reconfigure(this.wordWrap ? EditorView.lineWrapping : [])
+    });
   }
 
   @HostListener("window:keydown", ["$event"])
   handleGlobalKeys(event: KeyboardEvent) {
-    this.resetIdleTimer(); // Merge activity reset
-
-    if (this.authStatus !== "Unlocked") return;
-
     // Notepad shortcuts
     if (this.matchShortcut(event, 'notepad.save')) {
       event.preventDefault();
@@ -645,12 +864,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     if (this.matchShortcut(event, 'notepad.time_travel')) {
       event.preventDefault();
       this.toggleVersionHistory();
-      return;
-    }
-
-    if (this.matchShortcut(event, 'notepad.focus_mode')) {
-      event.preventDefault();
-      this.toggleFocusMode();
       return;
     }
 
@@ -671,6 +884,40 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       if (this.activeTabId) {
         this.closeTab(this.activeTabId);
       }
+      return;
+    }
+
+    if (this.activeTabId && this.cmEditorView) {
+      if (this.matchShortcut(event, 'notepad.bold')) {
+        event.preventDefault();
+        this.toggleMarkdownWrap('**');
+        return;
+      }
+      if (this.matchShortcut(event, 'notepad.italic')) {
+        event.preventDefault();
+        this.toggleMarkdownWrap('*');
+        return;
+      }
+      if (this.matchShortcut(event, 'notepad.underline')) {
+        event.preventDefault();
+        this.toggleMarkdownWrap('<u>', '</u>');
+        return;
+      }
+      if (this.matchShortcut(event, 'notepad.dup_line')) {
+        event.preventDefault();
+        copyLineDown(this.cmEditorView);
+        return;
+      }
+      if (this.matchShortcut(event, 'notepad.move_line')) {
+        event.preventDefault();
+        moveLineDown(this.cmEditorView);
+        return;
+      }
+    }
+
+    if (this.matchShortcut(event, 'app.workspace_notes')) {
+      event.preventDefault();
+      this.toggleDocumentDrawer();
       return;
     }
 
@@ -705,7 +952,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     if (this.showVersionHistory) {
       const activeTagName = document.activeElement?.tagName.toLowerCase();
-      const isInputOrEditor = activeTagName === 'input' || activeTagName === 'textarea' || document.activeElement?.classList.contains('pad-content-editor');
+      const isInputOrEditor = activeTagName === 'input' || activeTagName === 'textarea' || document.activeElement?.classList.contains('cm-content') || !!document.activeElement?.closest('.cm-editor');
 
       if (!isInputOrEditor && this.padVersions.length > 0) {
         if (event.key === "ArrowDown") {
@@ -746,7 +993,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
     if (this.showBin) {
       const activeTagName = document.activeElement?.tagName.toLowerCase();
-      const isInputOrEditor = activeTagName === 'input' || activeTagName === 'textarea' || document.activeElement?.classList.contains('pad-content-editor');
+      const isInputOrEditor = activeTagName === 'input' || activeTagName === 'textarea' || document.activeElement?.classList.contains('cm-content') || !!document.activeElement?.closest('.cm-editor');
 
       if (!isInputOrEditor && this.binItems.length > 0) {
         if (event.key === "ArrowDown") {
@@ -919,10 +1166,12 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       if (
         this.showHelp ||
         this.showBin ||
+        this.showDrawer ||
         this.isConfirmingPadCloseId
       ) {
         this.showHelp = false;
         this.showBin = false;
+        this.showDrawer = false;
         this.isConfirmingPadCloseId = null;
         event.preventDefault();
         return;
@@ -955,76 +1204,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.openCustomSelect = null;
   }
 
-  @HostListener("window:mousemove")
-  @HostListener("window:click")
-  @HostListener("window:scroll")
-  resetIdleTimer() {
-    this.lastActivity = Date.now();
-  }
-
-  startIdleDetection() {
-    if (this.idleCheckInterval) clearInterval(this.idleCheckInterval);
-    if (!this.autoLockEnabled) return;
-
-    this.idleCheckInterval = setInterval(async () => {
-      if (this.authStatus === "Unlocked") {
-        const now = Date.now();
-        const timeoutMs = this.idleMinutes * 60 * 1000;
-        if (now - this.lastActivity > timeoutMs) {
-          await this.lockVault();
-        }
-      }
-    }, 10000);
-  }
-
-  async unlockVault() {
-    if (!this.password.trim()) return;
-    try {
-      this.errorMessage = "";
-      await this.tauri.unlockVault(this.password, this.persistentSessionEnabled);
-      this.authStatus = "Unlocked";
-      this.password = "";
-      this.resetIdleTimer();
-      if (this.autoLockEnabled) {
-        this.startIdleDetection();
-      }
-      await this.loadPads();
-      this.loadSession();
-      this.triggerPadEditorFocus();
-    } catch (err: any) {
-      this.errorMessage = err.toString();
-    }
-  }
-
-  async lockVault() {
-    try {
-      if (this.activePad) {
-        await this.savePadNow();
-      }
-      if (this.autoSaveTimer) {
-        clearTimeout(this.autoSaveTimer);
-        this.autoSaveTimer = null;
-      }
-      await this.tauri.lockVault();
-      this.authStatus = "Locked";
-      this.pads = [];
-      this.activeTabId = null;
-      this.activePad = null;
-      this.padContent = "";
-      this.showSettings = false;
-      this.showBin = false;
-      this.showHelp = false;
-    } catch (e) {
-      console.error("Lock failed:", e);
-    }
-  }
-
-  // Backup & Password
-  oldPasswordInput = "";
-  newPasswordInput = "";
-  confirmPasswordInput = "";
-  isChangingPassword = false;
-
   async startBackup() {
     try {
       const dest = await this.tauri.saveDialog({
@@ -1036,19 +1215,6 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       }
     } catch (err) {
       console.error("Backup failed:", err);
-    }
-  }
-
-  async performChangePassword() {
-    if (!this.oldPasswordInput || !this.newPasswordInput || this.newPasswordInput !== this.confirmPasswordInput) return;
-    try {
-      await this.tauri.changePassword(this.oldPasswordInput, this.newPasswordInput);
-      this.isChangingPassword = false;
-      this.oldPasswordInput = "";
-      this.newPasswordInput = "";
-      this.confirmPasswordInput = "";
-    } catch (err: any) {
-      alert("Failed to change password: " + err);
     }
   }
 
@@ -1126,11 +1292,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   getPadTabTitle(pad: Pad): string {
-    // If it's a contenteditable blob, we extract text and get first line
+    const raw = (pad.title && !pad.title.includes('<')) ? pad.title : pad.content;
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = pad.content;
-    const text = tempDiv.innerText || '';
-    const firstLine = text.split("\n")[0]?.trim();
+    tempDiv.innerHTML = raw;
+    const text = (tempDiv.innerText || tempDiv.textContent || '').replace(/\r\n/g, '\n').trim();
+    const firstLine = text.split("\n")[0]?.replace(/<[^>]*>/g, '').trim();
     return firstLine || "Untitled";
   }
 
@@ -1170,12 +1336,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.activePad.isDirty = pad.isDirty || false;
 
     setTimeout(() => {
-      if (this.padEditor) {
-        this.padEditor.nativeElement.innerHTML = this.padContent;
-        this.padText = this.padEditor.nativeElement.innerText || '';
-        this.updateLineNumbers();
-        this.triggerPadEditorFocus();
-      }
+      this.initCodeMirrorEditor();
+      this.triggerPadEditorFocus();
     });
   }
 
@@ -1349,54 +1511,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     await this.openTab(padId);
   }
 
-  handlePadPaste(event: ClipboardEvent) {
-    event.preventDefault();
-    const text = event.clipboardData?.getData('text/plain');
-    if (text) {
-      document.execCommand('insertText', false, text);
-      this.onPadInput();
-    }
-  }
 
-  onPadInput() {
-    if (this.padEditor) {
-      this.padContent = this.padEditor.nativeElement.innerHTML;
-      this.padText = this.padEditor.nativeElement.innerText || '';
-
-      const pad = this.pads.find(p => p.id === this.activeTabId);
-      if (pad) {
-        pad.isDirty = true;
-      }
-      if (this.activePad) {
-        this.activePad.isDirty = true;
-      }
-
-      this.onPadContentChange();
-      this.scheduleVersionSave();
-      this.activeLineIndex = this.getCaretLineIndex(this.padEditor.nativeElement);
-
-      if (this.isFocusMode) {
-        this.updateFocusModeDimming(true);
-        this.typewriterScroll();
-      }
-
-      if (this.showFindReplace && this.searchTerm) {
-        this.updateFindMatches();
-      }
-    }
-  }
-
-  onPadSelect() {
-    const sel = window.getSelection();
-    this.selectedPadText = sel ? sel.toString() : "";
-    if (this.padEditor) {
-      this.activeLineIndex = this.getCaretLineIndex(this.padEditor.nativeElement);
-      if (this.isFocusMode) {
-        this.updateFocusModeDimming(true);
-        this.typewriterScroll();
-      }
-    }
-  }
 
 
 
@@ -1413,10 +1528,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.updateLineNumbers();
     const pad = this.pads.find((p) => p.id === this.activeTabId);
     if (pad) {
-      if (!this.padEditor) return;
-      // Get title from text content only
-      const text = this.padEditor.nativeElement.innerText || '';
-      const firstLine = text.split("\n")[0]?.trim();
+      const text = this.padText || '';
+      const firstLine = text.split("\n")[0]?.replace(/<[^>]*>/g, '').trim();
       pad.title = firstLine || "Untitled";
     }
     this.schedulePadAutoSave();
@@ -1431,13 +1544,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   updateLineNumbers() {
-    if (!this.padEditor) {
-      this.lineNumbers = [1];
-      return;
-    }
-
-    const editor = this.padEditor.nativeElement;
-    const text = editor.innerText || '';
+    const text = this.padText || '';
     const normalized = text.replace(/\r\n/g, '\n');
 
     let count = 1;
@@ -1448,302 +1555,31 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     this.lineNumbers = Array.from({ length: count }, (_, i) => i + 1);
   }
 
-  handlePadKeyDown(event: KeyboardEvent, editor: HTMLElement) {
-    if (
-      this.showHelp ||
-      this.showBin ||
-      this.isConfirmingPadCloseId !== null
-    ) {
-      event.preventDefault();
-      return;
-    }
-
-    if (this.matchShortcut(event, 'notepad.bold')) {
-      event.preventDefault();
-      document.execCommand('bold', false);
-      this.onPadInput();
-      return;
-    }
-    if (this.matchShortcut(event, 'notepad.italic')) {
-      event.preventDefault();
-      document.execCommand('italic', false);
-      this.onPadInput();
-      return;
-    }
-    if (this.matchShortcut(event, 'notepad.underline')) {
-      event.preventDefault();
-      document.execCommand('underline', false);
-      this.onPadInput();
-      return;
-    }
-
-    if (
-      this.matchShortcut(event, 'notepad.dup_line') ||
-      (event.altKey && event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown'))
-    ) {
-      event.preventDefault();
-      const dir = (event.key === "ArrowUp" || event.key === "ArrowDown") ? event.key : "ArrowDown";
-      this.duplicateLine(dir, editor);
-      return;
-    }
-
-    if (
-      this.matchShortcut(event, 'notepad.move_line') ||
-      (event.altKey && !event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown'))
-    ) {
-      event.preventDefault();
-      const dir = (event.key === "ArrowUp" || event.key === "ArrowDown") ? event.key : "ArrowDown";
-      this.moveLine(dir, editor);
-      return;
-    }
-
-    if (this.isFocusMode && (
-      event.key.startsWith('Arrow') ||
-      event.key === 'PageUp' ||
-      event.key === 'PageDown' ||
-      event.key === 'Home' ||
-      event.key === 'End'
-    )) {
-      setTimeout(() => {
-        this.updateFocusModeDimming(true);
-        this.typewriterScroll();
-      }, 0);
-    }
-  }
-
-
-  /** Returns the 0-based line index the cursor/caret is on inside a contenteditable element. */
-  private getCaretLineIndex(el: HTMLElement): number {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return 0;
-    const range = sel.getRangeAt(0).cloneRange();
-    range.collapse(true);
-    // Measure characters before the caret using innerText split by newlines
-    const preRange = document.createRange();
-    preRange.selectNodeContents(el);
-    preRange.setEnd(range.startContainer, range.startOffset);
-    const pre = preRange.toString();
-    return pre.split('\n').length - 1;
-  }
-
-  /** Places the caret at the beginning of a given 0-based line index in a contenteditable element. */
-  private setCaretToLine(el: HTMLElement, lineIndex: number) {
-    el.focus();
-    const text = el.innerText;
-    const lines = text.split('\n');
-    let charOffset = 0;
-    for (let i = 0; i < lineIndex && i < lines.length; i++) {
-      charOffset += lines[i].length + 1; // +1 for the newline
-    }
-    // Walk text nodes to find the right position
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-    let node: Text | null = null;
-    let remaining = charOffset;
-    while (walker.nextNode()) {
-      const t = walker.currentNode as Text;
-      if (remaining <= t.length) {
-        node = t;
-        break;
+  toggleMarkdownWrap(before: string, after: string = before): boolean {
+    if (!this.cmEditorView) return false;
+    const view = this.cmEditorView;
+    const changes = view.state.changeByRange((range) => {
+      const text = view.state.sliceDoc(range.from, range.to);
+      if (text.startsWith(before) && text.endsWith(after) && text.length >= before.length + after.length) {
+        const unwrapped = text.slice(before.length, text.length - after.length);
+        return {
+          changes: { from: range.from, to: range.to, insert: unwrapped },
+          range: EditorSelection.range(range.from, range.from + unwrapped.length)
+        };
       }
-      remaining -= t.length;
-    }
-    if (node) {
-      const range = document.createRange();
-      const sel = window.getSelection()!;
-      range.setStart(node, remaining);
-      range.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-  }
-
-  private escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  private getEditorLineHtmls(editor: HTMLElement): string[] {
-    const children = Array.from(editor.childNodes);
-    if (children.length > 0 && children.some(n => n.nodeType === Node.ELEMENT_NODE && (n.nodeName === 'DIV' || n.nodeName === 'P'))) {
-      return children.map(n => {
-        if (n.nodeType === Node.ELEMENT_NODE) {
-          return (n as HTMLElement).outerHTML;
-        } else {
-          return `<div>${this.escapeHtml(n.textContent || '')}</div>`;
-        }
-      });
-    }
-
-    const text = editor.innerText || '';
-    const lines = text.split('\n');
-    return lines.map(line => `<div>${this.escapeHtml(line)}</div>`);
-  }
-
-  duplicateLine(direction: string, editor: HTMLElement) {
-    const lineHtmls = this.getEditorLineHtmls(editor);
-    const currentLine = Math.min(this.getCaretLineIndex(editor), lineHtmls.length - 1);
-    if (currentLine < 0) return;
-
-    if (direction === 'ArrowDown') {
-      lineHtmls.splice(currentLine + 1, 0, lineHtmls[currentLine]);
-    } else {
-      lineHtmls.splice(currentLine, 0, lineHtmls[currentLine]);
-    }
-
-    editor.innerHTML = lineHtmls.join('');
-    this.padContent = editor.innerHTML;
-    this.onPadContentChange();
-
-    const targetLine = direction === 'ArrowDown' ? currentLine + 1 : currentLine;
-    setTimeout(() => this.setCaretToLine(editor, targetLine));
-  }
-
-  moveLine(direction: string, editor: HTMLElement) {
-    const lineHtmls = this.getEditorLineHtmls(editor);
-    const currentLine = Math.min(this.getCaretLineIndex(editor), lineHtmls.length - 1);
-    if (currentLine < 0) return;
-
-    if (direction === 'ArrowUp') {
-      if (currentLine === 0) return;
-      [lineHtmls[currentLine - 1], lineHtmls[currentLine]] = [lineHtmls[currentLine], lineHtmls[currentLine - 1]];
-      editor.innerHTML = lineHtmls.join('');
-      this.padContent = editor.innerHTML;
-      this.onPadContentChange();
-      setTimeout(() => this.setCaretToLine(editor, currentLine - 1));
-    } else {
-      if (currentLine >= lineHtmls.length - 1) return;
-      [lineHtmls[currentLine], lineHtmls[currentLine + 1]] = [lineHtmls[currentLine + 1], lineHtmls[currentLine]];
-      editor.innerHTML = lineHtmls.join('');
-      this.padContent = editor.innerHTML;
-      this.onPadContentChange();
-      setTimeout(() => this.setCaretToLine(editor, currentLine + 1));
-    }
-  }
-
-  onEditorScroll(_event: Event) {
-    // Editor scroll handler
+      const wrapped = before + text + after;
+      return {
+        changes: { from: range.from, to: range.to, insert: wrapped },
+        range: EditorSelection.range(range.from + before.length, range.to + before.length)
+      };
+    });
+    view.dispatch(changes);
+    return true;
   }
 
   @HostListener('window:resize')
   onWindowResize() {
     this.updateLineNumbers();
-    if (this.isFocusMode) {
-      this.typewriterScroll();
-    }
-  }
-
-  toggleFocusMode() {
-    this.isFocusMode = !this.isFocusMode;
-    localStorage.setItem('isFocusMode', String(this.isFocusMode));
-    if (this.isFocusMode) {
-      this.triggerPadEditorFocus();
-      setTimeout(() => {
-        if (this.padEditor) {
-          this.updateLineNumbers();
-          this.updateFocusModeDimming(true);
-          this.typewriterScroll();
-        }
-      }, 50);
-    } else {
-      this.isFocusDimmed = false;
-      if (this.padEditor) {
-        const prev = this.padEditor.nativeElement.querySelector('.active-focus-block');
-        if (prev) prev.classList.remove('active-focus-block');
-        this.updateLineNumbers();
-      }
-    }
-  }
-
-  @HostListener('window:mousemove')
-  onWindowMouseMove() {
-    if (this.isFocusMode && this.isFocusDimmed) {
-      this.isFocusDimmed = false;
-    }
-  }
-
-  private getCaretBlock(editor: HTMLElement): HTMLElement | null {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return null;
-    let node: Node | null = sel.getRangeAt(0).startContainer;
-    while (node && node.parentElement !== editor && node !== editor) {
-      node = node.parentElement;
-    }
-    if (node && node.parentElement === editor && node.nodeType === Node.ELEMENT_NODE) {
-      return node as HTMLElement;
-    }
-    return null;
-  }
-
-  updateFocusModeDimming(isTyping: boolean) {
-    if (!this.isFocusMode || !this.padEditor) return;
-    const editor = this.padEditor.nativeElement;
-
-    if (!isTyping) {
-      this.isFocusDimmed = false;
-      return;
-    }
-
-    this.isFocusDimmed = true;
-
-    const prevActive = editor.querySelector('.active-focus-block');
-    const currBlock = this.getCaretBlock(editor);
-
-    if (prevActive && prevActive !== currBlock) {
-      prevActive.classList.remove('active-focus-block');
-    }
-    if (currBlock) {
-      currBlock.classList.add('active-focus-block');
-    }
-
-    if (this.focusIdleTimer) clearTimeout(this.focusIdleTimer);
-    this.focusIdleTimer = setTimeout(() => {
-      this.isFocusDimmed = false;
-    }, 2500);
-  }
-
-  typewriterScroll() {
-    if (!this.isFocusMode || !this.padEditor) return;
-    const editor = this.padEditor.nativeElement;
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-
-    const range = sel.getRangeAt(0);
-    let caretTop = 0;
-    let caretHeight = 24;
-
-    const rects = range.getClientRects();
-    if (rects.length > 0) {
-      caretTop = rects[0].top;
-      caretHeight = rects[0].height;
-    } else {
-      const rect = range.getBoundingClientRect();
-      if (rect.top > 0) {
-        caretTop = rect.top;
-        caretHeight = rect.height;
-      } else {
-        const block = this.getCaretBlock(editor);
-        if (block) {
-          const bRect = block.getBoundingClientRect();
-          caretTop = bRect.top;
-          caretHeight = bRect.height;
-        } else {
-          return;
-        }
-      }
-    }
-
-    const editorRect = editor.getBoundingClientRect();
-    const targetCenterY = editorRect.top + editorRect.height / 2;
-    const currentCaretCenter = caretTop + caretHeight / 2;
-    const delta = currentCaretCenter - targetCenterY;
-
-    if (Math.abs(delta) > 3) {
-      editor.scrollTop += delta;
-    }
   }
 
   private schedulePadAutoSave() {
@@ -1754,9 +1590,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   private async savePadNow() {
-    if (!this.activePad || !this.padEditor) return;
-    const text = this.padEditor.nativeElement.innerText || '';
-    const firstLine = text.split("\n")[0]?.trim();
+    if (!this.activePad) return;
+    const text = this.padText || '';
+    const firstLine = text.split("\n")[0]?.replace(/<[^>]*>/g, '').trim();
     const title = firstLine || "Untitled";
     try {
       await this.tauri.updatePad(this.activePad.id, title, this.padContent);
@@ -1920,6 +1756,11 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
       // Auto-select the newly added font
       this.setFont(name);
       this.showFontSettings = false;
+      document.fonts.ready.then(() => {
+        if (this.cmEditorView) {
+          this.cmEditorView.requestMeasure();
+        }
+      });
     } catch (err) {
       console.error('Failed to upload font:', err);
     }
@@ -1952,18 +1793,24 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
 
         fontCache[familyName] = assetUrl;
 
+        // Dedicated style injection for guaranteed WebKitGTK / browser font engine rendering
+        const styleId = `custom-font-style-${name}`;
+        let styleEl = document.getElementById(styleId);
+        if (!styleEl) {
+          styleEl = document.createElement('style');
+          styleEl.id = styleId;
+          document.head.appendChild(styleEl);
+        }
+        styleEl.textContent = `@font-face { font-family: "${familyName}"; src: url("${assetUrl}"); font-display: swap; }`;
+
         try {
-          // Register @font-face dynamically
+          // Register @font-face dynamically in FontFaceSet
           const fontFace = new FontFace(familyName, `url("${assetUrl}")`);
           await fontFace.load();
           (document.fonts as any).add(fontFace);
           console.log('Font loaded successfully:', familyName);
         } catch (fontErr) {
-          console.warn('FontFace load failed, trying style injection:', fontErr);
-          // Fallback: inject a <style> tag with @font-face
-          const style = document.createElement('style');
-          style.textContent = `@font-face { font-family: "${familyName}"; src: url("${assetUrl}"); }`;
-          document.head.appendChild(style);
+          console.warn('FontFace load note:', fontErr);
         }
 
         this.availableFonts.push({
@@ -1985,6 +1832,9 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
     event.stopPropagation();
     try {
       await this.tauri.deleteCustomFont(fontName);
+
+      const styleEl = document.getElementById(`custom-font-style-${fontName}`);
+      if (styleEl) styleEl.remove();
 
       // If the deleted font was selected, switch to default
       if (this.selectedFont === fontName) {
@@ -2042,110 +1892,48 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   updateFindMatches() {
-    this.clearHighlights();
-    if (!this.searchTerm || !this.padEditor || !this.padEditor.nativeElement) {
-      this.findMatches = [];
+    this.findMatches = [];
+    if (!this.searchTerm || !this.cmEditorView) {
       this.currentFindIndex = 0;
       return;
     }
 
-    let textContent = '';
-    const textNodes: { node: Node; start: number; end: number }[] = [];
+    const docText = this.cmEditorView.state.doc.toString();
+    const query = this.matchCase ? this.searchTerm : this.searchTerm.toLowerCase();
+    const target = this.matchCase ? docText : docText.toLowerCase();
 
-    // Walk DOM to build clean view-model text representations and track physical nodes
-    const walk = (node: Node) => {
-      if (node.nodeType === Node.TEXT_NODE && node.nodeValue) {
-        const start = textContent.length;
-        textContent += node.nodeValue;
-        textNodes.push({ node, start, end: textContent.length });
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const tag = (node as Element).tagName.toLowerCase();
-        // Assume block breaks on structural elements to prevent word merging (e.g., hello</div><div>world)
-        if (tag === 'div' || tag === 'br' || tag === 'p') {
-          textContent += '\n';
-        }
-        for (let i = 0; i < node.childNodes.length; i++) {
-          walk(node.childNodes[i]);
-        }
-      }
-    };
-    walk(this.padEditor.nativeElement);
+    let pos = 0;
+    while (pos < target.length) {
+      const idx = target.indexOf(query, pos);
+      if (idx === -1) break;
 
-    let escapedSearch = this.searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let pattern = this.matchWholeWord ? `\\b${escapedSearch}\\b` : escapedSearch;
-    const regex = new RegExp(pattern, this.matchCase ? 'g' : 'gi');
-
-    this.findMatches = [];
-    let match;
-
-    while ((match = regex.exec(textContent)) !== null) {
-      const matchStart = match.index;
-      const matchEnd = match.index + match[0].length;
-
-      let startNode: Node | null = null, startOff = 0;
-      let endNode: Node | null = null, endOff = 0;
-
-      for (const info of textNodes) {
-        if (!startNode && matchStart >= info.start && matchStart < info.end) {
-          startNode = info.node;
-          startOff = matchStart - info.start;
-        }
-        if (matchEnd > info.start && matchEnd <= info.end) {
-          endNode = info.node;
-          endOff = matchEnd - info.start;
+      if (this.matchWholeWord) {
+        const prevChar = idx > 0 ? target[idx - 1] : ' ';
+        const nextChar = idx + query.length < target.length ? target[idx + query.length] : ' ';
+        const isWordBoundary = /\W/.test(prevChar) && /\W/.test(nextChar);
+        if (!isWordBoundary) {
+          pos = idx + query.length;
+          continue;
         }
       }
 
-      if (startNode && endNode) {
-        const range = document.createRange();
-        range.setStart(startNode, startOff);
-        range.setEnd(endNode, endOff);
-        this.findMatches.push({ start: matchStart, end: matchEnd, range });
-      }
+      this.findMatches.push({ start: idx, end: idx + query.length });
+      pos = idx + query.length;
     }
 
     if (this.findMatches.length > 0) {
       if (this.currentFindIndex >= this.findMatches.length) {
         this.currentFindIndex = 0;
       }
-      this.applyHighlights();
       this.scrollToMatch();
     } else {
       this.currentFindIndex = 0;
     }
   }
 
-  clearHighlights() {
-    try {
-      const win = window as any;
-      if (win.CSS && win.CSS.highlights) {
-        win.CSS.highlights.delete("search-results");
-        win.CSS.highlights.delete("search-active");
-      }
-    } catch (e) { }
-  }
-
-  applyHighlights() {
-    try {
-      const win = window as any;
-      if (win.CSS && win.CSS.highlights && win.Highlight) {
-        const allRanges = this.findMatches.map(m => m.range);
-        win.CSS.highlights.set("search-results", new win.Highlight(...allRanges));
-
-        const activeRange = this.findMatches[this.currentFindIndex]?.range;
-        if (activeRange) {
-          win.CSS.highlights.set("search-active", new win.Highlight(activeRange));
-        }
-      }
-    } catch (e) {
-      console.warn("Highlights API error", e);
-    }
-  }
-
   nextMatch() {
     if (this.findMatches.length > 0) {
       this.currentFindIndex = (this.currentFindIndex + 1) % this.findMatches.length;
-      this.applyHighlights();
       this.scrollToMatch();
       this.findInputRef?.nativeElement.focus();
     }
@@ -2154,72 +1942,52 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   prevMatch() {
     if (this.findMatches.length > 0) {
       this.currentFindIndex = (this.currentFindIndex - 1 + this.findMatches.length) % this.findMatches.length;
-      this.applyHighlights();
       this.scrollToMatch();
       this.findInputRef?.nativeElement.focus();
     }
   }
 
   scrollToMatch() {
-    const activeRange = this.findMatches[this.currentFindIndex]?.range;
-    if (activeRange && this.padEditor) {
-      const rect = activeRange.getBoundingClientRect();
-      const editor = this.padEditor.nativeElement;
-      const editorRect = editor.getBoundingClientRect();
+    if (!this.cmEditorView || this.findMatches.length === 0) return;
+    const match = this.findMatches[this.currentFindIndex];
+    if (!match) return;
 
-      // Calculate active scroll constraints dynamically
-      if (rect.top < editorRect.top || rect.bottom > editorRect.bottom) {
-        editor.scrollTop += rect.top - editorRect.top - (editorRect.height / 2);
-      }
-    }
+    this.cmEditorView.dispatch({
+      selection: { anchor: match.start, head: match.end },
+      scrollIntoView: true
+    });
   }
 
   replaceMatch() {
-    if (this.findMatches.length === 0) return;
+    if (!this.cmEditorView || this.findMatches.length === 0) return;
     const match = this.findMatches[this.currentFindIndex];
-    if (match && match.range) {
-      match.range.deleteContents();
-      match.range.insertNode(document.createTextNode(this.replaceTerm));
+    if (!match) return;
 
-      this.syncEditorContent();
+    this.cmEditorView.dispatch({
+      changes: { from: match.start, to: match.end, insert: this.replaceTerm },
+      selection: { anchor: match.start, head: match.start + this.replaceTerm.length },
+      scrollIntoView: true
+    });
 
-      // Preserve current index to replace next match falling into place
-      const oldIndex = this.currentFindIndex;
-      this.updateFindMatches();
-      if (this.findMatches.length > 0) {
-        this.currentFindIndex = Math.min(oldIndex, this.findMatches.length - 1);
-        this.applyHighlights();
-        this.scrollToMatch();
-      }
+    const oldIndex = this.currentFindIndex;
+    this.updateFindMatches();
+    if (this.findMatches.length > 0) {
+      this.currentFindIndex = Math.min(oldIndex, this.findMatches.length - 1);
+      this.scrollToMatch();
     }
   }
 
   replaceAllMatches() {
-    if (this.findMatches.length === 0) return;
+    if (!this.cmEditorView || this.findMatches.length === 0) return;
 
-    // Replace heavily from the back to preserve the DOM structure of earlier nodes
-    for (let i = this.findMatches.length - 1; i >= 0; i--) {
-      const match = this.findMatches[i];
-      match.range.deleteContents();
-      match.range.insertNode(document.createTextNode(this.replaceTerm));
-    }
+    const changes = this.findMatches.map(m => ({
+      from: m.start,
+      to: m.end,
+      insert: this.replaceTerm
+    }));
 
-    this.syncEditorContent();
+    this.cmEditorView.dispatch({ changes });
     this.updateFindMatches();
-  }
-
-  syncEditorContent() {
-    if (this.padEditor) {
-      this.padContent = this.padEditor.nativeElement.innerHTML;
-      this.padText = this.padEditor.nativeElement.innerText || '';
-
-      // Mark as un-saved
-      const pad = this.pads.find(p => p.id === this.activeTabId);
-      if (pad) pad.isDirty = true;
-      if (this.activePad) this.activePad.isDirty = true;
-
-      this.onPadContentChange();
-    }
   }
 
   toggleVersionHistory() {
@@ -2271,8 +2039,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   private async autoSaveVersion() {
-    if (!this.activePad || !this.padEditor) return;
-    const plainText = this.padEditor.nativeElement.innerText || '';
+    if (!this.activePad) return;
+    const plainText = this.padText || '';
     if (!plainText.trim()) return;
     // Skip if content hasn't changed from last version save
     if (plainText === this.lastVersionContent) return;
@@ -2292,8 +2060,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   async createCheckpoint() {
-    if (!this.activePad || !this.padEditor) return;
-    const plainText = this.padEditor.nativeElement.innerText || '';
+    if (!this.activePad) return;
+    const plainText = this.padText || '';
     if (!plainText.trim()) return;
 
     try {
@@ -2324,26 +2092,13 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   async restoreVersion(version: PadVersion) {
-    if (!this.padEditor || !this.activePad) return;
-    const el = this.padEditor.nativeElement;
+    if (!this.activePad) return;
+    const cleanText = this.getCleanPlainText(version.content || '');
 
-    let textContent = version.content || '';
-    if (textContent.includes('<div>') || textContent.includes('<p>') || textContent.includes('<br>')) {
-      const tempEl = document.createElement('div');
-      tempEl.innerHTML = textContent;
-      textContent = tempEl.innerText || '';
-    }
-
-    // Rebuild innerHTML with one <div> per line
-    const lines = textContent.split('\n');
-    el.innerHTML = lines
-      .map((line: string) => `<div>${this.escapeHtml(line) || '<br>'}</div>`)
-      .join('');
-
-    this.padContent = el.innerHTML;
-    this.padText = el.innerText || '';
-    this.lastVersionContent = this.padText;
-    this.updateLineNumbers();
+    this.updateCodeMirrorEditorContent(cleanText);
+    this.padContent = cleanText;
+    this.padText = cleanText;
+    this.lastVersionContent = cleanText;
     this.onPadContentChange();
 
     // Mark as dirty
@@ -2357,14 +2112,8 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   }
 
   showDiff(version: PadVersion) {
-    if (!this.padEditor) return;
-    let versionText = version.content || '';
-    if (versionText.includes('<div>') || versionText.includes('<p>') || versionText.includes('<br>')) {
-      const tempEl = document.createElement('div');
-      tempEl.innerHTML = versionText;
-      versionText = tempEl.innerText || '';
-    }
-    const currentText = this.padEditor.nativeElement.innerText || '';
+    const versionText = this.getCleanPlainText(version.content || '');
+    const currentText = this.padText || '';
     this.versionDiffLines = this.computeDiff(versionText, currentText);
     this.showVersionDiff = true;
   }

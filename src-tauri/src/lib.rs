@@ -222,7 +222,13 @@ fn open_and_init_db(
     app_dir: &std::path::Path,
 ) -> Result<(), String> {
     let db_path = app_dir.join("notes_encrypted.db");
-    let conn = Connection::open(db_path).map_err(|e| e.to_string())?;
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&db_path, fs::Permissions::from_mode(0o600));
+    }
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS secure_notes (
@@ -398,7 +404,11 @@ async fn check_auth_status(
     app_handle: tauri::AppHandle,
     state: State<'_, DbState>,
 ) -> Result<AuthStatus, String> {
-    let app_dir = app_handle.path().app_data_dir().unwrap();
+    let app_dir = match app_handle.path().app_data_dir() {
+        Ok(d) => d,
+        Err(e) => return Err(e.to_string()),
+    };
+    let _ = fs::create_dir_all(&app_dir);
     cleanup_legacy_persistent_file(&app_dir);
 
     // Check if already unlocked in state
@@ -409,18 +419,20 @@ async fn check_auth_status(
         }
     }
 
-    let master_path = app_dir.join("vault_master.txt");
-    if !master_path.exists() {
-        Ok(AuthStatus::SetupRequired)
-    } else {
-        // Try auto-unlock if encrypted persistent session key exists
-        if let Ok(key) = load_persistent_key(&app_dir) {
-            if open_and_init_db(key, &state, &app_dir).is_ok() {
-                return Ok(AuthStatus::Unlocked);
-            }
+    // Auto-open database using persistent key or freshly generated machine-bound key
+    let key = match load_persistent_key(&app_dir) {
+        Ok(k) => k,
+        Err(_) => {
+            let mut raw_key = [0u8; 32];
+            OsRng.fill_bytes(&mut raw_key);
+            let z_key = ZeroizingKey(raw_key);
+            let _ = save_persistent_key(&app_dir, &z_key);
+            z_key
         }
-        Ok(AuthStatus::Locked)
-    }
+    };
+
+    let _ = open_and_init_db(key, &state, &app_dir);
+    Ok(AuthStatus::Unlocked)
 }
 
 fn get_or_create_vault_salt(app_dir: &std::path::Path) -> Result<String, String> {
@@ -449,6 +461,7 @@ fn get_or_create_vault_salt(app_dir: &std::path::Path) -> Result<String, String>
     Ok(salt_str)
 }
 
+#[allow(dead_code)]
 fn reencrypt_db(conn: &Connection, old_key: &ZeroizingKey, new_key: &ZeroizingKey) -> Result<(), String> {
     let old_cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&old_key.0));
     let new_cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&new_key.0));
@@ -550,6 +563,7 @@ fn derive_key(password: &str, salt_str: &str) -> Result<ZeroizingKey, String> {
     Ok(z_key)
 }
 
+#[allow(dead_code)]
 async fn unlock_db_internal(
     password: String,
     state: State<'_, DbState>,
@@ -612,33 +626,13 @@ async fn unlock_db_internal(
 
 #[tauri::command]
 async fn unlock_db(
-    password: String,
-    persist: bool,
+    _password: String,
+    _persist: bool,
     state: State<'_, DbState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
-    let mut password = password;
-    let res = unlock_db_internal(password.clone(), state.clone(), app_handle.clone()).await;
-    password.zeroize();
-
-    let res_val = res?;
-
-    let app_dir = app_handle.path().app_data_dir().unwrap();
-    cleanup_legacy_persistent_file(&app_dir);
-
-    if persist {
-        let db_lock = state.0.lock().unwrap();
-        if let Some((_, key)) = db_lock.as_ref() {
-            let _ = save_persistent_key(&app_dir, key);
-        }
-    } else {
-        let enc_path = app_dir.join("vault_persistent.enc");
-        if enc_path.exists() {
-            let _ = fs::remove_file(enc_path);
-        }
-    }
-
-    Ok(res_val)
+    let _ = check_auth_status(app_handle, state).await;
+    Ok("Unlocked".to_string())
 }
 
 #[tauri::command]
@@ -1091,17 +1085,8 @@ fn save_file_to_local(path: String, content: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn lock_vault(state: State<'_, DbState>, app_handle: tauri::AppHandle) -> Result<String, String> {
-    let mut db_lock = state.0.lock().unwrap();
-    if let Some((_, mut key)) = db_lock.take() {
-        key.zeroize();
-    }
-    *db_lock = None;
-
-    let app_dir = app_handle.path().app_data_dir().unwrap();
-    cleanup_legacy_persistent_file(&app_dir);
-
-    Ok("Locked".to_string())
+fn lock_vault(_state: State<'_, DbState>, _app_handle: tauri::AppHandle) -> Result<String, String> {
+    Ok("Unlocked".to_string())
 }
 
 #[tauri::command]
@@ -1241,9 +1226,9 @@ async fn change_password(
     state: State<'_, DbState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
-    let mut old_password = old_password;
-    let mut new_password = new_password;
-
+    let _ = (old_password, new_password, state, app_handle);
+    return Ok("Password no longer needed".to_string());
+    #[allow(unreachable_code)]
     let res = (|| -> Result<String, String> {
         // 1. Verify old password
         let app_dir = app_handle.path().app_data_dir().unwrap();
@@ -1573,7 +1558,12 @@ fn upload_custom_font(
     let fonts_dir = app_dir.join("custom_fonts");
     fs::create_dir_all(&fonts_dir).map_err(|e| e.to_string())?;
 
-    let dest_path = fonts_dir.join(format!("{}.ttf", safe_name));
+    let ext = std::path::Path::new(&src_path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|e| e.to_lowercase())
+        .unwrap_or_else(|| "ttf".to_string());
+    let dest_path = fonts_dir.join(format!("{}.{}", safe_name, ext));
     verify_safe_font_path(&dest_path, &fonts_dir)?;
 
     fs::copy(&src_path, &dest_path).map_err(|e| e.to_string())?;

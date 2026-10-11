@@ -1,5 +1,5 @@
 <!-- Splash Screen -->
-<div class="splash-screen" *ngIf="showSplash" [class.fade-out]="splashFading">
+<div class="splash-screen" *ngIf="showSplash" [class.fade-out]="splashFading" (click)="dismissSplashScreenImmediately()">
   <div class="splash-content">
     <div class="splash-logo">bilet</div>
     <div class="splash-tagline">A clean desk for your thoughts and code.</div>
@@ -14,21 +14,31 @@
   </div>
   <div class="title-text" data-tauri-drag-region>bilet</div>
   <div class="header-actions">
-    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="showBin = true; loadBinItems()" title="Bin">
+    <button class="help-btn workspace-btn" (click)="toggleDocumentDrawer()" [class.active]="showDrawer" title="All Workspace Notes (Ctrl+O)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 3.5h8l3.5 3.5V17a2 2 0 0 1-2 2H16" opacity="0.45"/>
+        <polyline points="16 3.5 16 7 19.5 7" opacity="0.45"/>
+        <rect x="3.5" y="7" width="12" height="13.5" rx="2"/>
+        <line x1="6.5" y1="11.5" x2="12.5" y2="11.5"/>
+        <line x1="6.5" y1="14.5" x2="10.5" y2="14.5"/>
+      </svg>
+    </button>
+
+    <button class="help-btn" (click)="showBin = true; loadBinItems()" [class.active]="showBin" title="History & Trash (Ctrl+Shift+B)">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path
           d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
       </svg>
     </button>
 
-    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" title="Help" (click)="showHelp = true">
+    <button class="help-btn" title="Help & Shortcuts (Ctrl+H)" [class.active]="showHelp" (click)="showHelp = true">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path
           d="M11.07,12.85C11.17,12.45 11.39,12.11 11.73,11.82C12.07,11.53 12.39,11.23 12.68,10.93C12.97,10.63 13.11,10.3 13.11,9.94C13.11,9.58 12.97,9.27 12.7,9C12.42,8.73 12.07,8.59 11.64,8.59C11.19,8.59 10.84,8.73 10.58,9C10.32,9.27 10.15,9.62 10.08,10.04L8.06,9.22C8.25,8.41 8.65,7.74 9.27,7.21C9.89,6.67 10.68,6.4 11.64,6.4C12.66,6.4 13.5,6.72 14.16,7.35C14.81,7.98 15.14,8.74 15.14,9.65C15.14,10.33 14.96,10.92 14.59,11.4C14.23,11.89 13.78,12.39 13.25,12.91L12.72,13.43C12.56,13.59 12.45,13.75 12.39,13.91C12.33,14.07 12.29,14.34 12.28,14.73H10.19C10.2,14 10.35,13.37 10.61,12.87C10.61,12.87 11.07,12.85 11.07,12.85M12.5,19A1.25,1.25 0 0,1 11.25,17.75A1.25,1.25 0 0,1 12.5,16.5A1.25,1.25 0 0,1 13.75,17.75A1.25,1.25 0 0,1 12.5,19M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
       </svg>
     </button>
 
-    <button class="help-btn" *ngIf="authStatus === 'Unlocked'" (click)="toggleSettings()" title="Settings">
+    <button class="help-btn" (click)="toggleSettings()" [class.active]="showSettings" title="Settings">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.65 15.44,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.56,5.32 7.96,5.65 7.44,6.05L4.95,5.05C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.95C7.96,18.35 8.56,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.44,18.68 16.04,18.35 16.56,17.95L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
       </svg>
@@ -37,55 +47,15 @@
   </div>
 </div>
 
-<!-- Vault Locked/Setup View -->
-<div class="vault-container" *ngIf="authStatus !== 'Unlocked' && authStatus !== 'Checking'">
-  <div class="vault-card">
-    <div class="vault-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-      </svg>
-    </div>
-
-    <h2 *ngIf="authStatus === 'SetupRequired'">Security Setup</h2>
-    <h2 *ngIf="authStatus === 'Locked'">Vault Locked</h2>
-
-    <p class="vault-subtitle" *ngIf="authStatus === 'SetupRequired'">Set a master password to encrypt your <b>bilet</b>.
-    </p>
-    <p class="vault-subtitle" *ngIf="authStatus === 'Locked'">Enter your password to decrypt your <b>bilet</b>.</p>
-
-    <div class="vault-input-group">
-      <input type="password" [(ngModel)]="password" placeholder="Master Password" (keyup.enter)="unlockVault()"
-        autofocus />
-      <button class="primary" (click)="unlockVault()">
-        {{ authStatus === 'SetupRequired' ? 'Create Vault' : 'Unlock' }}
-      </button>
-    </div>
-
-    <div class="vault-remember-option" (click)="togglePersistentSession()" style="margin-top: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; opacity: 0.85;">
-      <div class="toggle-switch" [class.on]="persistentSessionEnabled" style="transform: scale(0.8);"></div>
-      <span>Remember Password (Persistent Session)</span>
-    </div>
-
-    <p class="error-text" *ngIf="errorMessage">{{ errorMessage }}</p>
-
-    <div class="vault-footer">
-      <p *ngIf="authStatus === 'SetupRequired'">Don't forget this password! We cannot recover it.</p>
-      <p class="version-text">v{{ appVersion }}</p>
-    </div>
-  </div>
-</div>
-
-
 <!-- ========== NOTEPAD SECTION ========== -->
-<div class="notepad-container" *ngIf="authStatus === 'Unlocked'">
+<div class="notepad-container">
 
   <!-- Tab Bar -->
   <div class="tab-bar">
     <div class="tab" *ngFor="let pad of openOrderedTabs" (click)="switchTab(pad.id)"
       [class.active]="activeTabId === pad.id">
       <div class="tab-title-wrapper">
-        <span class="tab-title" [innerHTML]="(pad.title || 'Untitled') | formatContent"></span>
+        <span class="tab-title">{{ getPadTabTitle(pad) }}</span>
         <span class="dirty-indicator" *ngIf="pad.isDirty"></span>
       </div>
       <button class="tab-close" (click)="closeTab(pad.id, $event)">
@@ -96,11 +66,6 @@
       </button>
     </div>
     <button class="tab-add" (click)="createPad()" title="New tab">+</button>
-    <button class="tab-add drawer-btn" (click)="toggleDocumentDrawer()" title="All Notes / Re-open Tab">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-        <path d="M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H20V6H4Z" />
-      </svg>
-    </button>
   </div>
 
   <!-- Find & Replace Widget -->
@@ -133,10 +98,7 @@
   <!-- Editor -->
   <div class="editor-wrapper" [class.history-open]="showVersionHistory" [class.settings-open]="showSettings">
     <div class="editor-area" *ngIf="activePad">
-      <div #padEditor class="pad-content-editor" [class.focus-mode]="isFocusMode" [class.focus-dimmed]="isFocusDimmed" contenteditable="true" (input)="onPadInput()"
-        (keydown)="handlePadKeyDown($event, padEditor)" (scroll)="onEditorScroll($event)" (mouseup)="onPadSelect()"
-        (keyup)="onPadSelect()" (paste)="handlePadPaste($event)" placeholder="Start writing..."
-        [attr.spellcheck]="spellCheckEnabled"></div>
+      <div #cmEditorContainer class="cm-editor-container"></div>
     </div>
 
     <!-- Empty state -->
@@ -144,24 +106,27 @@
       <p>Create a new note</p>
     </div>
 
-    <!-- Version History Panel -->
-    <div class="version-panel" *ngIf="showVersionHistory">
-      <div class="version-panel-header">
-        <div class="version-panel-title">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-            <path
-              d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
-          </svg>
-          <span>Versions</span>
+    <!-- Version History Drawer Backdrop -->
+    <div class="version-backdrop" *ngIf="showVersionHistory" (click)="closeVersionHistory()"></div>
+
+    <!-- Minimalist Studio Version History Drawer -->
+    <aside class="version-drawer" *ngIf="showVersionHistory">
+      <!-- Drawer Header -->
+      <div class="version-drawer-header">
+        <div class="version-header-info">
+          <span class="version-header-title">Version History</span>
+          <span class="version-header-subtitle">
+            {{ padVersions.length }} snapshot{{ padVersions.length === 1 ? '' : 's' }} recorded
+          </span>
         </div>
         <div class="version-header-actions">
-          <button class="checkpoint-btn" (click)="createCheckpoint()" title="Create Checkpoint">
+          <button class="version-checkpoint-btn" (click)="createCheckpoint()" title="Create Checkpoint Snapshot">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
               <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
               <line x1="4" y1="22" x2="4" y2="15"></line>
             </svg>
           </button>
-          <button class="version-close-btn" (click)="closeVersionHistory()" title="Close">
+          <button class="version-close-btn" (click)="closeVersionHistory()" title="Close History (Esc)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -170,235 +135,251 @@
         </div>
       </div>
 
-      <!-- Version Timeline -->
-      <div class="version-list" *ngIf="padVersions.length > 0">
-        <div class="version-item" *ngFor="let ver of padVersions; let i = index" (click)="selectVersion(ver)"
-          [class.selected]="selectedVersionId === ver.id" [class.has-label]="ver.label">
-          <div class="version-timeline-dot">
-            <div class="dot" [class.checkpoint]="ver.label"></div>
-            <div class="timeline-line" *ngIf="i < padVersions.length - 1"></div>
-          </div>
-          <div class="version-info">
-            <!-- Label display / edit -->
-            <ng-container *ngIf="editingLabelId !== ver.id">
-              <div class="version-label" *ngIf="ver.label">
-                <span class="version-label-text" (click)="startEditLabel(ver, $event)" title="Click to rename">{{ ver.label }}</span>
-                <button class="version-remove-checkpoint-btn" (click)="removeCheckpoint(ver, $event)" title="Remove checkpoint">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </div>
-            </ng-container>
-            <ng-container *ngIf="editingLabelId === ver.id">
-              <div class="version-label-edit-row" (click)="$event.stopPropagation()">
-                <input class="version-label-input" [(ngModel)]="editingLabelText" placeholder="Checkpoint name..."
-                  (keyup.enter)="saveLabel(ver)" (keyup.escape)="cancelEditLabel()" (blur)="saveLabel(ver)" />
-                <button class="version-label-save" (click)="saveLabel(ver)" title="Save name">
+      <!-- Version Timeline List -->
+      <div class="version-drawer-body scrollable" *ngIf="padVersions.length > 0">
+        <div class="version-timeline">
+          <div class="version-item" *ngFor="let ver of padVersions; let i = index" (click)="selectVersion(ver)"
+            [class.selected]="selectedVersionId === ver.id" [class.has-label]="ver.label">
+            <div class="version-timeline-track">
+              <div class="timeline-dot" [class.checkpoint]="ver.label"></div>
+              <div class="timeline-line" *ngIf="i < padVersions.length - 1"></div>
+            </div>
+
+            <div class="version-item-card">
+              <div class="version-card-top">
+                <div class="version-card-meta">
+                  <!-- Label display / edit -->
+                  <ng-container *ngIf="editingLabelId !== ver.id">
+                    <div class="version-label-tag" *ngIf="ver.label">
+                      <span class="version-label-text" (click)="startEditLabel(ver, $event)" title="Click to rename">{{ ver.label }}</span>
+                      <button class="version-remove-label-btn" (click)="removeCheckpoint(ver, $event)" title="Remove checkpoint label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  </ng-container>
+
+                  <ng-container *ngIf="editingLabelId === ver.id">
+                    <div class="version-label-edit-row" (click)="$event.stopPropagation()">
+                      <input class="version-label-input" [(ngModel)]="editingLabelText" placeholder="Checkpoint label..."
+                        (keyup.enter)="saveLabel(ver)" (keyup.escape)="cancelEditLabel()" (blur)="saveLabel(ver)" autofocus />
+                      <button class="version-label-save" (click)="saveLabel(ver)" title="Save label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      </button>
+                    </div>
+                  </ng-container>
+
+                  <span class="version-time">{{ timeAgo(ver.timestamp) }}</span>
+                </div>
+
+                <button class="version-delete-btn" (click)="deleteVersion(ver, $event)" title="Delete snapshot">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
-                    <polyline points="20 6 9 17 4 12"></polyline>
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
               </div>
-            </ng-container>
-            <div class="version-time">{{ timeAgo(ver.timestamp) }}</div>
-            <div class="version-preview">{{ getVersionPreviewLines(ver.content) }}</div>
+
+              <div class="version-preview">{{ getVersionPreviewLines(ver.content) }}</div>
+            </div>
           </div>
-          <button class="version-delete-btn" (click)="deleteVersion(ver, $event)" title="Delete version">
+        </div>
+      </div>
+
+      <!-- Version Empty State -->
+      <div class="version-drawer-empty" *ngIf="padVersions.length === 0">
+        <div class="empty-icon-wrapper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="28" height="28">
+            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p class="empty-title">No snapshots yet</p>
+        <span class="empty-desc">Versions and checkpoints are saved automatically as you write.</span>
+      </div>
+
+      <!-- Preview / Actions for selected version -->
+      <div class="version-drawer-footer" *ngIf="previewingVersion">
+        <div class="version-footer-info">
+          <span class="footer-selected-label">Selected Snapshot</span>
+          <span class="footer-selected-time">{{ timeAgo(previewingVersion.timestamp) }}</span>
+        </div>
+        <div class="version-footer-actions">
+          <button class="version-btn secondary" (click)="showDiff(previewingVersion)" title="Compare diff (D)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
+              <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+            </svg>
+          </button>
+          <button class="version-btn primary" (click)="restoreVersion(previewingVersion)" title="Restore version (R)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
             </svg>
           </button>
         </div>
       </div>
+    </aside>
 
-      <div class="version-empty" *ngIf="padVersions.length === 0">
-        <p>No versions yet</p>
-        <span>Versions are saved automatically as you type</span>
-      </div>
+    <!-- Settings Drawer Backdrop -->
+    <div class="settings-backdrop" *ngIf="showSettings" (click)="toggleSettings()"></div>
 
-      <!-- Preview / Actions for selected version -->
-      <div class="version-actions" *ngIf="previewingVersion">
-        <button class="version-action-btn restore" (click)="restoreVersion(previewingVersion)">Restore</button>
-        <button class="version-action-btn diff" (click)="showDiff(previewingVersion)">Diff</button>
-
-      </div>
-    </div>
-
-    <!-- Settings Panel -->
-    <div class="version-panel settings-panel" *ngIf="showSettings">
-      <div class="version-panel-header">
-        <div class="version-panel-title">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-            <path
-              d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.65 15.44,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.56,5.32 7.96,5.65 7.44,6.05L4.95,5.05C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.95C7.96,18.35 8.56,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.44,18.68 16.04,18.35 16.56,17.95L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+    <!-- Minimalist Studio Settings Drawer -->
+    <aside class="settings-drawer" *ngIf="showSettings">
+      <!-- Drawer Header -->
+      <div class="settings-drawer-header">
+        <div class="settings-header-info">
+          <span class="settings-header-title">Settings</span>
+          <span class="settings-header-subtitle">Preferences &amp; storage</span>
+        </div>
+        <button class="settings-close-btn" (click)="toggleSettings()" title="Close Settings (Esc)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
-          <span>Settings</span>
-        </div>
+        </button>
       </div>
 
-      <div class="settings-list">
-        <!-- Appearance -->
-        <div class="settings-section">
-          <div class="settings-section-title">Appearance</div>
-          <div class="settings-item" (click)="toggleDarkMode()">
-            <div class="settings-item-label">Dark Mode</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="isDarkMode"></div>
+      <!-- Settings Content Body -->
+      <div class="settings-drawer-body">
+
+        <!-- Card: Typography & Theme -->
+        <div class="settings-group">
+          <div class="settings-group-title">Appearance</div>
+          <div class="settings-card">
+            
+            <div class="settings-row" (click)="toggleDarkMode()">
+              <div class="settings-row-main">
+                <span class="settings-row-label">Dark Theme</span>
+                <span class="settings-row-desc">Switch dark / light mode</span>
+              </div>
+              <div class="mini-toggle" [class.active]="isDarkMode">
+                <div class="mini-toggle-thumb"></div>
+              </div>
             </div>
-          </div>
-          <div class="settings-item" (click)="toggleFontSettings()">
-            <div class="settings-item-label">Font Style</div>
-            <div class="settings-item-action">
-              <span class="settings-value-preview">{{ selectedFont }}</span>
+
+            <div class="settings-row clickable" (click)="toggleFontSettings()">
+              <div class="settings-row-main">
+                <span class="settings-row-label">Font Family</span>
+                <span class="settings-row-desc">Editor typeface</span>
+              </div>
+              <div class="font-chip">
+                <span class="font-chip-name">{{ selectedFont }}</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
             </div>
-          </div>
-          <div class="settings-item no-click">
-            <div class="settings-item-label">Font Size</div>
-            <div class="settings-item-action">
-              <span class="settings-value">{{ fontSize }}px</span>
-              <input type="range" min="10" max="24" [(ngModel)]="fontSize" (input)="updateFontSize($any($event.target).value)" class="settings-slider">
+
+            <div class="settings-row no-click">
+              <div class="settings-row-main">
+                <span class="settings-row-label">Font Size</span>
+                <span class="settings-row-desc">Editor font scale</span>
+              </div>
+              <div class="font-size-control">
+                <input type="range" min="11" max="22" [(ngModel)]="fontSize"
+                  (input)="updateFontSize($any($event.target).value)" class="minimal-slider">
+                <span class="size-badge">{{ fontSize }}px</span>
+              </div>
             </div>
+
           </div>
         </div>
 
-        <!-- Editor -->
-        <div class="settings-section">
-          <div class="settings-section-title">Editor</div>
-          <div class="settings-item" (click)="toggleFocusMode()">
-            <div class="settings-item-label">Typewriter & Focus Mode</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="isFocusMode"></div>
+        <!-- Card: Editor Behavior -->
+        <div class="settings-group">
+          <div class="settings-group-title">Editor</div>
+          <div class="settings-card">
+
+            <div class="settings-row" (click)="toggleWordWrap()">
+              <div class="settings-row-main">
+                <span class="settings-row-label">Word Wrap</span>
+                <span class="settings-row-desc">Wrap overflowing lines</span>
+              </div>
+              <div class="mini-toggle" [class.active]="wordWrap">
+                <div class="mini-toggle-thumb"></div>
+              </div>
             </div>
-          </div>
-          <div class="settings-item" (click)="toggleWordWrap()">
-            <div class="settings-item-label">Word Wrap</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="wordWrap"></div>
+
+            <div class="settings-row" (click)="toggleStatusBar()">
+              <div class="settings-row-main">
+                <span class="settings-row-label">Status Bar</span>
+                <span class="settings-row-desc">Word, char &amp; line metrics</span>
+              </div>
+              <div class="mini-toggle" [class.active]="showStatusBar">
+                <div class="mini-toggle-thumb"></div>
+              </div>
             </div>
-          </div>
-          <div class="settings-item" (click)="toggleSpellCheck()">
-            <div class="settings-item-label">Spell Check</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="spellCheckEnabled"></div>
+
+            <div class="settings-row" (click)="toggleStickyMode()">
+              <div class="settings-row-main">
+                <span class="settings-row-label">Always on Top</span>
+                <span class="settings-row-desc">Pin window above other apps</span>
+              </div>
+              <div class="mini-toggle" [class.active]="isSticky">
+                <div class="mini-toggle-thumb"></div>
+              </div>
             </div>
-          </div>
-          <div class="settings-item" (click)="toggleStatusBar()">
-            <div class="settings-item-label">Status Bar</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="showStatusBar"></div>
-            </div>
+
           </div>
         </div>
 
-        <!-- Window -->
-        <div class="settings-section">
-          <div class="settings-section-title">Window</div>
-          <div class="settings-item" (click)="toggleStickyMode()">
-            <div class="settings-item-label">Always on Top</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="isSticky"></div>
+        <!-- Card: Storage -->
+        <div class="settings-group">
+          <div class="settings-group-title">Storage</div>
+          <div class="settings-card">
+
+            <div class="settings-row">
+              <div class="settings-row-main">
+                <span class="settings-row-label">Export All Notes</span>
+                <span class="settings-row-desc">Save notes locally as files</span>
+              </div>
+              <button class="minimal-btn" (click)="startBulkExport()">Export</button>
             </div>
-          </div>
-          <div class="settings-item" (click)="toggleAutoStart()">
-            <div class="settings-item-label">Launch at Startup</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="autoStartEnabled"></div>
+
+            <div class="settings-row">
+              <div class="settings-row-main">
+                <span class="settings-row-label">Version History</span>
+                <span class="settings-row-desc">Purge timeline checkpoints</span>
+              </div>
+              <button class="minimal-btn danger-tone" (click)="clearAllVersionHistory()">
+                {{ isConfirmingClearVersions ? 'Confirm' : 'Purge' }}
+              </button>
             </div>
-          </div>
-          <div class="settings-item" (click)="toggleMinimizeToTray()">
-            <div class="settings-item-label">Minimize to Tray on Close</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="minimizeToTray"></div>
-            </div>
+
           </div>
         </div>
 
-        <!-- Security & Data -->
-        <div class="settings-section">
-          <div class="settings-section-title">Security & Data</div>
-          <div class="settings-item" (click)="togglePersistentSession()">
-            <div class="settings-item-label">Remember Password (Persistent Login)</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="persistentSessionEnabled"></div>
-            </div>
-          </div>
-          <div class="settings-item" (click)="toggleAutoLock()">
-            <div class="settings-item-label">Auto-Lock on Idle</div>
-            <div class="settings-item-action">
-              <div class="toggle-switch" [class.on]="autoLockEnabled"></div>
-            </div>
-          </div>
-          <div class="settings-item no-click" *ngIf="autoLockEnabled">
-            <div class="settings-item-label">Lock timeout ({{ idleMinutes }}m)</div>
-            <div class="settings-item-action">
-              <input type="range" min="1" max="120" [value]="idleMinutes" 
-                     (input)="updateIdleMinutes($any($event.target).value)" 
-                     class="settings-slider">
-            </div>
-          </div>
-          <div class="settings-item" (click)="isChangingPassword = true">
-            <div class="settings-item-label">Change Master Password</div>
-            <div class="settings-item-action">
-              <button class="settings-button">Change</button>
-            </div>
-          </div>
-          <div class="settings-item" (click)="startBackup()">
-            <div class="settings-item-label">Backup Vault Database</div>
-            <div class="settings-item-action">
-              <button class="settings-button">Backup</button>
-            </div>
-          </div>
-          <div class="settings-item" (click)="startBulkExport()">
-            <div class="settings-item-label">Export All Notes</div>
-            <div class="settings-item-action">
-              <button class="settings-button">Export</button>
-            </div>
-          </div>
-          <div class="settings-item" (click)="clearAllVersionHistory()">
-            <div class="settings-item-label">Purge Version History</div>
-            <div class="settings-item-action">
-              <button class="settings-button" [style.background-color]="isConfirmingClearVersions ? '#e74c3c' : ''">{{ isConfirmingClearVersions ? 'Confirm Purge' : 'Purge All' }}</button>
-            </div>
-          </div>
+        <!-- Reset Footer -->
+        <div class="settings-drawer-footer">
+          <button class="minimal-reset-btn" (click)="resetSettings()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            Reset to defaults
+          </button>
         </div>
 
-        <!-- System -->
-        <div class="settings-section">
-          <div class="settings-section-title">System</div>
-          <div class="settings-item no-click">
-            <div class="settings-item-label">App Version</div>
-            <div class="settings-item-action">
-              <span class="settings-value">v{{ appVersion }}</span>
-            </div>
-          </div>
-          <div class="settings-item" (click)="openAppDataDir()">
-            <div class="settings-item-label">App Data Location</div>
-            <div class="settings-item-action">
-              <button class="settings-button">Open Folder</button>
-            </div>
-          </div>
-          <div class="settings-item" (click)="checkForUpdates()">
-            <div class="settings-item-label">Update bilet</div>
-            <div class="settings-item-action">
-              <button class="settings-button">Check Now</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="settings-footer">
-          <button class="reset-btn" (click)="resetSettings()">Reset to Defaults</button>
-        </div>
       </div>
-    </div>
+    </aside>
 
     <!-- Diff View Overlay -->
     <div class="diff-overlay" *ngIf="showVersionDiff" (click)="closeDiff()">
       <div class="diff-content" (click)="$event.stopPropagation()">
         <div class="diff-header">
-          <h3>Changes (version → current)</h3>
+          <div class="diff-title-group">
+            <span class="diff-title">Version Comparison</span>
+            <span class="diff-subtitle">Historical snapshot vs current note</span>
+          </div>
+          <button class="modal-close-btn" (click)="closeDiff()" title="Close Diff (Esc)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
         <div class="diff-body">
           <div *ngFor="let line of versionDiffLines" class="diff-line" [class.diff-same]="line.type === 'same'"
@@ -437,13 +418,22 @@
 <!-- Pad Close Confirmation Modal -->
 <div class="help-overlay save-prompt-overlay" *ngIf="isConfirmingPadCloseId"
   (click)="handlePadCloseModalAction('cancel')">
-  <div class="help-content prompt-content" (click)="$event.stopPropagation()">
-    <h2>Unsaved Changes</h2>
-    <p>You have changes in this tab that haven't been saved yet.</p>
-    <div class="prompt-modal-buttons">
-      <button class="prompt-btn primary-btn" (click)="handlePadCloseModalAction('saveAndDelete')">Save & Close</button>
-      <button class="prompt-btn danger-btn" (click)="handlePadCloseModalAction('delete')">Discard</button>
-      <button class="prompt-btn secondary-btn" (click)="handlePadCloseModalAction('cancel')">Cancel</button>
+  <div class="help-content prompt-modal-box" (click)="$event.stopPropagation()">
+    <div class="prompt-icon-wrapper warning">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    </div>
+    <div class="prompt-text-group">
+      <h3 class="prompt-title">Unsaved Changes</h3>
+      <p class="prompt-desc">This note has unsaved changes. What would you like to do before closing?</p>
+    </div>
+    <div class="prompt-actions-row">
+      <button class="studio-btn secondary" (click)="handlePadCloseModalAction('cancel')">Cancel</button>
+      <button class="studio-btn danger" (click)="handlePadCloseModalAction('delete')">Discard</button>
+      <button class="studio-btn primary" (click)="handlePadCloseModalAction('saveAndDelete')">Save & Close</button>
     </div>
   </div>
 </div>
@@ -451,8 +441,8 @@
 <!-- Help Modal -->
 <div class="help-overlay" *ngIf="showHelp" (click)="showHelp = false">
   <div class="help-content help-modal-content" (click)="$event.stopPropagation()">
-    <!-- Navigation Tabs Header -->
-    <div class="help-nav-header">
+    <!-- Navigation Header -->
+    <div class="modal-header help-nav-header">
       <div class="help-tabs">
         <button class="help-tab-btn" [class.active]="activeHelpTab === 'guide'" (click)="activeHelpTab = 'guide'">
           App Guide
@@ -462,9 +452,15 @@
         </button>
       </div>
 
-      <div class="help-header-actions">
-        <button class="text-btn reset-shortcuts-btn" *ngIf="activeHelpTab === 'shortcuts'" (click)="resetAllShortcuts()">
+      <div class="modal-header-actions">
+        <button class="ghost-action-btn" *ngIf="activeHelpTab === 'shortcuts'" (click)="resetAllShortcuts()" title="Reset all keybindings">
           Reset Defaults
+        </button>
+        <button class="modal-close-btn" (click)="showHelp = false" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
       </div>
     </div>
@@ -472,99 +468,65 @@
     <!-- TAB 1: Detailed App Guide -->
     <div class="guide-container scrollable" *ngIf="activeHelpTab === 'guide'">
       <div class="guide-section">
-        <div class="guide-section-header">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
-            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-          </svg>
-          <span>Notepad & Editor</span>
-        </div>
-        <div class="guide-card">
-          <div class="guide-feature">
-            <strong>Multi-Tab Workspace:</strong> Open and edit multiple notes simultaneously. Unsaved changes display a subtle status indicator on the tab.
+        <div class="guide-section-label">Editor & Multi-Tab Workspace</div>
+        <div class="guide-rows">
+          <div class="guide-row">
+            <span class="guide-row-title">Multi-Tab Workspace</span>
+            <span class="guide-row-desc">Open multiple notes simultaneously. Unsaved changes display a status dot on the tab.</span>
           </div>
-          <div class="guide-feature">
-            <strong>Typewriter & Focus Mode:</strong> Toggle with <code>Ctrl + Shift + F</code> to keep your active line centered and dim surrounding text while writing.
+          <div class="guide-row">
+            <span class="guide-row-title">Search & Replace</span>
+            <span class="guide-row-desc">Press <code>Ctrl + F</code> to toggle search with match counts, case sensitivity, and whole words.</span>
           </div>
-          <div class="guide-feature">
-            <strong>Search & Replace:</strong> Press <code>Ctrl + F</code> to trigger search with match counts, case sensitivity, and whole-word options.
-          </div>
-          <div class="guide-feature">
-            <strong>Live Status Bar:</strong> Track line and column numbers, total character counts, word counts, and live selection details.
+          <div class="guide-row">
+            <span class="guide-row-title">Status Bar Metrics</span>
+            <span class="guide-row-desc">Live word count, line count, character count, and selected characters length.</span>
           </div>
         </div>
       </div>
 
       <div class="guide-section">
-        <div class="guide-section-header">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
-            <path d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.89,15.89L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" />
-          </svg>
-          <span>Version History & Checkpoints</span>
-        </div>
-        <div class="guide-card">
-          <div class="guide-feature">
-            <strong>Automated Snapshots:</strong> Bilet continuously creates background snapshots as you write without interrupting your workflow.
+        <div class="guide-section-label">Version History & Checkpoints</div>
+        <div class="guide-rows">
+          <div class="guide-row">
+            <span class="guide-row-title">Automated Snapshots</span>
+            <span class="guide-row-desc">Bilet continuously creates background snapshots as you write without interrupting you.</span>
           </div>
-          <div class="guide-feature">
-            <strong>Custom Milestone Labels:</strong> Tag key version revisions with custom labels for easy timeline navigation.
+          <div class="guide-row">
+            <span class="guide-row-title">Milestone Labels</span>
+            <span class="guide-row-desc">Tag key revisions with custom labels to quickly find major checkpoints.</span>
           </div>
-          <div class="guide-feature">
-            <strong>Restore & Diff:</strong> Open Version History to compare revisions side-by-side (Diff) or restore previous notes instantly.
+          <div class="guide-row">
+            <span class="guide-row-title">Side-by-Side Diff</span>
+            <span class="guide-row-desc">Compare any historical snapshot directly against your active note draft.</span>
           </div>
         </div>
       </div>
 
       <div class="guide-section">
-        <div class="guide-section-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-          <span>Security & Vault Protection</span>
-        </div>
-        <div class="guide-card">
-          <div class="guide-feature">
-            <strong>Master Password Encryption:</strong> Your notes are protected with local master password AES encryption.
+        <div class="guide-section-label">Typography & Fonts</div>
+        <div class="guide-rows">
+          <div class="guide-row">
+            <span class="guide-row-title">Developer Monospace</span>
+            <span class="guide-row-desc">Ships offline with Cascadia Code, Fira Code, and JetBrains Mono.</span>
           </div>
-          <div class="guide-feature">
-            <strong>Auto-Lock Timer:</strong> Configure an idle timeout in Settings to lock your vault automatically when away.
-          </div>
-          <div class="guide-feature">
-            <strong>Backup & Export:</strong> Export your vault content directly from Security settings for offline backups.
+          <div class="guide-row">
+            <span class="guide-row-title">Custom Font Uploads</span>
+            <span class="guide-row-desc">Import any <code>.ttf</code> or <code>.otf</code> font file from disk into Bilet.</span>
           </div>
         </div>
       </div>
 
       <div class="guide-section">
-        <div class="guide-section-header">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
-            <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
-          </svg>
-          <span>History & Trash Recovery</span>
-        </div>
-        <div class="guide-card">
-          <div class="guide-feature">
-            <strong>Safe Deletion:</strong> Closed note tabs are archived in History/Trash rather than permanently deleted.
+        <div class="guide-section-label">History & Recovery</div>
+        <div class="guide-rows">
+          <div class="guide-row">
+            <span class="guide-row-title">Safe Deletion</span>
+            <span class="guide-row-desc">Closed note tabs are safely archived in History/Trash rather than permanently deleted.</span>
           </div>
-          <div class="guide-feature">
-            <strong>Trash Inspection & Restore:</strong> Review deleted notes in History and restore them to your active workspace anytime.
-          </div>
-        </div>
-      </div>
-
-      <div class="guide-section">
-        <div class="guide-section-header">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
-            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.35 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.97 19.05,5.05L16.56,6.05C16.04,5.65 15.44,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.56,5.32 7.96,5.65 7.44,6.05L4.95,5.05C4.73,4.97 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.35 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.95C7.96,18.35 8.56,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.44,18.68 16.04,18.35 16.56,17.95L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
-          </svg>
-          <span>Personalization & Fonts</span>
-        </div>
-        <div class="guide-card">
-          <div class="guide-feature">
-            <strong>Custom Font Upload:</strong> Import <code>.ttf</code> or <code>.otf</code> font files directly into Bilet.
-          </div>
-          <div class="guide-feature">
-            <strong>Theme & Typography:</strong> Toggle Light/Dark modes and adjust font sizes for comfortable viewing.
+          <div class="guide-row">
+            <span class="guide-row-title">Restore Anytime</span>
+            <span class="guide-row-desc">Review deleted notes in History and restore them straight to your workspace with 1 click.</span>
           </div>
         </div>
       </div>
@@ -578,7 +540,7 @@
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
         <input class="shortcut-search-input" [(ngModel)]="shortcutSearchTerm" placeholder="Search shortcuts..." />
-        <button class="clear-search-btn" *ngIf="shortcutSearchTerm" (click)="shortcutSearchTerm = ''">×</button>
+        <button class="clear-search-btn" *ngIf="shortcutSearchTerm" (click)="shortcutSearchTerm = ''">✕</button>
       </div>
 
       <div class="shortcut-list scrollable">
@@ -645,104 +607,173 @@
         </div>
       </div>
     </div>
+
     <div class="modal-footer">
-      <span class="version-text">Version {{ appVersion }}</span>
-      <span class="version-text">&copy; 2026 Habrmnc</span>
+      <span class="version-text">Bilet v{{ appVersion }}</span>
     </div>
   </div>
 </div>
 
-
-<!-- Bin Modal (History) -->
-<div class="help-overlay bin-overlay" *ngIf="showBin" (click)="showBin = false">
-  <div class="help-content bin-content" (click)="$event.stopPropagation()">
-    <div class="bin-header">
-      <h2>History / Trash</h2>
+<!-- Bin Modal (History & Trash) -->
+<div class="help-overlay" *ngIf="showBin" (click)="showBin = false">
+  <div class="help-content bin-modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <span class="modal-title">History</span>
+        <span class="modal-subtitle">{{ binItems.length }} archived item{{ binItems.length === 1 ? '' : 's' }}</span>
+      </div>
+      <div class="modal-header-actions">
+        <button class="ghost-action-btn danger-text" *ngIf="binItems.length > 0 && !isConfirmingClearAll"
+          (click)="isConfirmingClearAll = true" title="Clear all history (Ctrl+Shift+C)">
+          Clear all
+        </button>
+        <button class="modal-close-btn" (click)="showBin = false" title="Close (Esc)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
     </div>
 
-    <div class="search-results scrollable" *ngIf="binItems.length > 0">
+    <!-- Bulk Clear Confirmation Banner -->
+    <div class="inline-confirm-banner danger" *ngIf="isConfirmingClearAll">
+      <div class="confirm-banner-text">
+        <strong>Clear all history?</strong>
+        <span>Permanently delete all {{ binItems.length }} items.</span>
+      </div>
+      <div class="confirm-banner-actions">
+        <button class="studio-btn danger-sm" (click)="clearBin()">Confirm</button>
+        <button class="studio-btn secondary-sm" (click)="isConfirmingClearAll = false">Cancel</button>
+      </div>
+    </div>
+
+    <div class="modal-body scrollable" *ngIf="binItems.length > 0">
       <div class="bin-item" *ngFor="let item of binItems" (click)="selectedBinItemId = { id: item.id, type: item.type }"
         [class.selected]="selectedBinItemId?.id === item.id && selectedBinItemId?.type === item.type">
-        <div class="bin-item-content">
-          <p class="bin-text" [innerHTML]="formatContent(item.content)"></p>
-          <span class="bin-date">
-            {{ formatDate(item.timestamp) }}
-          </span>
+        <span class="bin-text" [innerHTML]="formatContent(item.content)"></span>
+
+        <div class="bin-item-meta">
+          <span class="bin-date">{{ formatDate(item.timestamp) }}</span>
+          <div class="bin-item-actions">
+            <button class="bin-action-btn restore" (click)="restoreItem(item); $event.stopPropagation()" title="Restore Note (Ctrl+R)">
+              Restore
+            </button>
+            <button class="bin-action-btn delete" (click)="permanentDeleteItem(item); $event.stopPropagation()" title="Delete Forever (Ctrl+D)">
+              ✕
+            </button>
+          </div>
         </div>
 
-        <!-- Individual Restoration Confirmation Overlay -->
-        <div class="delete-overlay"
-          *ngIf="isConfirmingRestoreId?.id === item.id && isConfirmingRestoreId?.type === item.type">
-          <span>Restore?</span>
+        <!-- Individual Restoration Overlay -->
+        <div class="inline-row-overlay" *ngIf="isConfirmingRestoreId?.id === item.id && isConfirmingRestoreId?.type === item.type">
+          <span>Restore note?</span>
+          <div class="inline-row-buttons">
+            <button class="studio-btn primary-xs" (click)="restoreItem(item); isConfirmingRestoreId = null; $event.stopPropagation()">Restore</button>
+            <button class="studio-btn secondary-xs" (click)="isConfirmingRestoreId = null; $event.stopPropagation()">Cancel</button>
+          </div>
         </div>
 
-        <!-- Individual Permanent Deletion Confirmation Overlay -->
-        <div class="delete-overlay"
-          *ngIf="isConfirmingBinDeleteId?.id === item.id && isConfirmingBinDeleteId?.type === item.type">
-          <span>Delete Forever?</span>
+        <!-- Individual Permanent Deletion Overlay -->
+        <div class="inline-row-overlay danger" *ngIf="isConfirmingBinDeleteId?.id === item.id && isConfirmingBinDeleteId?.type === item.type">
+          <span>Delete forever?</span>
+          <div class="inline-row-buttons">
+            <button class="studio-btn danger-xs" (click)="permanentDeleteItem(item); isConfirmingBinDeleteId = null; $event.stopPropagation()">Delete</button>
+            <button class="studio-btn secondary-xs" (click)="isConfirmingBinDeleteId = null; $event.stopPropagation()">Cancel</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Bulk Clear Confirmation Overlay -->
-    <div class="delete-overlay bulk-clear-overlay" *ngIf="isConfirmingClearAll">
-      <span>Clear all history?</span>
-      <span class="search-hint bin-hint">Press Enter to confirm clear</span>
-    </div>
-
     <div class="empty-state" *ngIf="binItems.length === 0">
-      <p>Bilet history is empty.</p>
+      <p class="empty-title">History is clean</p>
+      <span class="empty-subtitle">Deleted notes will appear here.</span>
     </div>
   </div>
 </div>
 
-<!-- Document Drawer Modal (All Notes) -->
-<div class="help-overlay bin-overlay" *ngIf="showDrawer" (click)="showDrawer = false">
-  <div class="help-content bin-content" (click)="$event.stopPropagation()">
-    <div class="bin-header">
-      <h2>All Vault Documents</h2>
+<!-- Document Drawer Modal (All Workspace Notes) -->
+<div class="help-overlay" *ngIf="showDrawer" (click)="showDrawer = false">
+  <div class="help-content doc-modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <span class="modal-title">All Workspace Notes</span>
+        <span class="modal-subtitle">{{ allNonDeletedPads.length }} note{{ allNonDeletedPads.length === 1 ? '' : 's' }}</span>
+      </div>
+      <button class="modal-close-btn" (click)="showDrawer = false" title="Close (Esc)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
     </div>
 
-    <div class="search-results scrollable" *ngIf="allNonDeletedPads.length > 0">
-      <div class="bin-item" *ngFor="let item of allNonDeletedPads" (click)="reopenPadFromDrawer(item.id)">
-        <div class="bin-item-content">
-          <p class="bin-text" [innerHTML]="formatContent(item.title || 'Untitled')"></p>
-          <span class="bin-date">
-            {{ item.is_open ? 'Open Tab' : 'Closed Tab' }} &bull; Updated {{ formatDate(item.updated_at) }}
-          </span>
+    <div class="modal-body scrollable" *ngIf="allNonDeletedPads.length > 0">
+      <div class="doc-item" *ngFor="let item of allNonDeletedPads" (click)="reopenPadFromDrawer(item.id)">
+        <div class="doc-item-left">
+          <span class="doc-status-dot" [class.active]="item.is_open"></span>
+          <div class="doc-item-info">
+            <span class="doc-item-title">{{ getPadTabTitle(item) }}</span>
+            <span class="doc-item-meta">{{ formatDate(item.updated_at) }}</span>
+          </div>
+        </div>
+        <div class="doc-item-right">
+          <span class="doc-pill" *ngIf="item.is_open">Open Tab</span>
         </div>
       </div>
     </div>
 
     <div class="empty-state" *ngIf="allNonDeletedPads.length === 0">
-      <p>No documents found in vault.</p>
+      <p class="empty-title">No notes found</p>
+      <span class="empty-subtitle">Your workspace currently has no active notes.</span>
     </div>
   </div>
 </div>
 
 <!-- Font Settings Modal -->
 <div class="help-overlay" *ngIf="showFontSettings" (click)="showFontSettings = false">
-  <div class="help-content settings-content" (click)="$event.stopPropagation()">
-    <div class="bin-header">
-      <h2>Change Font Style</h2>
+  <div class="help-content font-modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <span class="modal-title">Typography & Font</span>
+        <span class="modal-subtitle">Choose editor typeface</span>
+      </div>
+      <button class="modal-close-btn" (click)="showFontSettings = false" title="Close (Esc)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
     </div>
 
-    <div class="font-list">
-      <div class="font-item" *ngFor="let font of availableFonts; let i = index"
-        (click)="setFont(font.name); showFontSettings = false" [class.selected]="selectedFont === font.name"
-        [class.focused]="focusedFontIndex === i">
-        <span [style.font-family]="font.family">{{ font.name }}</span>
-        <button class="font-delete-btn" *ngIf="font.isCustom" (click)="deleteCustomFont(font.name, $event)"
-          title="Remove font">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+    <div class="modal-body scrollable">
+      <div class="font-list-group">
+        <div class="font-item" *ngFor="let font of availableFonts; let i = index"
+          (click)="setFont(font.name); showFontSettings = false"
+          [class.selected]="selectedFont === font.name"
+          [class.focused]="focusedFontIndex === i">
+          <span class="font-item-name" [style.font-family]="font.family">{{ font.name }}</span>
+          <div class="font-item-actions">
+            <svg class="font-check-icon" *ngIf="selectedFont === font.name" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <button class="font-delete-btn" *ngIf="font.isCustom" (click)="deleteCustomFont(font.name, $event)"
+              title="Remove custom font">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div class="font-item upload-font" (click)="uploadFont()">
-        <span>Upload Custom Font (.ttf/.otf)</span>
+      <div class="upload-font-row" (click)="uploadFont()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        <span>Upload custom font (.ttf, .otf)...</span>
       </div>
     </div>
   </div>
@@ -750,51 +781,44 @@
 
 <!-- Reset Shortcuts Confirmation Modal -->
 <div class="help-overlay save-prompt-overlay" *ngIf="isConfirmingResetShortcuts"
-  (click)="isConfirmingResetShortcuts = false" style="z-index: 2000;">
-  <div class="help-content prompt-content" (click)="$event.stopPropagation()">
-    <h2>Reset Defaults</h2>
-    <p>Are you sure you want to revert all customized shortcuts back to their default configuration?</p>
-    <div class="prompt-modal-buttons">
-      <button class="prompt-btn primary-btn" (click)="confirmResetAllShortcuts()">Reset</button>
-      <button class="prompt-btn secondary-btn" (click)="isConfirmingResetShortcuts = false">Cancel</button>
+  (click)="isConfirmingResetShortcuts = false" style="z-index: 2100;">
+  <div class="help-content prompt-modal-box" (click)="$event.stopPropagation()">
+    <div class="prompt-icon-wrapper revert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+      </svg>
+    </div>
+    <div class="prompt-text-group">
+      <h3 class="prompt-title">Reset Keybindings</h3>
+      <p class="prompt-desc">Revert all customized shortcuts back to factory default?</p>
+    </div>
+    <div class="prompt-actions-row">
+      <button class="studio-btn secondary" (click)="isConfirmingResetShortcuts = false">Cancel</button>
+      <button class="studio-btn danger" (click)="confirmResetAllShortcuts()">Reset</button>
     </div>
   </div>
 </div>
 
 <!-- Shortcut Conflict Modal -->
 <div class="help-overlay save-prompt-overlay" *ngIf="shortcutConflictMessage" (click)="shortcutConflictMessage = null"
-  style="z-index: 2100;">
-  <div class="help-content prompt-content" (click)="$event.stopPropagation()">
-    <h2>Shortcut in Use</h2>
-    <p>{{ shortcutConflictMessage }}</p>
-    <div class="prompt-modal-buttons">
-      <button class="prompt-btn primary-btn" (click)="shortcutConflictMessage = null">OK</button>
+  style="z-index: 2200;">
+  <div class="help-content prompt-modal-box" (click)="$event.stopPropagation()">
+    <div class="prompt-icon-wrapper info">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="16" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12.01" y2="8" />
+      </svg>
+    </div>
+    <div class="prompt-text-group">
+      <h3 class="prompt-title">Shortcut in Use</h3>
+      <p class="prompt-desc">{{ shortcutConflictMessage }}</p>
+    </div>
+    <div class="prompt-actions-row">
+      <button class="studio-btn primary" (click)="shortcutConflictMessage = null">Got it</button>
     </div>
   </div>
 </div>
 
-<!-- Change Password Modal -->
-<div class="help-overlay" *ngIf="isChangingPassword" (click)="isChangingPassword = false" style="z-index: 2200;">
-  <div class="help-content" (click)="$event.stopPropagation()" style="text-align: center; max-width: 400px;">
-    <h2 style="margin-top: 0; margin-bottom: 8px;">Change Master Password</h2>
-    <p style="margin-bottom: 24px; opacity: 0.6; font-size: 13px;">This will re-encrypt your entire vault with the new
-      password. Ensure you don't forget it!</p>
 
-    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px;">
-      <input type="password" [(ngModel)]="oldPasswordInput" placeholder="Old Password" class="action-btn"
-        style="text-align: left; cursor: text; padding: 12px 16px;">
-      <input type="password" [(ngModel)]="newPasswordInput" placeholder="New Password" class="action-btn"
-        style="text-align: left; cursor: text; padding: 12px 16px;">
-      <input type="password" [(ngModel)]="confirmPasswordInput" placeholder="Confirm New Password" class="action-btn"
-        style="text-align: left; cursor: text; padding: 12px 16px;">
-    </div>
-
-    <div style="display: flex; gap: 12px; justify-content: center;">
-      <button class="action-btn" (click)="isChangingPassword = false">Cancel</button>
-      <button class="action-btn primary-btn" (click)="performChangePassword()"
-        [disabled]="!oldPasswordInput || !newPasswordInput || newPasswordInput !== confirmPasswordInput">
-        Update Password
-      </button>
-    </div>
-  </div>
-</div>
