@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+      - 'bilet-v*'
 
 jobs:
   publish-tauri:

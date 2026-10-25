@@ -163,7 +163,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
   authStatus: AuthStatus = "Unlocked";
   errorMessage = "";
   isDarkMode = false;
-  appVersion = "1.3.1";
+  appVersion = "1.4.0";
   isSticky = localStorage.getItem('isSticky') === 'true';
 
   async toggleStickyMode() {
