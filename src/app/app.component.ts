@@ -745,7 +745,7 @@ export class AppComponent implements AfterViewChecked, OnInit, OnDestroy {
         backgroundColor: "var(--selection-match-bg, rgba(255, 255, 255, 0.12)) !important"
       },
       ".cm-content ::selection, .cm-line ::selection": {
-        backgroundColor: "transparent !important",
+        backgroundColor: "var(--selection-bg, rgba(255, 255, 255, 0.22)) !important",
         color: "var(--selection-color, #ffffff) !important"
       }
     });

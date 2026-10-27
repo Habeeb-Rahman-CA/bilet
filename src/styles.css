@@ -34,7 +34,7 @@
   --main-font: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
   --transition-speed: 0.3s;
   --selection-bg: rgba(0, 0, 0, 0.12);
-  --selection-color: #000000;
+  --selection-color: #00000030;
   --selection-match-bg: rgba(0, 0, 0, 0.07);
 }
 
@@ -48,7 +48,7 @@ html.dark-mode {
   --hover-color: #181818;
   --titlebar-bg: #0d0d0d;
   --selection-bg: rgba(255, 255, 255, 0.22);
-  --selection-color: #ffffff;
+  --selection-color: #ffffff30;
   --selection-match-bg: rgba(255, 255, 255, 0.12);
 }
 

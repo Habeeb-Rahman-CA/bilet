@@ -860,18 +860,13 @@ fn get_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
             let tab_index: i32 = row.get(10).unwrap_or(0);
             let file_path: Option<String> = row.get(11).unwrap_or(None);
 
-            let title_nonce = Nonce::from_slice(&title_nonce_bytes);
-            let title_dec = cipher
-                .decrypt(title_nonce, title_ciphertext.as_ref())
-                .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            let title = String::from_utf8(title_dec).map_err(|_| rusqlite::Error::InvalidQuery)?;
-
-            let content_nonce = Nonce::from_slice(&content_nonce_bytes);
-            let content_dec = cipher
-                .decrypt(content_nonce, content_ciphertext.as_ref())
-                .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            let content =
-                String::from_utf8(content_dec).map_err(|_| rusqlite::Error::InvalidQuery)?;
+            let (title, content) = decrypt_pad_fields(
+                &cipher,
+                &title_nonce_bytes,
+                &title_ciphertext,
+                &content_nonce_bytes,
+                &content_ciphertext,
+            );
 
             Ok(Pad {
                 id,
@@ -890,9 +885,47 @@ fn get_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
 
     let mut pads = Vec::new();
     for pad in pad_iter {
-        pads.push(pad.map_err(|e| format!("Decryption error: {}", e))?);
+        pads.push(pad.map_err(|e| e.to_string())?);
     }
     Ok(pads)
+}
+
+// Returns (title, content). If decryption fails (bad key, bad nonce length, corrupt
+// ciphertext), returns a placeholder so the row is still visible and recoverable
+// instead of taking down the whole get_pads call.
+fn decrypt_pad_fields(
+    cipher: &Aes256Gcm,
+    title_nonce_bytes: &[u8],
+    title_ciphertext: &[u8],
+    content_nonce_bytes: &[u8],
+    content_ciphertext: &[u8],
+) -> (String, String) {
+    const PLACEHOLDER_TITLE: &str = "\u{26A0} Corrupted (undecryptable)";
+    const PLACEHOLDER_CONTENT: &str =
+        "This note could not be decrypted with the current vault key. It may be left over from a \
+         prior password or an interrupted re-encryption. You can delete it from the tab bar.";
+
+    let try_decrypt = |nonce_bytes: &[u8], ciphertext: &[u8]| -> Option<String> {
+        if nonce_bytes.len() != 12 {
+            return None;
+        }
+        let nonce = Nonce::from_slice(nonce_bytes);
+        let plaintext = cipher.decrypt(nonce, ciphertext).ok()?;
+        String::from_utf8(plaintext).ok()
+    };
+
+    match (
+        try_decrypt(title_nonce_bytes, title_ciphertext),
+        try_decrypt(content_nonce_bytes, content_ciphertext),
+    ) {
+        (Some(t), Some(c)) => (t, c),
+        (Some(t), None) => (t, PLACEHOLDER_CONTENT.to_string()),
+        (None, Some(c)) => (PLACEHOLDER_TITLE.to_string(), c),
+        (None, None) => (
+            PLACEHOLDER_TITLE.to_string(),
+            PLACEHOLDER_CONTENT.to_string(),
+        ),
+    }
 }
 
 #[tauri::command]
@@ -994,18 +1027,13 @@ fn get_bin_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
             let tab_index: i32 = row.get(10).unwrap_or(0);
             let file_path: Option<String> = row.get(11).unwrap_or(None);
 
-            let title_nonce = Nonce::from_slice(&title_nonce_bytes);
-            let title_dec = cipher
-                .decrypt(title_nonce, title_ciphertext.as_ref())
-                .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            let title = String::from_utf8(title_dec).map_err(|_| rusqlite::Error::InvalidQuery)?;
-
-            let content_nonce = Nonce::from_slice(&content_nonce_bytes);
-            let content_dec = cipher
-                .decrypt(content_nonce, content_ciphertext.as_ref())
-                .map_err(|_| rusqlite::Error::InvalidQuery)?;
-            let content =
-                String::from_utf8(content_dec).map_err(|_| rusqlite::Error::InvalidQuery)?;
+            let (title, content) = decrypt_pad_fields(
+                &cipher,
+                &title_nonce_bytes,
+                &title_ciphertext,
+                &content_nonce_bytes,
+                &content_ciphertext,
+            );
 
             Ok(Pad {
                 id,
@@ -1024,7 +1052,7 @@ fn get_bin_pads(state: State<'_, DbState>) -> Result<Vec<Pad>, String> {
 
     let mut pads = Vec::new();
     for pad in pad_iter {
-        pads.push(pad.map_err(|e| format!("Decryption error: {}", e))?);
+        pads.push(pad.map_err(|e| e.to_string())?);
     }
     Ok(pads)
 }
